@@ -502,7 +502,8 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
                 const deletableDivisionIds = selectedDivisionIds.filter(id => !users.some(u => u.divisionId === id));
                 
                 if (deletableDivisionIds.length === 0) {
-                     addNotification('Tidak ada divisi yang dapat dihapus (semua memiliki anggota).', 'warning');
+// FIX: Changed 'warning' to 'error' to match the allowed NotificationType values.
+                     addNotification('Tidak ada divisi yang dapat dihapus (semua memiliki anggota).', 'error');
                      setBulkDeleteConfirmation(null);
                      setIsLoading(false);
                      handleCancelBulkMode();

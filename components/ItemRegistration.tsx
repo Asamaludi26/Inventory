@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 // FIX: Import PreviewData from central types file to resolve import error.
-import { Asset, AssetStatus, AssetCondition, Attachment, Request, User, Customer, Handover, Dismantle, ActivityLogEntry, PreviewData } from '../types';
+import { Asset, AssetStatus, AssetCondition, Attachment, Request, User, Customer, Handover, Dismantle, ActivityLogEntry, PreviewData, AssetCategory } from '../types';
 import Modal from './shared/Modal';
 import DatePicker from './shared/DatePicker';
 import { InfoIcon } from './icons/InfoIcon';
@@ -49,6 +49,7 @@ interface ItemRegistrationProps {
     requests: Request[];
     handovers: Handover[];
     dismantles: Dismantle[];
+    assetCategories: AssetCategory[];
     prefillData?: Request | null;
     onClearPrefill: () => void;
     onRegistrationComplete: (requestId: string) => void;
@@ -62,17 +63,6 @@ interface ItemRegistrationProps {
     onClearItemToEdit: () => void;
     onShowPreview: (data: PreviewData) => void;
 }
-
-const ispAssetCategories: Record<string, string[]> = {
-    'Perangkat Jaringan': ['Router', 'Switch', 'Access Point', 'Firewall', 'OLT'],
-    'Perangkat Pelanggan (CPE)': ['Modem', 'Router WiFi', 'ONT/ONU', 'Set-Top Box'],
-    'Infrastruktur Fiber Optik': ['Kabel Fiber Optik', 'Splicer', 'OTDR', 'Patch Panel'],
-    'Server & Penyimpanan': ['Server Rack', 'Storage (NAS/SAN)', 'UPS'],
-    'Alat Ukur & Perkakas': ['Power Meter', 'Crimping Tools', 'LAN Tester'],
-    'Perangkat Pendukung': ['Tiang/Pole', 'Kabel UTP', 'Konektor'],
-    'Komputer': ['Laptop', 'PC Desktop'],
-    'Peripheral': ['Monitor', 'Printer', 'Scanner'],
-};
 
 const assetLocations = [
     'Gudang Inventori',
@@ -514,7 +504,8 @@ const RegistrationForm: React.FC<{
     onStartScan: (itemId: number, field: 'serialNumber' | 'macAddress') => void;
     bulkItems: { id: number, serialNumber: string, macAddress: string }[];
     setBulkItems: React.Dispatch<React.SetStateAction<{ id: number, serialNumber: string, macAddress: string }[]>>;
-}> = ({ onBack, onSave, prefillData, editingAsset, currentUser, onStartScan, bulkItems, setBulkItems }) => {
+    assetCategories: AssetCategory[];
+}> = ({ onBack, onSave, prefillData, editingAsset, currentUser, onStartScan, bulkItems, setBulkItems, assetCategories }) => {
     const isEditing = !!editingAsset;
     const [assetName, setAssetName] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
@@ -558,7 +549,8 @@ const RegistrationForm: React.FC<{
         if (isEditing && editingAsset) {
             setAssetName(editingAsset.name);
             setSelectedCategory(editingAsset.category);
-            setDeviceTypes(ispAssetCategories[editingAsset.category] || []);
+            const category = assetCategories.find(c => c.name === editingAsset.category);
+            setDeviceTypes(category ? category.types.map(t => t.name) : []);
             setAssetType(editingAsset.type);
             setBrand(editingAsset.brand);
             setPurchasePrice(editingAsset.purchasePrice ?? '');
@@ -574,7 +566,7 @@ const RegistrationForm: React.FC<{
             setInitialUser(editingAsset.currentUser ?? '');
             setNotes(editingAsset.notes ?? '');
         }
-    }, [isEditing, editingAsset]);
+    }, [isEditing, editingAsset, assetCategories]);
 
 
     useEffect(() => {
@@ -606,9 +598,10 @@ const RegistrationForm: React.FC<{
     };
 
     const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const category = e.target.value;
-        setSelectedCategory(category);
-        setDeviceTypes(ispAssetCategories[category] || []);
+        const categoryName = e.target.value;
+        setSelectedCategory(categoryName);
+        const category = assetCategories.find(c => c.name === categoryName);
+        setDeviceTypes(category ? category.types.map(t => t.name) : []);
         setAssetType('');
     };
     
@@ -724,7 +717,7 @@ const RegistrationForm: React.FC<{
                         <label htmlFor="category" className="block text-sm font-medium text-gray-700">Kategori Aset</label>
                         <select id="category" onChange={handleCategoryChange} value={selectedCategory} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm">
                             <option value="">-- Pilih Kategori --</option>
-                            {Object.keys(ispAssetCategories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            {assetCategories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                         </select>
                     </div>
                     <div>
@@ -899,7 +892,7 @@ const RegistrationForm: React.FC<{
     );
 };
 
-export const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets, setAssets, customers, requests, handovers, dismantles, prefillData, onClearPrefill, onRegistrationComplete, onInitiateHandover, onInitiateInstallation, onInitiateDismantle, assetToViewId, initialFilters, onClearInitialFilters, itemToEdit, onClearItemToEdit, onShowPreview }) => {
+export const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets, setAssets, customers, requests, handovers, dismantles, assetCategories, prefillData, onClearPrefill, onRegistrationComplete, onInitiateHandover, onInitiateInstallation, onInitiateDismantle, assetToViewId, initialFilters, onClearInitialFilters, itemToEdit, onClearItemToEdit, onShowPreview }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [assetToDeleteId, setAssetToDeleteId] = useState<string | null>(null);
@@ -1135,7 +1128,8 @@ export const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser,
             });
 
             if (deletableAssetIds.length === 0) {
-                addNotification('Tidak ada aset yang dapat dihapus (semua sedang digunakan).', 'warning');
+// FIX: Changed 'warning' to 'error' to match the allowed NotificationType values.
+                addNotification('Tidak ada aset yang dapat dihapus (semua sedang digunakan).', 'error');
                 setBulkDeleteConfirmation(false);
                 setIsLoading(false);
                 handleCancelBulkMode();
@@ -1711,6 +1705,7 @@ export const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser,
                             onStartScan={handleStartScan}
                             bulkItems={bulkItems}
                             setBulkItems={setBulkItems}
+                            assetCategories={assetCategories}
                         />
                     </div>
                 </div>
@@ -1780,7 +1775,7 @@ export const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser,
                         </select>
                         <select onChange={e => handleFilterChange('category', e.target.value)} value={filters.category} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg lg:col-span-3 focus:ring-tm-accent focus:border-tm-accent">
                             <option value="">Semua Kategori</option>
-                            {filterOptions.categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            {assetCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                         <select onChange={e => handleFilterChange('dismantled', e.target.value)} value={filters.dismantled} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg lg:col-span-2 focus:ring-tm-accent focus:border-tm-accent">
                             <option value="">Semua Asal Aset</option>
@@ -2066,7 +2061,8 @@ export const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser,
                                 </DetailCard>
                             )}
                              <DetailCard title="Catatan">
-                                 <DetailItem value={selectedAsset.notes || 'Tidak ada catatan.'} fullWidth />
+{/* FIX: Added the required 'label' prop to the DetailItem component. */}
+                                 <DetailItem label="Catatan" value={selectedAsset.notes || 'Tidak ada catatan.'} fullWidth />
                              </DetailCard>
                         </div>
                     )}

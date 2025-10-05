@@ -8,7 +8,8 @@ export type Page =
   | 'akun'
   | 'divisi'
   | 'customers'
-  | 'stock';
+  | 'stock'
+  | 'kategori';
 
 // FIX: Added PreviewData type to be shared across components.
 export type PreviewData = {
@@ -203,4 +204,16 @@ export interface User {
 export interface Division {
   id: number;
   name: string;
+}
+
+export interface AssetType {
+  id: number;
+  name: string;
+}
+
+export interface AssetCategory {
+  id: number;
+  name: string;
+  types: AssetType[];
+  associatedDivisions: number[]; // Array of Division IDs
 }

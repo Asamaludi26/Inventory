@@ -13,6 +13,7 @@ import { TrinitiLogoIcon } from './icons/TrinitiLogoIcon';
 import { CustomerIcon } from './icons/CustomerIcon';
 import { BoxIcon } from './icons/BoxIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
+import { CategoryIcon } from './icons/CategoryIcon';
 
 interface SidebarProps {
   currentUser: User;
@@ -55,6 +56,7 @@ const allMenuItems: MenuItem[] = [
     children: [
         { id: 'settings-akun', page: 'akun', label: 'Akun', icon: UsersIcon },
         { id: 'settings-divisi', page: 'divisi', label: 'Divisi', icon: UsersIcon },
+        { id: 'settings-kategori', page: 'kategori', label: 'Kategori', icon: CategoryIcon },
     ]
   },
 ];

@@ -325,7 +325,8 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ currentUser, cu
         const deletableCustomerIds = selectedCustomerIds.filter(id => !assets.some(a => a.currentUser === id));
 
         if (deletableCustomerIds.length === 0) {
-            addNotification('Tidak ada pelanggan yang dapat dihapus (semua memiliki aset terpasang).', 'warning');
+// FIX: Changed 'warning' to 'error' to match the allowed NotificationType values.
+            addNotification('Tidak ada pelanggan yang dapat dihapus (semua memiliki aset terpasang).', 'error');
             setIsBulkDeleteModalOpen(false);
             return;
         }

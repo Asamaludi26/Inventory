@@ -876,12 +876,12 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ currentUser, disma
             
             {dismantleToDeleteId && (
                 <Modal isOpen={!!dismantleToDeleteId} onClose={() => setDismantleToDeleteId(null)} title="Konfirmasi Hapus" size="md" hideDefaultCloseButton>
-                    <div className="text-center">
+                     <div className="text-center">
                         <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
                             <ExclamationTriangleIcon className="w-8 h-8" />
                         </div>
                         <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Data Dismantle?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data dismantle <span className="font-bold">{dismantleToDeleteId}</span>?</p>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data dismantle <span className="font-bold">{dismantleToDeleteId}</span>? Tindakan ini tidak dapat diurungkan.</p>
                     </div>
                      <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
                         <button onClick={() => setDismantleToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
@@ -899,4 +899,24 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ currentUser, disma
                         <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus semua data dismantle yang dipilih? Tindakan ini tidak dapat diurungkan.</p>
                     </div>
                     <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                        <button onClick={() => setBulkDeleteConfirmation(
+                        <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button type="button" onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus ({selectedDismantleIds.length})</button>
+                    </div>
+                </Modal>
+            )}
+
+             {bulkCompleteConfirmation && (
+                 <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesai Massal" size="md" hideDefaultCloseButton>
+                    <div className="text-center">
+                        <h3 className="text-lg font-semibold text-gray-800">Tandai {selectedDismantleIds.length} Data Selesai?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda akan mengubah status data dismantle yang dipilih menjadi 'Selesai'. Lanjutkan?</p>
+                    </div>
+                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                        <button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button type="button" onClick={handleBulkComplete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Tandai Selesai ({selectedDismantleIds.length})</button>
+                    </div>
+                </Modal>
+            )}
+        </>
+    );
+};

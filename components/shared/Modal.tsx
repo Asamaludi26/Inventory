@@ -66,7 +66,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footerC
         <div className={`flex-1 overflow-y-auto custom-scrollbar ${!disableContentPadding ? 'p-6' : ''}`}>
           {children}
         </div>
-        {(footerContent && !hideDefaultCloseButton) && (
+        {footerContent && (
              <div className="flex items-center justify-end p-4 space-x-3 border-t bg-gray-50 rounded-b-xl">
                 {!hideDefaultCloseButton && (
                     <button

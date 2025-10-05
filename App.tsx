@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 // FIX: Import PreviewData from central types file.
-import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData } from './types';
+import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory } from './types';
 import { Sidebar } from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import ItemRequest, { initialMockRequests } from './components/ItemRequest';
@@ -18,6 +18,7 @@ import { CheckIcon } from './components/icons/CheckIcon';
 import StockOverview from './components/StockOverview';
 // FIX: Remove PreviewData import from here as it's now in types.ts.
 import { PreviewModal } from './components/shared/PreviewModal';
+import { CategoryManagement } from './components/CategoryManagement';
 
 
 declare var Html5Qrcode: any;
@@ -29,6 +30,34 @@ const currentUser: User = {
     divisionId: 1,
     role: 'Super Admin',
 };
+
+const ispAssetCategories: Record<string, string[]> = {
+    'Perangkat Jaringan': ['Router', 'Switch', 'Access Point', 'Firewall', 'OLT'],
+    'Perangkat Pelanggan (CPE)': ['Modem', 'Router WiFi', 'ONT/ONU', 'Set-Top Box'],
+    'Infrastruktur Fiber Optik': ['Kabel Fiber Optik', 'Splicer', 'OTDR', 'Patch Panel'],
+    'Server & Penyimpanan': ['Server Rack', 'Storage (NAS/SAN)', 'UPS'],
+    'Alat Ukur & Perkakas': ['Power Meter', 'Crimping Tools', 'LAN Tester'],
+    'Perangkat Pendukung': ['Tiang/Pole', 'Kabel UTP', 'Konektor'],
+    'Komputer': ['Laptop', 'PC Desktop'],
+    'Peripheral': ['Monitor', 'Printer', 'Scanner'],
+};
+
+const initialAssetCategories = (): AssetCategory[] => {
+  let categoryId = 1;
+  let typeId = 1;
+  return Object.entries(ispAssetCategories).map(([categoryName, types]) => {
+    return {
+      id: categoryId++,
+      name: categoryName,
+      types: types.map(typeName => ({
+        id: typeId++,
+        name: typeName,
+      })),
+      associatedDivisions: [], // Start with no associated divisions
+    };
+  });
+};
+
 
 const getRoleClass = (role: User['role']) => {
     switch(role) {
@@ -181,6 +210,7 @@ const AppContent: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
   const [users, setUsers] = useState<User[]>(initialMockUsers);
   const [divisions, setDivisions] = useState(mockDivisions);
+  const [assetCategories, setAssetCategories] = useState<AssetCategory[]>(initialAssetCategories);
   
   // State for pre-filling forms & cross-module modals
   const [prefillRegData, setPrefillRegData] = useState<Request | null>(null);
@@ -376,6 +406,7 @@ const AppContent: React.FC = () => {
                   requests={requests}
                   handovers={handovers}
                   dismantles={dismantles}
+                  assetCategories={assetCategories}
                   prefillData={prefillRegData}
                   onClearPrefill={() => setPrefillRegData(null)}
                   onRegistrationComplete={handleCompleteRequestRegistration}
@@ -418,6 +449,8 @@ const AppContent: React.FC = () => {
         return <AccountsAndDivisions currentUser={currentUser} users={users} setUsers={setUsers} divisions={divisions} setDivisions={setDivisions} initialView="users" onNavigate={handleNavigate} />;
       case 'divisi':
         return <AccountsAndDivisions currentUser={currentUser} users={users} setUsers={setUsers} divisions={divisions} setDivisions={setDivisions} initialView="divisions" onNavigate={handleNavigate} />;
+      case 'kategori':
+        return <CategoryManagement categories={assetCategories} setCategories={setAssetCategories} divisions={divisions} assets={assets} />;
       case 'customers':
         return <CustomerManagement 
                   currentUser={currentUser}
