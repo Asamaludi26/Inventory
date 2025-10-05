@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset } from '../types';
+// FIX: Import PreviewData from the central types file.
+import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData } from '../types';
 import Modal from './shared/Modal';
 import { CloseIcon } from './icons/CloseIcon';
 import DatePicker from './shared/DatePicker';
@@ -26,7 +27,6 @@ import { RegisterIcon } from './icons/RegisterIcon';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 import { Tooltip } from './shared/Tooltip';
 import { ClickableLink } from './shared/ClickableLink';
-import { PreviewData } from './shared/PreviewModal';
 
 
 interface ItemRequestProps {
@@ -55,6 +55,18 @@ export const initialMockRequests: Request[] = Array.from({ length: 120 }, (_, i)
         { name: 'HTB 3100 A/B', brand: 'Netlink', stock: 40 },
         { name: 'IP Phone GXP1625', brand: 'Grandstream', stock: 12 },
     ];
+    const keteranganPool = [
+        'Kebutuhan project perluasan jaringan area Bintaro',
+        'Penggantian perangkat ONT lama di pelanggan',
+        'Stok untuk tim instalasi lapangan',
+        'Instalasi pelanggan korporat baru PT. ABC',
+        'Penambahan kapasitas pada core router utama',
+        'Untuk keperluan demo produk ke klien',
+        'Perbaikan perangkat OLT yang rusak di POP Cempaka Putih',
+        'Stok gudang menipis, perlu pengadaan rutin',
+        'Kebutuhan untuk event pameran teknologi',
+        'Upgrade perangkat access point di kantor internal',
+    ];
     const statuses = [ItemStatus.APPROVED, ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.REJECTED, ItemStatus.COMPLETED, ItemStatus.PENDING, ItemStatus.APPROVED];
     
     const status = statuses[i % statuses.length];
@@ -73,7 +85,7 @@ export const initialMockRequests: Request[] = Array.from({ length: 120 }, (_, i)
             itemTypeBrand: selectedItem.brand,
             stock: selectedItem.stock,
             quantity,
-            keterangan: `Kebutuhan untuk project ${division} #${i+1}`
+            keterangan: keteranganPool[(i + j) % keteranganPool.length],
         });
     }
 

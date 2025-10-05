@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Asset, AssetStatus, AssetCondition, Attachment, Request, User, Customer, Handover, Dismantle, ActivityLogEntry } from '../types';
+// FIX: Import PreviewData from central types file to resolve import error.
+import { Asset, AssetStatus, AssetCondition, Attachment, Request, User, Customer, Handover, Dismantle, ActivityLogEntry, PreviewData } from '../types';
 import Modal from './shared/Modal';
 import DatePicker from './shared/DatePicker';
 import { InfoIcon } from './icons/InfoIcon';
@@ -36,7 +37,6 @@ import { TagIcon } from './icons/TagIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { Tooltip } from './shared/Tooltip';
 import { ClickableLink } from './shared/ClickableLink';
-import { PreviewData } from './shared/PreviewModal';
 
 declare var QRCode: any;
 declare var Html5Qrcode: any;
@@ -155,6 +155,33 @@ const generateMockAssets = (): Asset[] => {
              modDate.setMonth(modDate.getMonth() + 2);
              lastModifiedDate = modDate.toISOString();
              lastModifiedBy = 'John Doe';
+        }
+
+        // Force statuses for assets to clearly demonstrate the CPE-only installation rule.
+        // These will override any previous random or block assignments.
+        if (i === 1) { // Non-CPE: OLT
+            status = AssetStatus.IN_STORAGE;
+            condition = AssetCondition.BRAND_NEW;
+            isDismantled = false;
+            dismantleInfo = undefined;
+        }
+        if (i === 2) { // Non-CPE: Switch
+            status = AssetStatus.IN_STORAGE;
+            condition = AssetCondition.GOOD;
+            isDismantled = false;
+            dismantleInfo = undefined;
+        }
+        if (i === 4) { // CPE: ONT
+            status = AssetStatus.IN_STORAGE;
+            condition = AssetCondition.BRAND_NEW;
+            isDismantled = false;
+            dismantleInfo = undefined;
+        }
+        if (i === 5) { // CPE: Router WiFi
+            status = AssetStatus.IN_STORAGE;
+            condition = AssetCondition.GOOD;
+            isDismantled = false;
+            dismantleInfo = undefined;
         }
 
         let location: string | null = assetLocations[i % assetLocations.length];
@@ -1336,22 +1363,29 @@ export const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser,
         
         const canBeAssigned = selectedAsset.status === AssetStatus.IN_STORAGE;
         const canBeDismantled = selectedAsset.status === AssetStatus.IN_USE;
+        const isCpeDevice = selectedAsset.category === 'Perangkat Pelanggan (CPE)';
 
         return (
             <div className="flex items-center justify-end flex-1 space-x-3 no-print">
                 {canBeAssigned && (
                     <>
-                        <Tooltip text="Buat form serah terima untuk pemasangan aset ke pelanggan.">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    onInitiateInstallation(selectedAsset);
-                                }}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
-                            >
-                                <CustomerIcon className="w-4 h-4" />
-                                Pasang ke Pelanggan
-                            </button>
+                        <Tooltip text={isCpeDevice ? "Buat form serah terima untuk pemasangan aset ke pelanggan." : "Hanya aset kategori 'Perangkat Pelanggan (CPE)' yang dapat dipasang."}>
+                            {/* Wrapping with a span ensures the tooltip works even when the button is disabled */}
+                            <span className={!isCpeDevice ? 'cursor-not-allowed' : ''}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (isCpeDevice) {
+                                            onInitiateInstallation(selectedAsset);
+                                        }
+                                    }}
+                                    disabled={!isCpeDevice}
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/50 disabled:cursor-not-allowed"
+                                >
+                                    <CustomerIcon className="w-4 h-4" />
+                                    Pasang ke Pelanggan
+                                </button>
+                            </span>
                         </Tooltip>
                         <Tooltip text="Buat form serah terima untuk pemindahan aset antar staf/divisi.">
                             <button

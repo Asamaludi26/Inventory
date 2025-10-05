@@ -5,9 +5,16 @@ export type Page =
   | 'request'
   | 'handover'
   | 'dismantle'
-  | 'accounts'
+  | 'akun'
+  | 'divisi'
   | 'customers'
   | 'stock';
+
+// FIX: Added PreviewData type to be shared across components.
+export type PreviewData = {
+    type: 'asset' | 'customer' | 'user' | 'request' | 'handover' | 'dismantle' | 'customerAssets' | 'stockItemAssets';
+    id: string | number;
+};
 
 export enum CustomerStatus {
   ACTIVE = 'Aktif',

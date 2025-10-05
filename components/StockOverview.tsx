@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Asset, AssetStatus, Page } from '../types';
+// FIX: Import PreviewData from the central types file.
+import { Asset, AssetStatus, Page, PreviewData } from '../types';
 import { useSortableData, SortConfig } from '../hooks/useSortableData';
 import { PaginationControls } from './shared/PaginationControls';
 import { SearchIcon } from './icons/SearchIcon';
@@ -11,7 +12,6 @@ import { BoxIcon } from './icons/BoxIcon';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 import { AssetIcon } from './icons/AssetIcon';
 import { RequestIcon } from './icons/RequestIcon';
-import { PreviewData } from './shared/PreviewModal';
 import { ClickableLink } from './shared/ClickableLink';
 
 interface StockOverviewProps {

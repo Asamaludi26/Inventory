@@ -12,42 +12,62 @@ import { UsersIcon } from './icons/UsersIcon';
 import { TrinitiLogoIcon } from './icons/TrinitiLogoIcon';
 import { CustomerIcon } from './icons/CustomerIcon';
 import { BoxIcon } from './icons/BoxIcon';
+import { SettingsIcon } from './icons/SettingsIcon';
 
 interface SidebarProps {
   currentUser: User;
   activePage: Page;
-  setActivePage: (page: Page) => void;
+  setActivePage: (page: Page, filters?: any) => void;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
 }
 
-const allMenuItems = [
+type MenuItem = {
+  id: string; // Unique identifier for the item itself
+  label: string;
+  icon: React.FC<{ className?: string }>;
+  roles?: User['role'][];
+  children?: MenuItem[];
+  page?: Page; // The page ID it navigates to, if different from id
+  filter?: Record<string, any>; // Filters to pass to the page
+};
+
+const allMenuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
   {
     id: 'assetManagement',
     label: 'Manajemen Aset',
     icon: AssetIcon,
     children: [
-      { id: 'registration', label: 'Daftar Aset', icon: RegisterIcon },
-      { id: 'stock', label: 'Stok Barang', icon: BoxIcon },
-      { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Admin', 'Super Admin'] },
-      { id: 'request', label: 'Daftar Request', icon: RequestIcon },
-      { id: 'handover', label: 'Daftar Handover', icon: HandoverIcon },
-      { id: 'dismantle', label: 'Daftar Dismantle', icon: DismantleIcon },
+      { id: 'registration', label: 'Catat Aset', icon: RegisterIcon },
+      { id: 'stock', label: 'Stok Aset', icon: BoxIcon },
+      { id: 'request', label: 'Request Aset', icon: RequestIcon },
+      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon },
+      { id: 'dismantle', label: 'Dismantle Aset', icon: DismantleIcon },
     ],
   },
-  { id: 'accounts', label: 'Akun & Divisi', icon: UsersIcon, roles: ['Admin', 'Super Admin'] },
+  { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Admin', 'Super Admin'] },
+  {
+    id: 'settings',
+    label: 'Pengaturan',
+    icon: SettingsIcon,
+    roles: ['Admin', 'Super Admin'],
+    children: [
+        { id: 'settings-akun', page: 'akun', label: 'Akun', icon: UsersIcon },
+        { id: 'settings-divisi', page: 'divisi', label: 'Divisi', icon: UsersIcon },
+    ]
+  },
 ];
 
-const assetPages = allMenuItems.find(i => i.id === 'assetManagement')?.children?.map(c => c.id) || [];
 
 const NavLink: React.FC<{
-  item: { id: string; label: string; icon: React.FC<{ className?: string }> };
+  item: MenuItem;
   activePage: Page;
   onClick: () => void;
   isSubmenu?: boolean;
 }> = ({ item, activePage, onClick, isSubmenu = false }) => {
-  const isActive = activePage === item.id;
+  const pageId = item.page || (item.id as Page);
+  const isActive = activePage === pageId;
   const baseClasses = 'relative flex items-center px-4 py-2.5 my-1 rounded-md text-sm font-medium transition-colors duration-200 group';
   const activeClasses = 'bg-gray-700/60 text-white';
   const inactiveClasses = 'text-gray-400 hover:bg-gray-700/40 hover:text-white';
@@ -70,7 +90,18 @@ const NavLink: React.FC<{
 
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setActivePage, isOpen, setIsOpen }) => {
-    const [isAssetMenuOpen, setIsAssetMenuOpen] = useState(assetPages.includes(activePage));
+    const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => {
+        const initialState: Record<string, boolean> = {};
+        allMenuItems.forEach(item => {
+            if (item.children) {
+                const childPages = item.children.map(c => c.page || c.id);
+                if (childPages.includes(activePage)) {
+                    initialState[item.id] = true;
+                }
+            }
+        });
+        return initialState;
+    });
 
     const menuItems = React.useMemo(() => {
         return allMenuItems.filter(item => {
@@ -94,13 +125,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
 
 
     useEffect(() => {
-        if (assetPages.includes(activePage)) {
-            setIsAssetMenuOpen(true);
-        }
+        allMenuItems.forEach(item => {
+            if (item.children) {
+                const childPages = item.children.map(c => c.page || c.id);
+                if (childPages.includes(activePage)) {
+                    setOpenMenus(prev => ({...prev, [item.id]: true}));
+                }
+            }
+        });
     }, [activePage]);
 
-    const handleNavClick = (page: Page) => {
-        setActivePage(page);
+    const handleNavClick = (page: Page, filters?: Record<string, any>) => {
+        setActivePage(page, filters);
         if(window.innerWidth < 768) { // close on mobile
             setIsOpen(false);
         }
@@ -119,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
             </div>
             <nav className="flex-1 p-3 overflow-y-auto custom-scrollbar">
                 {menuItems.map((item) => {
-                    if (!item.children) {
+                    if (!item.children || item.children.length === 0) {
                         return (
                             <NavLink 
                                 key={item.id} 
@@ -130,28 +166,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                         );
                     }
 
-                    const isParentActive = assetPages.includes(activePage);
+                    const isParentActive = item.children?.some(child => (child.page || child.id) === activePage);
 
                     return (
                         <div key={item.id}>
                             <button
-                                onClick={() => setIsAssetMenuOpen(!isAssetMenuOpen)}
+                                onClick={() => setOpenMenus(prev => ({...prev, [item.id]: !prev[item.id]}))}
                                 className={`flex items-center justify-between w-full px-4 py-2.5 my-1 rounded-md text-sm font-medium transition-colors duration-200 group focus:outline-none ${isParentActive ? 'text-white' : 'text-gray-400'} hover:bg-gray-700/40 hover:text-white`}
                             >
                                 <div className="flex items-center">
                                     <item.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isParentActive ? 'text-white' : 'text-gray-500'}`} />
                                     <span>{item.label}</span>
                                 </div>
-                                <ChevronDownIcon className={`w-5 h-5 transform transition-transform duration-200 ${isAssetMenuOpen ? 'rotate-180' : 'rotate-0'}`} />
+                                <ChevronDownIcon className={`w-5 h-5 transform transition-transform duration-200 ${openMenus[item.id] ? 'rotate-180' : 'rotate-0'}`} />
                             </button>
-                            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isAssetMenuOpen ? 'max-h-96' : 'max-h-0'}`}>
+                            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openMenus[item.id] ? 'max-h-96' : 'max-h-0'}`}>
                                 <div className="pt-1 pb-1 pl-6">
                                     {item.children.map((child) => (
                                         <NavLink
                                             key={child.id}
-                                            item={{...child, label: child.label.replace('Form ', '')} as any}
+                                            item={child as any}
                                             activePage={activePage}
-                                            onClick={() => handleNavClick(child.id as Page)}
+                                            onClick={() => handleNavClick((child.page || child.id) as Page, child.filter)}
                                             isSubmenu={true}
                                         />
                                     ))}

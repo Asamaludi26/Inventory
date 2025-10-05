@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Customer, CustomerStatus, Asset, User, ActivityLogEntry } from '../types';
+// FIX: Import PreviewData from the central types file.
+import { Customer, CustomerStatus, Asset, User, ActivityLogEntry, PreviewData } from '../types';
 import { useSortableData, SortConfig } from '../hooks/useSortableData';
 import { useLongPress } from '../hooks/useLongPress';
 import { useNotification } from './shared/Notification';
@@ -21,7 +22,6 @@ import { DismantleIcon } from './icons/DismantleIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import DatePicker from './shared/DatePicker';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
-import { PreviewData } from './shared/PreviewModal';
 import { ClickableLink } from './shared/ClickableLink';
 
 interface CustomerManagementProps {

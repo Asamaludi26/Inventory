@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry } from './types';
+// FIX: Import PreviewData from central types file.
+import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData } from './types';
 import { Sidebar } from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import ItemRequest, { initialMockRequests } from './components/ItemRequest';
 import { ItemRegistration, mockAssets } from './components/ItemRegistration';
-import ItemHandover, { mockHandovers } from './components/ItemHandover';
+import { ItemHandover, mockHandovers } from './components/ItemHandover';
 import { ItemDismantle, mockDismantles } from './components/ItemDismantle';
 import AccountsAndDivisions, { mockUsers as initialMockUsers, mockDivisions } from './components/AccountsAndDivisions';
 import CustomerManagement, { mockCustomers } from './components/CustomerManagement';
@@ -15,7 +16,8 @@ import { SpinnerIcon } from './components/icons/SpinnerIcon';
 import { QrCodeIcon } from './components/icons/QrCodeIcon';
 import { CheckIcon } from './components/icons/CheckIcon';
 import StockOverview from './components/StockOverview';
-import { PreviewModal, PreviewData } from './components/shared/PreviewModal';
+// FIX: Remove PreviewData import from here as it's now in types.ts.
+import { PreviewModal } from './components/shared/PreviewModal';
 
 
 declare var Html5Qrcode: any;
@@ -291,6 +293,10 @@ const AppContent: React.FC = () => {
   };
 
   const handleInitiateInstallation = (asset: Asset) => {
+    if (asset.category !== 'Perangkat Pelanggan (CPE)') {
+      addNotification("Hanya aset kategori 'Perangkat Pelanggan (CPE)' yang dapat dipasang.", 'error');
+      return;
+    }
     setAssetToInstall(asset);
   };
   
@@ -349,7 +355,7 @@ const AppContent: React.FC = () => {
   const renderContent = () => {
     switch (activePage) {
       case 'dashboard':
-        return <Dashboard assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} setActivePage={handleNavigate} />;
+        return <Dashboard assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} setActivePage={handleNavigate} onShowPreview={setPreviewData} />;
       case 'request':
         return <ItemRequest 
                   currentUser={currentUser} 
@@ -408,8 +414,10 @@ const AppContent: React.FC = () => {
                 />;
       case 'stock':
         return <StockOverview assets={assets} setActivePage={handleNavigate} onShowPreview={setPreviewData} />;
-      case 'accounts':
-        return <AccountsAndDivisions currentUser={currentUser} users={users} setUsers={setUsers} divisions={divisions} setDivisions={setDivisions} />;
+      case 'akun':
+        return <AccountsAndDivisions currentUser={currentUser} users={users} setUsers={setUsers} divisions={divisions} setDivisions={setDivisions} initialView="users" onNavigate={handleNavigate} />;
+      case 'divisi':
+        return <AccountsAndDivisions currentUser={currentUser} users={users} setUsers={setUsers} divisions={divisions} setDivisions={setDivisions} initialView="divisions" onNavigate={handleNavigate} />;
       case 'customers':
         return <CustomerManagement 
                   currentUser={currentUser}
@@ -422,7 +430,7 @@ const AppContent: React.FC = () => {
                   onClearItemToEdit={() => setItemToEdit(null)}
                 />;
       default:
-        return <Dashboard assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} setActivePage={handleNavigate} />;
+        return <Dashboard assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} setActivePage={handleNavigate} onShowPreview={setPreviewData} />;
     }
   };
 

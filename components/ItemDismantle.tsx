@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dismantle, ItemStatus, Asset, AssetStatus, AssetCondition, Customer, User, ActivityLogEntry } from '../types';
+// FIX: Import PreviewData from the central types file.
+import { Dismantle, ItemStatus, Asset, AssetStatus, AssetCondition, Customer, User, ActivityLogEntry, PreviewData } from '../types';
 import Modal from './shared/Modal';
 import { EyeIcon } from './icons/EyeIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -22,7 +23,6 @@ import { SignatureStamp } from './shared/SignatureStamp';
 import { ApprovalStamp } from './shared/ApprovalStamp';
 import FloatingActionBar from './shared/FloatingActionBar';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
-import { PreviewData } from './shared/PreviewModal';
 import { ClickableLink } from './shared/ClickableLink';
 
 interface ItemDismantleProps {
@@ -899,16 +899,4 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ currentUser, disma
                         <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus semua data dismantle yang dipilih? Tindakan ini tidak dapat diurungkan.</p>
                     </div>
                     <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                        <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                        <button type="button" onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus ({selectedDismantleIds.length})</button>
-                    </div>
-                </Modal>
-            )}
-            {bulkCompleteConfirmation && (
-                <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesaikan Proses" size="md" hideDefaultCloseButton={true} footerContent={<><button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button type="button" onClick={handleBulkComplete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Tandai Selesai</button></>}>
-                    <p className="text-sm text-gray-600">Anda akan menandai <span className="font-bold text-tm-dark">{selectedDismantleIds.length}</span> proses dismantle sebagai 'Selesai'.</p>
-                </Modal>
-            )}
-        </>
-    );
-};
+                        <button onClick={() => setBulkDeleteConfirmation(

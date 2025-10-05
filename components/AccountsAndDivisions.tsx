@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Division, User, UserRole } from '../types';
+import { Division, Page, User, UserRole } from '../types';
 import Modal from './shared/Modal';
 import { PencilIcon } from './icons/PencilIcon';
 import { useNotification } from './shared/Notification';
@@ -20,12 +20,16 @@ import { PaginationControls } from './shared/PaginationControls';
 import { Avatar } from './shared/Avatar';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 
+type View = 'users' | 'divisions';
+
 interface AccountsAndDivisionsProps {
     currentUser: User;
     users: User[];
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
     divisions: Division[];
     setDivisions: React.Dispatch<React.SetStateAction<Division[]>>;
+    initialView?: View;
+    onNavigate: (page: Page, filters?: any) => void;
 }
 
 
@@ -74,7 +78,7 @@ const generateMockUsers = (divisions: Division[]): User[] => {
 
 export const mockUsers: User[] = generateMockUsers(mockDivisions);
 
-type View = 'users' | 'divisions';
+
 
 const getRoleClass = (role: UserRole) => {
     switch (role) {
@@ -86,7 +90,12 @@ const getRoleClass = (role: UserRole) => {
 
 const userRoles: UserRole[] = ['Admin', 'Staff', 'Super Admin'];
 
-const AddUserForm: React.FC<{ divisions: Division[], onSave: (user: Omit<User, 'id'>) => void }> = ({ divisions, onSave }) => {
+const UserForm: React.FC<{ 
+    divisions: Division[], 
+    onSave: (user: Omit<User, 'id'>, id?: number) => void,
+    onClose: () => void,
+    editingUser: User | null 
+}> = ({ divisions, onSave, onClose, editingUser }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [selectedRole, setSelectedRole] = useState<UserRole>('Staff');
@@ -97,7 +106,20 @@ const AddUserForm: React.FC<{ divisions: Division[], onSave: (user: Omit<User, '
     const inventoryDivisionId = divisions.find(d => d.name === 'Inventori')?.id.toString();
 
     useEffect(() => {
-        // If Admin role is selected, force division to Inventory
+        if (editingUser) {
+            setName(editingUser.name);
+            setEmail(editingUser.email);
+            setSelectedRole(editingUser.role);
+            setSelectedDivisionId(editingUser.divisionId?.toString() || '');
+        } else {
+            setName('');
+            setEmail('');
+            setSelectedRole('Staff');
+            setSelectedDivisionId(divisions[0]?.id.toString() || '');
+        }
+    }, [editingUser, divisions]);
+
+    useEffect(() => {
         if (selectedRole === 'Admin' && inventoryDivisionId) {
             setSelectedDivisionId(inventoryDivisionId);
         }
@@ -105,7 +127,6 @@ const AddUserForm: React.FC<{ divisions: Division[], onSave: (user: Omit<User, '
 
     const handleDivisionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const divisionId = e.target.value;
-        // If division is not Inventory, Admin role is not allowed, so fallback to Staff
         if (divisionId !== inventoryDivisionId && selectedRole === 'Admin') {
             setSelectedRole('Staff');
         }
@@ -125,63 +146,87 @@ const AddUserForm: React.FC<{ divisions: Division[], onSave: (user: Omit<User, '
                 email,
                 role: selectedRole,
                 divisionId: selectedRole === 'Super Admin' ? null : parseInt(selectedDivisionId),
-            });
+            }, editingUser?.id);
             setIsSubmitting(false);
         }, 1000);
     };
     
     return (
-        <form className="space-y-4" onSubmit={handleSubmit}>
-            <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nama Lengkap</label>
-                <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm sm:text-sm" />
+        <form onSubmit={handleSubmit}>
+            <div className="p-6 space-y-6">
+                <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nama Lengkap</label>
+                    <div className="mt-1">
+                        <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+                    <div className="mt-1">
+                        <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
+                    <div className="mt-1">
+                        <select 
+                            id="role"
+                            value={selectedRole}
+                            onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
+                        >
+                            <option value="Staff">Staff</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Super Admin">Super Admin</option>
+                        </select>
+                    </div>
+                    {selectedRole === 'Admin' && <p className="mt-2 text-xs text-gray-500">Role Admin hanya berlaku untuk Divisi Inventori.</p>}
+                </div>
+                <div>
+                    <label htmlFor="division" className="block text-sm font-medium text-gray-700">Divisi</label>
+                    <div className="mt-1">
+                        <select 
+                            id="division" 
+                            value={selectedDivisionId}
+                            onChange={handleDivisionChange}
+                            disabled={selectedRole === 'Super Admin' || selectedRole === 'Admin'}
+                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm disabled:bg-gray-200/60 disabled:cursor-not-allowed focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
+                        >
+                            {selectedRole === 'Super Admin' 
+                                ? <option>N/A</option>
+                                : divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                            }
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} required className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm sm:text-sm" />
-            </div>
-            <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
-                <select 
-                    id="role"
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                    className="block w-full px-3 py-2 mt-1 bg-white border border-gray-300 rounded-md shadow-sm sm:text-sm"
-                >
-                    <option value="Staff">Staff</option>
-                    <option value="Admin">Admin (Hanya Div. Inventori)</option>
-                    <option value="Super Admin">Super Admin</option>
-                </select>
-            </div>
-            <div>
-                <label htmlFor="division" className="block text-sm font-medium text-gray-700">Divisi</label>
-                <select 
-                    id="division" 
-                    value={selectedDivisionId}
-                    onChange={handleDivisionChange}
-                    disabled={selectedRole === 'Super Admin' || selectedRole === 'Admin'}
-                    className="block w-full px-3 py-2 mt-1 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-200 disabled:cursor-not-allowed sm:text-sm"
-                >
-                    {selectedRole === 'Super Admin' 
-                        ? <option>N/A</option>
-                        : divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)
-                    }
-                </select>
-            </div>
-            <div className="pt-4 text-right">
-                <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 rounded-md bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
+            <div className="flex items-center justify-end px-6 py-4 space-x-3 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
                     {isSubmitting && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                    Simpan Akun
+                    {editingUser ? 'Simpan Perubahan' : 'Simpan Akun'}
                 </button>
             </div>
         </form>
     );
 };
 
-const AddDivisionForm: React.FC<{ onSave: (division: Omit<Division, 'id'>) => void }> = ({ onSave }) => {
+const DivisionForm: React.FC<{ 
+    onSave: (division: Omit<Division, 'id'>, id?: number) => void,
+    onClose: () => void,
+    editingDivision: Division | null
+}> = ({ onSave, onClose, editingDivision }) => {
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const addNotification = useNotification();
+
+    useEffect(() => {
+        if(editingDivision) {
+            setName(editingDivision.name);
+        } else {
+            setName('');
+        }
+    }, [editingDivision]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -191,21 +236,26 @@ const AddDivisionForm: React.FC<{ onSave: (division: Omit<Division, 'id'>) => vo
         }
         setIsSubmitting(true);
         setTimeout(() => {
-            onSave({ name });
+            onSave({ name }, editingDivision?.id);
             setIsSubmitting(false);
         }, 1000);
     };
 
     return (
-         <form className="space-y-4" onSubmit={handleSubmit}>
-            <div>
-                <label htmlFor="divisionName" className="block text-sm font-medium text-gray-700">Nama Divisi</label>
-                <input type="text" id="divisionName" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: Finance"/>
+         <form onSubmit={handleSubmit}>
+            <div className="p-6">
+                <div>
+                    <label htmlFor="divisionName" className="block text-sm font-medium text-gray-700">Nama Divisi</label>
+                    <div className="mt-1">
+                        <input type="text" id="divisionName" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" placeholder="Contoh: Finance"/>
+                    </div>
+                </div>
             </div>
-            <div className="pt-4 text-right">
-                <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 rounded-md bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
+            <div className="flex items-center justify-end px-6 py-4 space-x-3 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
                     {isSubmitting && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                    Simpan Divisi
+                    {editingDivision ? 'Simpan Perubahan' : 'Simpan Divisi'}
                 </button>
             </div>
         </form>
@@ -213,9 +263,13 @@ const AddDivisionForm: React.FC<{ onSave: (division: Omit<Division, 'id'>) => vo
 };
 
 
-const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser, users, setUsers, divisions, setDivisions }) => {
-    const [view, setView] = useState<View>('users');
-    const [isModalOpen, setIsModalOpen] = useState(false);
+const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser, users, setUsers, divisions, setDivisions, initialView = 'users', onNavigate }) => {
+    const view = initialView;
+    const [isUserFormModalOpen, setIsUserFormModalOpen] = useState(false);
+    const [isDivisionFormModalOpen, setIsDivisionFormModalOpen] = useState(false);
+    const [userToEdit, setUserToEdit] = useState<User | null>(null);
+    const [divisionToEdit, setDivisionToEdit] = useState<Division | null>(null);
+
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [divisionToDelete, setDivisionToDelete] = useState<Division | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState<View | null>(null);
@@ -237,6 +291,7 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
     // Filter states for users
     const [userSearchQuery, setUserSearchQuery] = useState('');
     const [userFilters, setUserFilters] = useState({ role: '', divisionId: '' });
+    const [divisionSearchQuery, setDivisionSearchQuery] = useState('');
 
 
     const addNotification = useNotification();
@@ -263,9 +318,13 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
             .filter(user => userFilters.divisionId ? user.divisionId?.toString() === userFilters.divisionId : true);
     }, [users, userSearchQuery, userFilters]);
 
+    const filteredDivisions = useMemo(() => {
+        return divisions.filter(d => d.name.toLowerCase().includes(divisionSearchQuery.toLowerCase()));
+    }, [divisions, divisionSearchQuery]);
+
 
     const { items: sortedUsers, requestSort: requestUserSort, sortConfig: userSortConfig } = useSortableData<User>(filteredUsers, { key: 'name', direction: 'ascending' });
-    const { items: sortedDivisions, requestSort: requestDivisionSort, sortConfig: divisionSortConfig } = useSortableData<Division>(divisions, { key: 'name', direction: 'ascending' });
+    const { items: sortedDivisions, requestSort: requestDivisionSort, sortConfig: divisionSortConfig } = useSortableData<Division>(filteredDivisions, { key: 'name', direction: 'ascending' });
     
     // Pagination logic for users
     const totalUserItems = sortedUsers.length;
@@ -283,7 +342,7 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [view, itemsPerPage, userSearchQuery, userFilters]);
+    }, [view, itemsPerPage, userSearchQuery, userFilters, divisionSearchQuery]);
     
     const { deletableUsersCount, skippableUsersCount } = useMemo(() => {
         if (bulkDeleteConfirmation !== 'users') return { deletableUsersCount: 0, skippableUsersCount: 0 };
@@ -349,18 +408,40 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
         }
     }
 
-    const handleAddUser = (user: Omit<User, 'id'>) => {
-        const newUser = { ...user, id: Math.max(...users.map(u => u.id), 0) + 1 };
-        setUsers(prev => [newUser, ...prev]);
-        setIsModalOpen(false);
-        addNotification('Akun baru berhasil ditambahkan.', 'success');
+    const handleOpenUserForm = (user: User | null) => {
+        setUserToEdit(user);
+        setIsUserFormModalOpen(true);
     };
 
-    const handleAddDivision = (division: Omit<Division, 'id'>) => {
-        const newDivision = { ...division, id: Math.max(...divisions.map(d => d.id), 0) + 1 };
-        setDivisions(prev => [newDivision, ...prev]);
-        setIsModalOpen(false);
-        addNotification('Divisi baru berhasil ditambahkan.', 'success');
+    const handleOpenDivisionForm = (division: Division | null) => {
+        setDivisionToEdit(division);
+        setIsDivisionFormModalOpen(true);
+    };
+
+    const handleSaveUser = (userData: Omit<User, 'id'>, id?: number) => {
+        if(id) { // Update
+            setUsers(prev => prev.map(u => u.id === id ? { ...u, ...userData } : u));
+            addNotification('Akun berhasil diperbarui.', 'success');
+        } else { // Create
+            const newUser = { ...userData, id: Math.max(...users.map(u => u.id), 0) + 1 };
+            setUsers(prev => [newUser, ...prev]);
+            addNotification('Akun baru berhasil ditambahkan.', 'success');
+        }
+        setIsUserFormModalOpen(false);
+        setUserToEdit(null);
+    };
+
+    const handleSaveDivision = (divisionData: Omit<Division, 'id'>, id?: number) => {
+        if(id) { // Update
+            setDivisions(prev => prev.map(d => d.id === id ? { ...d, ...divisionData } : d));
+            addNotification('Divisi berhasil diperbarui.', 'success');
+        } else { // Create
+            const newDivision = { ...divisionData, id: Math.max(...divisions.map(d => d.id), 0) + 1 };
+            setDivisions(prev => [newDivision, ...prev]);
+            addNotification('Divisi baru berhasil ditambahkan.', 'success');
+        }
+        setIsDivisionFormModalOpen(false);
+        setDivisionToEdit(null);
     };
     
     const handleConfirmUserDelete = () => {
@@ -488,28 +569,12 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
         }, 1000);
     };
 
-
-    const TabButton: React.FC<{ activeView: View; viewName: View; label: string; onClick: () => void }> = ({ activeView, viewName, label, onClick }) => (
-        <button
-            onClick={onClick}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 ${
-                activeView === viewName
-                    ? 'bg-tm-primary text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-200'
-            }`}
-        >
-            {label}
-        </button>
-    );
-
     const UserTable = () => {
         const longPressHandlers = useLongPress(() => setIsBulkSelectMode(true), 500);
         
         const handleRowClick = (user: User) => {
             if (isBulkSelectMode) {
                 setSelectedUserIds(p => p.includes(user.id) ? p.filter(id => id !== user.id) : [...p, user.id]);
-            } else {
-                // Future: open detail modal or edit form
             }
         };
 
@@ -556,7 +621,7 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
                                     </td>
                                     <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                         <div className="flex items-center justify-end space-x-2">
-                                            <button className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-yellow-100 hover:text-yellow-600" title="Edit"><PencilIcon className="w-4 h-4" /></button>
+                                            <button onClick={e => { e.stopPropagation(); handleOpenUserForm(user); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-yellow-100 hover:text-yellow-600" title="Edit"><PencilIcon className="w-4 h-4" /></button>
                                             {user.role !== 'Super Admin' && <button onClick={e => { e.stopPropagation(); setUserToDelete(user); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-danger-light hover:text-danger-text" title="Hapus"><TrashIcon className="w-5 h-5"/></button>}
                                         </div>
                                     </td>
@@ -594,7 +659,7 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
                     <thead className="sticky top-0 z-10 bg-gray-50">
                         <tr>
                             {isBulkSelectMode && <th className="px-6 py-3"><Checkbox
-                                checked={selectedDivisionIds.length === paginatedDivisions.length && paginatedDivisions.length > 0}
+                                checked={selectedDivisionIds.length > 0 && selectedDivisionIds.length === paginatedDivisions.length}
                                 onChange={(e) => setSelectedDivisionIds(e.target.checked ? paginatedDivisions.map(d => d.id) : [])}
                             /></th>}
                             <th className="px-6 py-3"><button onClick={() => requestDivisionSort('name')} className="flex items-center space-x-1 text-sm font-semibold tracking-wider text-left text-gray-500 group"><span>Nama Divisi</span><span className="opacity-50 group-hover:opacity-100">{divisionSortConfig?.key === 'name' ? (divisionSortConfig.direction === 'ascending' ? <SortAscIcon className="w-4 h-4 text-tm-accent" /> : <SortDescIcon className="w-4 h-4 text-tm-accent" />) : <SortIcon className="w-4 h-4 text-gray-400" />}</span></button></th>
@@ -610,10 +675,18 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
                                     <tr key={division.id} {...longPressHandlers} onClick={() => handleRowClick(division)} className={`transition-colors cursor-pointer ${selectedDivisionIds.includes(division.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                                         {isBulkSelectMode && <td className="px-6 py-4" onClick={e => e.stopPropagation()}><Checkbox checked={selectedDivisionIds.includes(division.id)} onChange={() => setSelectedDivisionIds(p => p.includes(division.id) ? p.filter(id => id !== division.id) : [...p, division.id])} /></td>}
                                         <td className="px-6 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap">{division.name}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-800 whitespace-nowrap">{memberCount} Anggota</td>
+                                        <td className="px-6 py-4 text-sm text-gray-800 whitespace-nowrap">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); onNavigate('akun', { divisionId: division.id.toString() }); }} 
+                                                className="font-semibold text-tm-primary hover:underline"
+                                                title={`Lihat anggota divisi ${division.name}`}
+                                            >
+                                                {memberCount} Anggota
+                                            </button>
+                                        </td>
                                         <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                             <div className="flex items-center justify-end space-x-2">
-                                                <button className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-yellow-100 hover:text-yellow-600" title="Edit"><PencilIcon className="w-4 h-4" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleOpenDivisionForm(division); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-yellow-100 hover:text-yellow-600" title="Edit"><PencilIcon className="w-4 h-4" /></button>
                                                 <button onClick={e => { e.stopPropagation(); setDivisionToDelete(division); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-danger-light hover:text-danger-text" title="Hapus"><TrashIcon className="w-5 h-5"/></button>
                                             </div>
                                         </td>
@@ -647,33 +720,29 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
             </div>
         );
     }
+    
+    const pageTitle = view === 'users' ? 'Daftar Akun' : 'Daftar Divisi';
+    const addButtonText = view === 'users' ? 'Tambah Akun Baru' : 'Tambah Divisi Baru';
 
     return (
         <div className="p-4 sm:p-6 md:p-8">
             <div className="flex flex-col items-start justify-between gap-4 mb-6 md:flex-row md:items-center">
-                <h1 className="text-3xl font-bold text-tm-dark">Akun & Divisi</h1>
+                <h1 className="text-3xl font-bold text-tm-dark">{pageTitle}</h1>
                  <div className="flex items-center space-x-2">
                     <button onClick={handleExport} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50">
                         <ExportIcon className="w-4 h-4"/>
                         Export CSV
                     </button>
                     <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => view === 'users' ? handleOpenUserForm(null) : handleOpenDivisionForm(null)}
                         className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover"
                     >
-                        {view === 'users' ? 'Tambah Akun Baru' : 'Tambah Divisi Baru'}
+                        {addButtonText}
                     </button>
                 </div>
             </div>
 
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex p-1 space-x-1 bg-gray-100 rounded-lg">
-                    <TabButton activeView={view} viewName="users" label={`Daftar Akun (${users.length})`} onClick={() => setView('users')} />
-                    <TabButton activeView={view} viewName="divisions" label={`Daftar Divisi (${divisions.length})`} onClick={() => setView('divisions')} />
-                </div>
-            </div>
-
-            {view === 'users' && (
+            {view === 'users' ? (
                 <div className="p-4 mb-4 bg-white border border-gray-200/80 rounded-xl shadow-md">
                     <div className="flex flex-col w-full gap-4 sm:flex-row sm:flex-wrap sm:items-center">
                         <div className="relative flex-grow">
@@ -719,6 +788,21 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
                         )}
                     </div>
                 </div>
+            ) : (
+                 <div className="p-4 mb-4 bg-white border border-gray-200/80 rounded-xl shadow-md">
+                    <div className="relative flex-grow">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <SearchIcon className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <input 
+                            type="text"
+                            placeholder="Cari Nama Divisi..."
+                            value={divisionSearchQuery}
+                            onChange={e => setDivisionSearchQuery(e.target.value)}
+                            className="w-full h-10 py-2 pl-10 pr-10 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent"
+                        />
+                    </div>
+                </div>
             )}
             
             {isBulkSelectMode && (
@@ -761,14 +845,34 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
             </div>
             
             <Modal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                title={view === 'users' ? 'Tambah Akun Baru' : 'Tambah Divisi Baru'}
+                isOpen={isUserFormModalOpen}
+                onClose={() => setIsUserFormModalOpen(false)}
+                title={userToEdit ? 'Edit Akun Pengguna' : 'Tambah Akun Baru'}
                 hideDefaultCloseButton
+                disableContentPadding
             >
-                {view === 'users' ? <AddUserForm divisions={divisions} onSave={handleAddUser} /> : <AddDivisionForm onSave={handleAddDivision} />}
+                <UserForm 
+                    divisions={divisions} 
+                    onSave={handleSaveUser} 
+                    onClose={() => setIsUserFormModalOpen(false)}
+                    editingUser={userToEdit} 
+                />
             </Modal>
             
+             <Modal
+                isOpen={isDivisionFormModalOpen}
+                onClose={() => setIsDivisionFormModalOpen(false)}
+                title={divisionToEdit ? 'Edit Nama Divisi' : 'Tambah Divisi Baru'}
+                hideDefaultCloseButton
+                disableContentPadding
+            >
+                <DivisionForm
+                    onSave={handleSaveDivision} 
+                    onClose={() => setIsDivisionFormModalOpen(false)}
+                    editingDivision={divisionToEdit} 
+                />
+            </Modal>
+
             <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title="Konfirmasi Hapus" hideDefaultCloseButton>
                 <div className="text-center">
                     <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
@@ -854,7 +958,7 @@ const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser
                 </select>
             </Modal>
 
-            <Modal isOpen={isChangeRoleModalOpen} onClose={() => setIsChangeRoleModalOpen(false)} title="Ubah Role Akun" footerContent={<><button onClick={() => setIsChangeRoleModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button><button onClick={handleBulkChangeRole} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg hover:bg-tm-primary-hover">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ubah Role</button></>}>
+            <Modal isOpen={isChangeRoleModalOpen} onClose={() => setIsChangeRoleModalOpen(false)} title="Ubah Role Akun" footerContent={<><button onClick={() => setIsChangeRoleModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleBulkChangeRole} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg hover:bg-tm-primary-hover">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ubah Role</button></>}>
                 <p className="mb-4 text-sm text-gray-600">Pilih role baru untuk <strong>{selectedUserIds.length}</strong> akun yang dipilih.</p>
                 <select value={targetRole} onChange={e => setTargetRole(e.target.value as UserRole)} className="block w-full px-3 py-2 mt-1 bg-white border border-gray-300 rounded-md shadow-sm sm:text-sm">
                     {userRoles.filter(r => r !== 'Super Admin').map(r => <option key={r} value={r}>{r}</option>)}

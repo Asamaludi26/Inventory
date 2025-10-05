@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus } from '../../types';
+// FIX: Import PreviewData from the central types.ts file.
+import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus, PreviewData } from '../../types';
 import Modal from './Modal';
 import { ClickableLink } from './ClickableLink';
 import { ChevronLeftIcon } from '../icons/ChevronLeftIcon';
@@ -9,10 +10,7 @@ import { getStatusClass as getAssetStatusClass } from '../ItemRegistration';
 import { getStatusClass as getCustomerStatusClass } from '../CustomerManagement';
 import { PencilIcon } from '../icons/PencilIcon';
 
-export type PreviewData = {
-    type: 'asset' | 'customer' | 'user' | 'request' | 'handover' | 'dismantle' | 'customerAssets' | 'stockItemAssets';
-    id: string | number;
-};
+// FIX: Moved PreviewData type to types.ts to make it globally available.
 
 interface PreviewModalProps {
     previewData: PreviewData | null;
@@ -202,11 +200,22 @@ export const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                             <PreviewItem label="Status" value={<span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getRequestStatusClass(request.status)}`}>{request.status}</span>} />
                         </dl>
                         <div>
-                            <h4 className="text-sm font-semibold text-gray-600 uppercase border-b pb-2 mb-2">Item</h4>
+                            <h4 className="text-sm font-semibold text-gray-600 uppercase border-b pb-2 mb-2">Item yang Diminta</h4>
                             <ul className="mt-2 space-y-2">
                                {request.items.map(item => (
-                                   <li key={item.id} className="p-2 text-xs border rounded-md bg-gray-50">
-                                       <div className="flex justify-between font-semibold"><span>{item.itemName}</span> <span>{item.quantity} unit</span></div>
+                                   <li key={item.id} className="p-3 text-sm border rounded-md bg-gray-50">
+                                       <div className="flex items-start justify-between">
+                                           <div className="flex-1 pr-4">
+                                               <p className="font-semibold text-gray-800">{item.itemName}</p>
+                                               <p className="text-xs text-gray-500">{item.itemTypeBrand}</p>
+                                           </div>
+                                           <p className="font-bold text-tm-primary">{item.quantity} unit</p>
+                                       </div>
+                                       {item.keterangan && (
+                                           <p className="mt-2 pt-2 text-xs text-gray-600 border-t border-gray-200 italic">
+                                               "{item.keterangan}"
+                                           </p>
+                                       )}
                                    </li>
                                ))}
                             </ul>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry } from '../types';
+// FIX: Import PreviewData from central types file to resolve import error.
+import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry, PreviewData } from '../types';
 import Modal from './shared/Modal';
 import { EyeIcon } from './icons/EyeIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -21,7 +22,6 @@ import DatePicker from './shared/DatePicker';
 import { SignatureStamp } from './shared/SignatureStamp';
 import FloatingActionBar from './shared/FloatingActionBar';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
-import { PreviewData } from './shared/PreviewModal';
 import { ClickableLink } from './shared/ClickableLink';
 
 interface ItemHandoverProps {
@@ -496,7 +496,7 @@ const HandoverForm: React.FC<{
     );
 };
 
-const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, setHandovers, assets, prefillData, onClearPrefill, onUpdateAsset, onShowPreview }) => {
+export const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, setHandovers, assets, prefillData, onClearPrefill, onUpdateAsset, onShowPreview }) => {
     const [view, setView] = useState<'list' | 'form'>('list');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedHandover, setSelectedHandover] = useState<Handover | null>(null);
@@ -774,14 +774,14 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, set
                                 Menampilkan <span className="font-semibold text-tm-dark">{sortedHandovers.length}</span> dari <span className="font-semibold text-tm-dark">{handovers.length}</span> total handover yang cocok.
                             </p>
                          </div>
-                     )}
+                    )}
                 </div>
 
                 {isBulkSelectMode && (
                      <div className="p-4 mb-4 bg-blue-50 border-l-4 border-tm-accent rounded-r-lg">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                             {selectedHandoverIds.length > 0 ? (
-                                <div className="flex items-center space-x-3">
+                                <div className="flex flex-wrap items-center gap-3">
                                     <span className="text-sm font-medium text-tm-primary">{selectedHandoverIds.length} item terpilih</span>
                                     <div className="h-5 border-l border-gray-300"></div>
                                     <button
@@ -789,13 +789,13 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, set
                                         disabled={actionableCompleteCount === 0}
                                         className="px-3 py-1.5 text-sm font-semibold text-green-600 bg-green-100 rounded-md hover:bg-green-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                                     >
-                                        Selesai {actionableCompleteCount > 0 ? `(${actionableCompleteCount})` : ''}
+                                        Tandai Selesai {actionableCompleteCount > 0 ? `(${actionableCompleteCount})` : ''}
                                     </button>
                                     <button
                                         onClick={() => setBulkDeleteConfirmation(true)}
                                         className="px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-100 rounded-md hover:bg-red-200"
                                     >
-                                        Hapus ({selectedHandoverIds.length})
+                                        Hapus
                                     </button>
                                 </div>
                             ) : (
@@ -808,14 +808,15 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, set
                      </div>
                 )}
 
+
                 <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
                     <div className="overflow-x-auto custom-scrollbar">
                         <HandoverTable 
                             handovers={paginatedHandovers} 
                             onDetailClick={handleShowDetails} 
-                            onDeleteClick={setHandoverToDeleteId} 
-                            sortConfig={sortConfig} 
-                            requestSort={requestSort} 
+                            onDeleteClick={setHandoverToDeleteId}
+                            sortConfig={sortConfig}
+                            requestSort={requestSort}
                             selectedHandoverIds={selectedHandoverIds}
                             onSelectAll={handleSelectAll}
                             onSelectOne={handleSelectOne}
@@ -823,7 +824,7 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, set
                             onEnterBulkMode={() => setIsBulkSelectMode(true)}
                         />
                     </div>
-                     <PaginationControls
+                    <PaginationControls
                         currentPage={currentPage}
                         totalPages={totalPages}
                         totalItems={totalItems}
@@ -843,88 +844,101 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, set
             {renderContent()}
 
             {selectedHandover && (
-                 <Modal
+                <Modal
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}
-                    title={`Detail Handover: ${selectedHandover.id}`}
+                    title={`Detail Handover`}
                     size="2xl"
                 >
-                    <div className="mb-6 space-y-2 text-center">
+                    <div className="mb-4 space-y-2 text-center">
                         <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                        <p className="font-semibold text-tm-secondary">BERITA ACARA SERAH TERIMA BARANG</p>
+                        <p className="font-semibold text-tm-secondary">BERITA ACARA SERAH TERIMA BARANG (HANDOVER)</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 py-4 my-4 text-sm border-t border-b border-gray-200 lg:grid-cols-3">
+                        <div><span className="font-semibold text-gray-600">No Dokumen:</span><span className="pl-2 text-gray-800">{selectedHandover.id}</span></div>
+                        <div><span className="font-semibold text-gray-600">No WO/RO/INT:</span><span className="pl-2 text-gray-800">{selectedHandover.woRoIntNumber}</span></div>
+                        <div><span className="font-semibold text-gray-600">Tanggal:</span><span className="pl-2 text-gray-800">{selectedHandover.handoverDate}</span></div>
                     </div>
                     
-                    <dl className="grid grid-cols-1 gap-x-6 gap-y-3 py-4 my-4 text-sm border-t border-b sm:grid-cols-2">
-                        <div><dt className="font-semibold text-gray-600">Tanggal:</dt><dd className="text-gray-800">{selectedHandover.handoverDate}</dd></div>
-                        <div><dt className="font-semibold text-gray-600">No Dokumen:</dt><dd className="font-mono text-gray-800">{selectedHandover.id}</dd></div>
-                        <div><dt className="font-semibold text-gray-600">Menyerahkan:</dt><dd className="text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'user', id: selectedHandover.menyerahkan })}>{selectedHandover.menyerahkan}</ClickableLink></dd></div>
-                        <div><dt className="font-semibold text-gray-600">Penerima:</dt><dd className="text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'user', id: selectedHandover.penerima })}>{selectedHandover.penerima}</ClickableLink></dd></div>
-                        <div><dt className="font-semibold text-gray-600">No WO/RO/INT:</dt><dd className="font-mono text-gray-800">{selectedHandover.woRoIntNumber || '-'}</dd></div>
-                        <div><dt className="font-semibold text-gray-600">Lembar:</dt><dd className="text-gray-800">{selectedHandover.lembar}</dd></div>
-                    </dl>
-
-                    <div className="overflow-auto custom-scrollbar max-h-[30vh]">
-                        <table className="min-w-full text-sm">
-                            <thead className="bg-gray-100">
+                    <div className="overflow-auto custom-scrollbar max-h-[40vh]">
+                        <table className="min-w-full text-sm divide-y divide-gray-200">
+                            <thead className="bg-gray-50/50">
                                 <tr>
+                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">No</th>
                                     <th className="px-4 py-2 font-semibold text-left text-gray-600">Nama Barang</th>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Status</th>
+                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Type/Brand</th>
+                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Keterangan</th>
                                     <th className="px-4 py-2 font-semibold text-center text-gray-600">Jumlah</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y">
-                                {selectedHandover.items.map(item => (
-                                <tr key={item.id}>
-                                    <td className="px-4 py-2"><ClickableLink onClick={() => onShowPreview({ type: 'asset', id: item.assetId! })}>{item.itemName}</ClickableLink><br/><span className="text-xs text-gray-500">{item.itemTypeBrand}</span></td>
-                                    <td className="px-4 py-2">{item.conditionNotes}</td>
-                                    <td className="px-4 py-2 text-center">{item.quantity}</td>
-                                </tr>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {selectedHandover.items.map((item, index) => (
+                                    <tr key={item.id}>
+                                        <td className="px-4 py-2 text-gray-700">{index + 1}</td>
+                                        <td className="px-4 py-2 font-medium text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'asset', id: item.assetId! })}>{item.itemName}</ClickableLink></td>
+                                        <td className="px-4 py-2 text-gray-700">{item.itemTypeBrand}</td>
+                                        <td className="px-4 py-2 text-gray-700">{item.conditionNotes}</td>
+                                        <td className="px-4 py-2 font-bold text-center text-tm-primary">{item.quantity}</td>
+                                    </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-
-                    <div className="pt-6 mt-6 border-t border-gray-200">
-                        <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-3 sm:gap-x-4">
+                    
+                    <div className="pt-8 mt-6 border-t border-gray-200">
+                        <div className="grid grid-cols-1 text-sm text-center gap-y-8 sm:grid-cols-3 sm:gap-x-4">
                             <div>
                                 <p className="font-semibold text-gray-600">Menyerahkan</p>
-                                <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.menyerahkan} signatureDate={selectedHandover.handoverDate} /></div>
-                                <div className="pt-1 mt-2 border-t border-gray-400"><p>({selectedHandover.menyerahkan})</p></div>
+                                <div className="flex items-center justify-center mt-2 h-28">
+                                    <SignatureStamp signerName={selectedHandover.menyerahkan} signatureDate={selectedHandover.handoverDate} />
+                                </div>
+                                <div className="pt-1 mt-2 border-t border-gray-400">
+                                    <p className="text-gray-800">({selectedHandover.menyerahkan})</p>
+                                </div>
                             </div>
-                            <div>
+                             <div>
                                 <p className="font-semibold text-gray-600">Penerima</p>
-                                <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.penerima} signatureDate={selectedHandover.handoverDate} /></div>
-                                <div className="pt-1 mt-2 border-t border-gray-400"><p>({selectedHandover.penerima})</p></div>
+                                <div className="flex items-center justify-center mt-2 h-28">
+                                    <SignatureStamp signerName={selectedHandover.penerima} signatureDate={selectedHandover.handoverDate} />
+                                </div>
+                                <div className="pt-1 mt-2 border-t border-gray-400">
+                                    <p className="text-gray-800">({selectedHandover.penerima})</p>
+                                </div>
                             </div>
                             <div>
                                 <p className="font-semibold text-gray-600">Mengetahui</p>
-                                <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.mengetahui} signatureDate={selectedHandover.handoverDate} /></div>
-                                <div className="pt-1 mt-2 border-t border-gray-400"><p>({selectedHandover.mengetahui})</p></div>
+                                 <div className="flex items-center justify-center mt-2 h-28">
+                                    <SignatureStamp signerName={selectedHandover.mengetahui} signatureDate={selectedHandover.handoverDate} />
+                                </div>
+                                <div className="pt-1 mt-2 border-t border-gray-400">
+                                    <p className="text-gray-800">({selectedHandover.mengetahui})</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-
                 </Modal>
             )}
             
             {handoverToDeleteId && (
                 <Modal isOpen={!!handoverToDeleteId} onClose={() => setHandoverToDeleteId(null)} title="Konfirmasi Hapus" size="md" hideDefaultCloseButton>
-                    <div className="text-center">
-                         <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                     <div className="text-center">
+                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
                             <ExclamationTriangleIcon className="w-8 h-8" />
                         </div>
                         <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Handover?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data handover <span className="font-bold">{handoverToDeleteId}</span>? Tindakan ini tidak dapat diurungkan.</p>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data handover <span className="font-bold">{handoverToDeleteId}</span>?</p>
                     </div>
-                     <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
                         <button onClick={() => setHandoverToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
                         <button type="button" onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus</button>
                     </div>
                 </Modal>
             )}
+
             {bulkDeleteConfirmation && (
                  <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal" size="md" hideDefaultCloseButton>
-                     <div className="text-center">
+                    <div className="text-center">
                         <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
                             <ExclamationTriangleIcon className="w-8 h-8" />
                         </div>
@@ -937,13 +951,19 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, set
                     </div>
                 </Modal>
             )}
-            {bulkCompleteConfirmation && (
-                <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesaikan Handover" size="md" hideDefaultCloseButton={true} footerContent={<><button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button type="button" onClick={handleBulkComplete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Tandai Selesai ({actionableCompleteCount})</button></>}>
-                    <p className="text-sm text-gray-600">Anda akan menandai <span className="font-bold text-tm-dark">{actionableCompleteCount}</span> handover sebagai 'Selesai'. Hanya item berstatus 'Dalam Proses' yang akan diubah.</p>
+
+             {bulkCompleteConfirmation && (
+                 <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesai Massal" size="md" hideDefaultCloseButton>
+                    <div className="text-center">
+                        <h3 className="text-lg font-semibold text-gray-800">Tandai {actionableCompleteCount} Handover Selesai?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda akan mengubah status handover yang dipilih menjadi 'Selesai'. Lanjutkan?</p>
+                    </div>
+                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                        <button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button type="button" onClick={handleBulkComplete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Tandai Selesai ({actionableCompleteCount})</button>
+                    </div>
                 </Modal>
             )}
         </>
     );
 };
-
-export default ItemHandover;
