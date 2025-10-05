@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Asset, AssetStatus, AssetCondition, Attachment, Request } from '../types';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Asset, AssetStatus, AssetCondition, Attachment, Request, User, Customer, Handover, Dismantle, ActivityLogEntry } from '../types';
 import Modal from './shared/Modal';
 import DatePicker from './shared/DatePicker';
 import { InfoIcon } from './icons/InfoIcon';
@@ -25,20 +25,42 @@ import { CloseIcon } from './icons/CloseIcon';
 import { PaginationControls } from './shared/PaginationControls';
 import { HandoverIcon } from './icons/HandoverIcon';
 import { CustomerIcon } from './icons/CustomerIcon';
-// FIX: Import DismantleIcon to be used in the asset detail modal.
 import { DismantleIcon } from './icons/DismantleIcon';
+import { RegisterIcon } from './icons/RegisterIcon';
+import { RequestIcon } from './icons/RequestIcon';
+import { CopyIcon } from './icons/CopyIcon';
+import { QrCodeIcon } from './icons/QrCodeIcon';
+import { PencilIcon } from './icons/PencilIcon';
+import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
+import { TagIcon } from './icons/TagIcon';
+import { UsersIcon } from './icons/UsersIcon';
+import { Tooltip } from './shared/Tooltip';
+import { ClickableLink } from './shared/ClickableLink';
+import { PreviewData } from './shared/PreviewModal';
 
+declare var QRCode: any;
+declare var Html5Qrcode: any;
 
 interface ItemRegistrationProps {
+    currentUser: User;
     assets: Asset[];
     setAssets: React.Dispatch<React.SetStateAction<Asset[]>>;
+    customers: Customer[];
+    requests: Request[];
+    handovers: Handover[];
+    dismantles: Dismantle[];
     prefillData?: Request | null;
     onClearPrefill: () => void;
     onRegistrationComplete: (requestId: string) => void;
     onInitiateHandover: (asset: Asset) => void;
-    // FIX: Add missing onInitiateDismantle prop to fix type error.
     onInitiateDismantle: (asset: Asset) => void;
     onInitiateInstallation: (asset: Asset) => void;
+    assetToViewId: string | null;
+    initialFilters?: any;
+    onClearInitialFilters: () => void;
+    itemToEdit: { type: string; data: any } | null;
+    onClearItemToEdit: () => void;
+    onShowPreview: (data: PreviewData) => void;
 }
 
 const ispAssetCategories: Record<string, string[]> = {
@@ -89,24 +111,52 @@ const generateMockAssets = (): Asset[] => {
     const customerIdPool = Array.from({ length: 75 }, (_, i) => `TMI-${String(1001 + i).padStart(5, '0')}`);
     const statuses = Object.values(AssetStatus);
     const conditions = Object.values(AssetCondition);
+    const dismantleCustomerPool = [
+        { name: 'PT. Maju Mundur Sejahtera', id: 'TMI-01002' },
+        { name: 'Warung Kopi Bahagia', id: 'TMI-01004' },
+        { name: 'CV. Terang Benderang', id: 'TMI-01008' },
+        { name: 'Sekolah Harapan Bangsa', id: 'TMI-01013' },
+    ];
+
 
     for (let i = 1; i <= 150; i++) {
         const template = assetPool[i % assetPool.length];
         const purchaseDate = new Date(2024 - Math.floor(i / 30), (12 - i) % 12, 28 - (i % 28));
+        const registrationDate = new Date(purchaseDate);
+        registrationDate.setDate(purchaseDate.getDate() + (i % 5));
         
         let status = statuses[i % statuses.length];
         let condition = conditions[i % conditions.length];
         let isDismantled = false;
+        let dismantleInfo: Asset['dismantleInfo'] = undefined;
+        let lastModifiedDate: string | null = null;
+        let lastModifiedBy: string | null = null;
         
         // Explicitly create a block of dismantled assets for demo purposes
         if (i > 5 && i <= 15) {
             status = AssetStatus.IN_STORAGE;
             condition = AssetCondition.USED_OKAY;
             isDismantled = true;
+            const customer = dismantleCustomerPool[i % dismantleCustomerPool.length];
+            const dismantleDate = new Date(purchaseDate);
+            dismantleDate.setFullYear(purchaseDate.getFullYear() + Math.floor(i/5)); // Create varied dates
+            dismantleInfo = {
+                customerId: customer.id,
+                customerName: customer.name,
+                dismantleDate: dismantleDate.toISOString().split('T')[0],
+                dismantleId: `DSM-MOCK-${String(i).padStart(3, '0')}`,
+            };
         } else {
             isDismantled = status === AssetStatus.IN_STORAGE && i > 100 && i % 5 === 0; // Keep some randomness for others
         }
         
+        if (i > 140) { // Add some edited assets for demo
+             const modDate = new Date(registrationDate);
+             modDate.setMonth(modDate.getMonth() + 2);
+             lastModifiedDate = modDate.toISOString();
+             lastModifiedBy = 'John Doe';
+        }
+
         let location: string | null = assetLocations[i % assetLocations.length];
         let currentUser: string | null = null;
         
@@ -136,18 +186,27 @@ const generateMockAssets = (): Asset[] => {
             brand: template.brand,
             serialNumber: `${template.brand.substring(0, 3).toUpperCase()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
             macAddress: `00:0C:42:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}`,
+            registrationDate: registrationDate.toISOString().split('T')[0],
+            recordedBy: userPool[i % userPool.length],
             purchaseDate: purchaseDate.toISOString().split('T')[0],
             purchasePrice: Math.floor(Math.random() * (5000000 - 500000 + 1) + 500000),
             vendor: `Distributor ${String.fromCharCode(65 + (i%5))}`,
-            warrantyEndDate: new Date(new Date(purchaseDate).setFullYear(purchaseDate.getFullYear() + 1)).toISOString().split('T')[0],
+            poNumber: `PO-TRN-${String(202400 + i)}`,
+            invoiceNumber: `INV/VENDOR${String.fromCharCode(65 + (i%5))}/${String(98765 + i)}`,
+            warrantyEndDate: new Date(new Date(purchaseDate).setFullYear(purchaseDate.getFullYear() + (i % 3 === 0 ? -1 : 1) )).toISOString().split('T')[0],
             location,
+            locationDetail: location === 'Gudang Inventori' ? `Rak ${String.fromCharCode(65 + (i % 5))}-${(i % 10) + 1}` : null,
             currentUser,
             woRoIntNumber: `WO-${String(12345 + i)}`,
             status,
             condition,
-            notes: status === AssetStatus.DAMAGED ? 'Memerlukan perbaikan minor.' : (isDismantled ? 'Aset hasil tarikan dari pelanggan.' : null),
+            notes: status === AssetStatus.DAMAGED ? 'Memerlukan perbaikan minor.' : (isDismantled ? `Aset hasil tarikan dari pelanggan ${dismantleInfo?.customerName}.` : null),
             attachments: [],
+            activityLog: [],
             isDismantled,
+            dismantleInfo,
+            lastModifiedDate,
+            lastModifiedBy,
         });
     }
     return assets;
@@ -155,7 +214,8 @@ const generateMockAssets = (): Asset[] => {
 
 export const mockAssets: Asset[] = generateMockAssets();
 
-const getStatusClass = (status: AssetStatus) => {
+// FIX: Export getStatusClass to be used in other components.
+export const getStatusClass = (status: AssetStatus) => {
     switch (status) {
         case AssetStatus.IN_USE: return 'bg-info-light text-info-text';
         case AssetStatus.IN_STORAGE: return 'bg-gray-100 text-gray-800';
@@ -193,6 +253,7 @@ const SortableHeader: React.FC<{
 
 interface RegistrationTableProps {
     assets: Asset[];
+    customers: Customer[];
     onDetailClick: (asset: Asset) => void;
     onDeleteClick: (id: string) => void;
     sortConfig: SortConfig<Asset> | null;
@@ -202,9 +263,10 @@ interface RegistrationTableProps {
     onSelectAll: (event: React.ChangeEvent<HTMLInputElement>) => void;
     isBulkSelectMode: boolean;
     onEnterBulkMode: () => void;
+    onShowPreview: (data: PreviewData) => void;
 }
 
-const RegistrationTable: React.FC<RegistrationTableProps> = ({ assets, onDetailClick, onDeleteClick, sortConfig, requestSort, selectedAssetIds, onSelectOne, onSelectAll, isBulkSelectMode, onEnterBulkMode }) => {
+const RegistrationTable: React.FC<RegistrationTableProps> = ({ assets, customers, onDetailClick, onDeleteClick, sortConfig, requestSort, selectedAssetIds, onSelectOne, onSelectAll, isBulkSelectMode, onEnterBulkMode, onShowPreview }) => {
     const longPressHandlers = useLongPress(onEnterBulkMode, 500);
 
     const handleRowClick = (asset: Asset) => {
@@ -261,6 +323,11 @@ const RegistrationTable: React.FC<RegistrationTableProps> = ({ assets, onDetailC
                             <td id={`asset-name-${asset.id}`} className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm font-semibold text-gray-900">{asset.name}</span>
+                                    {asset.lastModifiedDate && (
+                                        <span title={`Diubah: ${new Date(asset.lastModifiedDate).toLocaleString('id-ID')} oleh ${asset.lastModifiedBy}`}>
+                                            <PencilIcon className="w-3.5 h-3.5 text-gray-400" />
+                                        </span>
+                                    )}
                                     {asset.isDismantled && (
                                         <span className="px-2 py-0.5 text-xs font-semibold text-amber-800 bg-amber-100 rounded-full">
                                             Dismantled
@@ -270,8 +337,30 @@ const RegistrationTable: React.FC<RegistrationTableProps> = ({ assets, onDetailC
                                 <div className="text-xs text-gray-500">{asset.id} &bull; {asset.category}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-sm font-medium text-gray-800">{asset.location || '-'}</div>
-                                 <div className="text-xs text-gray-500">{asset.currentUser && asset.currentUser.startsWith('TMI-') ? `ID Pelanggan: ${asset.currentUser}` : asset.currentUser || 'Tidak ada pengguna'}</div>
+                                {(() => {
+                                    if (asset.currentUser && asset.currentUser.startsWith('TMI-')) {
+                                        const customer = customers.find(c => c.id === asset.currentUser);
+                                        return (
+                                            <div className="flex items-center gap-2">
+                                                <CustomerIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-sm font-medium text-tm-dark">
+                                                         <ClickableLink onClick={() => onShowPreview({ type: 'customer', id: customer!.id })}>
+                                                            {customer ? customer.name : 'Terpasang di Pelanggan'}
+                                                        </ClickableLink>
+                                                    </div>
+                                                    <div className="text-xs text-tm-secondary">ID: {asset.currentUser}</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <>
+                                            <div className="text-sm font-medium text-gray-800">{asset.location || '-'}</div>
+                                            <div className="text-xs text-gray-500">{asset.currentUser || 'Tidak ada pengguna'}</div>
+                                        </>
+                                    );
+                                })()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 {asset.isDismantled && asset.status === AssetStatus.IN_STORAGE ? (
@@ -308,6 +397,32 @@ const RegistrationTable: React.FC<RegistrationTableProps> = ({ assets, onDetailC
     );
 };
 
+// FIX: Added missing DetailCard and DetailItem components.
+const DetailCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+    <div>
+        <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">{title}</h3>
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 text-sm">
+            {children}
+        </dl>
+    </div>
+);
+
+interface DetailItemProps {
+    label: string;
+    value?: React.ReactNode;
+    children?: React.ReactNode;
+    fullWidth?: boolean;
+}
+
+const DetailItem: React.FC<DetailItemProps> = ({ label, value, children, fullWidth = false }) => (
+    <div className={fullWidth ? 'sm:col-span-2' : ''}>
+        <dt className="font-medium text-gray-500">{label}</dt>
+        <dd className="mt-1 text-gray-900">
+            {value || children || '-'}
+        </dd>
+    </div>
+);
+
 const FormSection: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, icon, children, className }) => (
     <div className={`pt-6 border-t border-gray-200 first:pt-0 first:border-t-0 ${className}`}>
         <div className="flex items-center mb-4">
@@ -327,10 +442,15 @@ interface RegistrationFormData {
     brand: string;
     purchasePrice: number | null;
     vendor: string | null;
+    poNumber: string | null;
+    invoiceNumber: string | null;
     purchaseDate: string;
+    registrationDate: string;
+    recordedBy: string;
     warrantyEndDate: string | null;
     condition: AssetCondition;
     location: string | null;
+    locationDetail: string | null;
     currentUser: string | null;
     notes: string | null;
     attachments: Attachment[];
@@ -338,18 +458,52 @@ interface RegistrationFormData {
     relatedRequestId: string | null;
 }
 
-const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: RegistrationFormData) => void; prefillData?: Request | null }> = ({ onBack, onSave, prefillData }) => {
+const parseScannedData = (data: string): { serialNumber?: string; macAddress?: string; raw: string } => {
+    const result: { serialNumber?: string; macAddress?: string; raw: string } = { raw: data };
+    const pairs = data.split(/[,;\n\r]/).map(p => p.trim());
+
+    for (const pair of pairs) {
+        const parts = pair.split(/[:=]/).map(p => p.trim());
+        if (parts.length === 2) {
+            const key = parts[0].toLowerCase();
+            const value = parts[1];
+            if (key.includes('sn') || key.includes('serial')) {
+                result.serialNumber = value;
+            } else if (key.includes('mac')) {
+                result.macAddress = value.replace(/[-:]/g, ''); // Normalize MAC
+            }
+        }
+    }
+    
+    return result;
+};
+
+const RegistrationForm: React.FC<{ 
+    onBack: () => void; 
+    onSave: (data: RegistrationFormData, assetIdToUpdate?: string) => void; 
+    prefillData?: Request | null; 
+    editingAsset?: Asset | null;
+    currentUser: User;
+    onStartScan: (itemId: number, field: 'serialNumber' | 'macAddress') => void;
+    bulkItems: { id: number, serialNumber: string, macAddress: string }[];
+    setBulkItems: React.Dispatch<React.SetStateAction<{ id: number, serialNumber: string, macAddress: string }[]>>;
+}> = ({ onBack, onSave, prefillData, editingAsset, currentUser, onStartScan, bulkItems, setBulkItems }) => {
+    const isEditing = !!editingAsset;
     const [assetName, setAssetName] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [assetType, setAssetType] = useState('');
     const [brand, setBrand] = useState('');
     const [purchasePrice, setPurchasePrice] = useState<number | ''>('');
     const [vendor, setVendor] = useState('');
+    const [poNumber, setPoNumber] = useState('');
+    const [invoiceNumber, setInvoiceNumber] = useState('');
     const [purchaseDate, setPurchaseDate] = useState<Date | null>(new Date());
+    const [registrationDate, setRegistrationDate] = useState<Date | null>(new Date());
     const [warrantyDate, setWarrantyDate] = useState<Date | null>(null);
     const [warrantyPeriod, setWarrantyPeriod] = useState<number | ''>('');
     const [condition, setCondition] = useState<AssetCondition>(AssetCondition.BRAND_NEW);
     const [location, setLocation] = useState('Gudang Inventori');
+    const [locationDetail, setLocationDetail] = useState('');
     const [initialUser, setInitialUser] = useState('');
     const [notes, setNotes] = useState('');
     const [attachments, setAttachments] = useState<File[]>([]);
@@ -359,7 +513,6 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
     const [isSubmitting, setIsSubmitting] = useState(false);
     const footerRef = useRef<HTMLDivElement>(null);
     const formId = "asset-registration-form";
-    const [bulkItems, setBulkItems] = useState<{ id: number, serialNumber: string, macAddress: string }[]>([{ id: Date.now(), serialNumber: '', macAddress: '' }]);
 
     useEffect(() => {
         if (prefillData && prefillData.items.length > 0) {
@@ -372,7 +525,29 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
             const quantity = prefillData.items.reduce((sum, item) => sum + item.quantity, 0);
             setBulkItems(Array.from({ length: quantity }, (_, i) => ({ id: Date.now() + i, serialNumber: '', macAddress: '' })));
         }
-    }, [prefillData]);
+    }, [prefillData, setBulkItems]);
+    
+    useEffect(() => {
+        if (isEditing && editingAsset) {
+            setAssetName(editingAsset.name);
+            setSelectedCategory(editingAsset.category);
+            setDeviceTypes(ispAssetCategories[editingAsset.category] || []);
+            setAssetType(editingAsset.type);
+            setBrand(editingAsset.brand);
+            setPurchasePrice(editingAsset.purchasePrice ?? '');
+            setVendor(editingAsset.vendor ?? '');
+            setPoNumber(editingAsset.poNumber ?? '');
+            setInvoiceNumber(editingAsset.invoiceNumber ?? '');
+            setPurchaseDate(new Date(editingAsset.purchaseDate));
+            setRegistrationDate(new Date(editingAsset.registrationDate));
+            setWarrantyDate(editingAsset.warrantyEndDate ? new Date(editingAsset.warrantyEndDate) : null);
+            setCondition(editingAsset.condition);
+            setLocation(editingAsset.location ?? 'Gudang Inventori');
+            setLocationDetail(editingAsset.locationDetail ?? '');
+            setInitialUser(editingAsset.currentUser ?? '');
+            setNotes(editingAsset.notes ?? '');
+        }
+    }, [isEditing, editingAsset]);
 
 
     useEffect(() => {
@@ -432,10 +607,15 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
             brand,
             purchasePrice: purchasePrice === '' ? null : purchasePrice,
             vendor: vendor || null,
+            poNumber: poNumber || null,
+            invoiceNumber: invoiceNumber || null,
             purchaseDate: purchaseDate!.toISOString().split('T')[0],
+            registrationDate: registrationDate!.toISOString().split('T')[0],
+            recordedBy: currentUser.name,
             warrantyEndDate: warrantyDate ? warrantyDate.toISOString().split('T')[0] : null,
             condition,
             location: location || null,
+            locationDetail: locationDetail || null,
             currentUser: initialUser || null,
             notes: notes || null,
             attachments: [],
@@ -444,7 +624,7 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
         };
 
         setTimeout(() => { // Simulate API Call
-            onSave(formData);
+            onSave(formData, editingAsset?.id);
             setIsSubmitting(false);
         }, 1000);
     };
@@ -460,7 +640,7 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
                 disabled={isSubmitting}
                 className="inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent disabled:bg-tm-primary/70 disabled:cursor-not-allowed">
                 {isSubmitting ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}
-                {isSubmitting ? 'Menyimpan...' : 'Simpan Aset Baru'}
+                {isSubmitting ? 'Menyimpan...' : (isEditing ? 'Simpan Perubahan' : 'Simpan Aset Baru')}
             </button>
         </>
     );
@@ -477,7 +657,35 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
                 )}
                 <div className="mb-6 space-y-2 text-center">
                     <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                    <p className="font-semibold text-tm-secondary">FORMULIR PENCATATAN ASET BARU</p>
+                    <p className="font-semibold text-tm-secondary">{isEditing ? 'FORMULIR EDIT DATA ASET' : 'FORMULIR PENCATATAN ASET BARU'}</p>
+                </div>
+
+                <div className="p-4 border-t border-b border-gray-200">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        <div>
+                            <label htmlFor="registrationDate" className="block text-sm font-medium text-gray-700">Tanggal Pencatatan</label>
+                            <DatePicker 
+                                id="registrationDate" 
+                                selectedDate={registrationDate} 
+                                onDateChange={setRegistrationDate} 
+                                disableFutureDates 
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="recordedBy" className="block text-sm font-medium text-gray-700">Dicatat oleh</label>
+                            <input
+                                type="text"
+                                id="recordedBy"
+                                readOnly
+                                className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm"
+                                value={currentUser.name}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="docNumber" className="block text-sm font-medium text-gray-700">No Dokumen Aset</label>
+                            <input type="text" id="docNumber" readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm" value={editingAsset?.id || '[Otomatis]'} />
+                        </div>
+                    </div>
                 </div>
 
                 <FormSection title="Informasi Dasar Aset" icon={<InfoIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
@@ -509,38 +717,48 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
                     <div className="md:col-span-2">
                         <div className="flex items-center justify-between mb-2">
                             <label className="block text-sm font-medium text-gray-700">Daftar Unit (Nomor Seri & MAC Address)</label>
-                            <button type="button" onClick={addBulkItem} className="px-3 py-1 text-xs font-semibold text-white transition-colors duration-200 rounded-md shadow-sm bg-tm-accent hover:bg-tm-primary">+ Tambah Unit</button>
+                            {!isEditing && <button type="button" onClick={addBulkItem} className="px-3 py-1 text-xs font-semibold text-white transition-colors duration-200 rounded-md shadow-sm bg-tm-accent hover:bg-tm-primary">+ Tambah Unit</button>}
                         </div>
                        <div className="space-y-3">
                             {bulkItems.map((item, index) => (
                                 <div key={item.id} className="relative grid grid-cols-1 gap-x-4 gap-y-2 p-3 bg-gray-50/80 border rounded-lg md:grid-cols-2">
                                     <div className="md:col-span-2">
-                                        <label className="text-sm font-medium text-gray-700">Unit #{index + 1}</label>
+                                        <label className="text-sm font-medium text-gray-700">{isEditing ? 'Detail Unit' : `Unit #${index + 1}`}</label>
                                     </div>
                                     <div>
                                         <label htmlFor={`sn-${item.id}`} className="block text-xs font-medium text-gray-500">Nomor Seri</label>
-                                        <input
-                                            id={`sn-${item.id}`}
-                                            type="text"
-                                            value={item.serialNumber}
-                                            onChange={(e) => handleBulkItemChange(item.id, 'serialNumber', e.target.value)}
-                                            required
-                                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
-                                            placeholder="Wajib diisi"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                id={`sn-${item.id}`}
+                                                type="text"
+                                                value={item.serialNumber}
+                                                onChange={(e) => handleBulkItemChange(item.id, 'serialNumber', e.target.value)}
+                                                required
+                                                className="block w-full px-3 py-2 pr-10 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
+                                                placeholder="Wajib diisi"
+                                            />
+                                            <button type="button" onClick={() => onStartScan(item.id, 'serialNumber')} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-tm-accent" aria-label={`Pindai Nomor Seri untuk Unit ${index + 1}`}>
+                                                <QrCodeIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
                                     <div>
                                         <label htmlFor={`mac-${item.id}`} className="block text-xs font-medium text-gray-500">MAC Address</label>
-                                        <input
-                                            id={`mac-${item.id}`}
-                                            type="text"
-                                            value={item.macAddress}
-                                            onChange={(e) => handleBulkItemChange(item.id, 'macAddress', e.target.value)}
-                                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
-                                            placeholder="Opsional"
-                                        />
+                                         <div className="relative">
+                                            <input
+                                                id={`mac-${item.id}`}
+                                                type="text"
+                                                value={item.macAddress}
+                                                onChange={(e) => handleBulkItemChange(item.id, 'macAddress', e.target.value)}
+                                                className="block w-full px-3 py-2 pr-10 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
+                                                placeholder="Opsional"
+                                            />
+                                             <button type="button" onClick={() => onStartScan(item.id, 'macAddress')} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-tm-accent" aria-label={`Pindai MAC Address untuk Unit ${index + 1}`}>
+                                                <QrCodeIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
-                                    {bulkItems.length > 1 && (
+                                    {bulkItems.length > 1 && !isEditing && (
                                         <div className="absolute top-2 right-2">
                                             <button type="button" onClick={() => removeBulkItem(item.id)} className="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-500">
                                                 <TrashIcon className="w-4 h-4" />
@@ -561,6 +779,14 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
                     <div>
                         <label htmlFor="vendor" className="block text-sm font-medium text-gray-700">Vendor / Toko</label>
                         <input type="text" id="vendor" value={vendor} onChange={e => setVendor(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: Distributor Resmi" />
+                    </div>
+                    <div>
+                        <label htmlFor="poNumber" className="block text-sm font-medium text-gray-700">Nomor PO</label>
+                        <input type="text" id="poNumber" value={poNumber} onChange={e => setPoNumber(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: PO-123/IV/2024" />
+                    </div>
+                    <div>
+                        <label htmlFor="invoiceNumber" className="block text-sm font-medium text-gray-700">Nomor Faktur</label>
+                        <input type="text" id="invoiceNumber" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: INV/VENDOR/2024/001" />
                     </div>
                     <div>
                         <label htmlFor="purchaseDate" className="block text-sm font-medium text-gray-700">Tanggal Pembelian</label>
@@ -590,7 +816,11 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
                             {assetLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                         </select>
                     </div>
-                    <div className="md:col-span-2">
+                     <div>
+                        <label htmlFor="locationDetail" className="block text-sm font-medium text-gray-700">Detail Lokasi / Rak</label>
+                        <input type="text" id="locationDetail" value={locationDetail} onChange={e => setLocationDetail(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: Rak C-03, Meja 12" />
+                    </div>
+                    <div>
                         <label htmlFor="initialUser" className="block text-sm font-medium text-gray-700">Pengguna Awal (Opsional)</label>
                         <input type="text" id="initialUser" value={initialUser} onChange={e => setInitialUser(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Nama tim atau pengguna yang menerima aset ini" />
                     </div>
@@ -642,55 +872,82 @@ const RegistrationForm: React.FC<{ onBack: () => void; onSave: (data: Registrati
     );
 };
 
-const DetailItem: React.FC<{ label: string; value: React.ReactNode; fullWidth?: boolean }> = ({ label, value, fullWidth = false }) => (
-    <div className={fullWidth ? 'md:col-span-2' : ''}>
-        <dt className="text-sm font-medium text-gray-500">{label}</dt>
-        <dd className="mt-1 text-sm text-gray-900">{value || '-'}</dd>
-    </div>
-);
-
-
-const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, prefillData, onClearPrefill, onRegistrationComplete, onInitiateHandover, onInitiateInstallation, onInitiateDismantle }) => {
+export const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets, setAssets, customers, requests, handovers, dismantles, prefillData, onClearPrefill, onRegistrationComplete, onInitiateHandover, onInitiateInstallation, onInitiateDismantle, assetToViewId, initialFilters, onClearInitialFilters, itemToEdit, onClearItemToEdit, onShowPreview }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [assetToDeleteId, setAssetToDeleteId] = useState<string | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState(false);
     const addNotification = useNotification();
     const [isLoading, setIsLoading] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const [activeTab, setActiveTab] = useState<'details' | 'history' | 'attachments' | 'qr-code'>('details');
 
     const [view, setView] = useState<'list' | 'form'>('list');
     const [searchQuery, setSearchQuery] = useState('');
-    const [filters, setFilters] = useState({ status: '', category: '', location: '', dismantled: '' });
+    const [filters, setFilters] = useState({ status: '', category: '', location: '', dismantled: '', warranty: '' });
     const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
     const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
     
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [scanningTarget, setScanningTarget] = useState<{ itemId: number; field: 'serialNumber' | 'macAddress' } | null>(null);
+    const [bulkItems, setBulkItems] = useState<{ id: number, serialNumber: string, macAddress: string }[]>([{ id: Date.now(), serialNumber: '', macAddress: '' }]);
 
-    // States for new bulk action modals
     const [isChangeStatusModalOpen, setIsChangeStatusModalOpen] = useState(false);
     const [targetStatus, setTargetStatus] = useState<AssetStatus>(AssetStatus.IN_STORAGE);
+    const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
+    
+    const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+    
+    const handleStartEdit = useCallback((asset: Asset) => {
+        setAssetToEdit(asset);
+        setBulkItems([{
+            id: Date.now(),
+            serialNumber: asset.serialNumber,
+            macAddress: asset.macAddress || '',
+        }]);
+        setIsModalOpen(false);
+        setView('form');
+    }, []);
+
+    useEffect(() => {
+        if (itemToEdit && itemToEdit.type === 'asset') {
+            handleStartEdit(itemToEdit.data as Asset);
+            onClearItemToEdit();
+        }
+    }, [itemToEdit, onClearItemToEdit, handleStartEdit]);
 
     useEffect(() => {
         if (prefillData) {
             setView('form');
+        } else if (!assetToEdit) { // Only reset if not entering edit mode
+            setBulkItems([{ id: Date.now(), serialNumber: '', macAddress: '' }]);
         }
-    }, [prefillData]);
+    }, [prefillData, assetToEdit]);
     
+    useEffect(() => {
+        if (initialFilters && Object.keys(initialFilters).length > 0) {
+            setFilters(prev => ({ ...prev, ...initialFilters }));
+            onClearInitialFilters();
+        }
+    }, [initialFilters, onClearInitialFilters]);
+
     const handleSetView = (newView: 'list' | 'form') => {
-        if (newView === 'list' && prefillData) {
-            onClearPrefill();
+        if (newView === 'list') {
+            if (prefillData) onClearPrefill();
+            if (assetToEdit) setAssetToEdit(null);
         }
         setView(newView);
     }
 
     const isFiltering = useMemo(() => {
-        return searchQuery.trim() !== '' || filters.status !== '' || filters.category !== '' || filters.location !== '' || filters.dismantled !== '';
+        return searchQuery.trim() !== '' || filters.status !== '' || filters.category !== '' || filters.location !== '' || filters.dismantled !== '' || filters.warranty !== '';
     }, [searchQuery, filters]);
 
     const handleResetFilters = () => {
         setSearchQuery('');
-        setFilters({ status: '', category: '', location: '', dismantled: '' });
+        setFilters({ status: '', category: '', location: '', dismantled: '', warranty: '' });
     };
 
     const filterOptions = useMemo(() => {
@@ -717,6 +974,24 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
             .filter(asset => {
                 if (filters.dismantled === 'yes') return asset.isDismantled === true;
                 if (filters.dismantled === 'no') return !asset.isDismantled;
+                return true;
+            })
+            .filter(asset => {
+                if (!filters.warranty) return true;
+                if (!asset.warrantyEndDate) return false;
+        
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const warrantyEnd = new Date(asset.warrantyEndDate);
+                
+                if (filters.warranty === 'expiring') {
+                    const currentMonth = today.getMonth();
+                    const currentYear = today.getFullYear();
+                    return warrantyEnd.getMonth() === currentMonth && warrantyEnd.getFullYear() === currentYear;
+                }
+                if (filters.warranty === 'expired') {
+                    return warrantyEnd < today;
+                }
                 return true;
             });
     }, [assets, searchQuery, filters]);
@@ -781,10 +1056,20 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
         setFilters(prev => ({ ...prev, [filterName]: value }));
     };
 
-    const handleShowDetails = (asset: Asset) => {
+    const handleShowDetails = useCallback((asset: Asset) => {
         setSelectedAsset(asset);
+        setActiveTab('details');
         setIsModalOpen(true);
-    };
+    }, []);
+
+    useEffect(() => {
+        if (assetToViewId) {
+            const assetToShow = assets.find(a => a.id === assetToViewId);
+            if (assetToShow) {
+                handleShowDetails(assetToShow);
+            }
+        }
+    }, [assetToViewId, assets, handleShowDetails]);
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
@@ -801,14 +1086,57 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
             setIsLoading(false);
         }, 1000);
     };
+    
+    const { deletableAssetsCount, skippableAssetsCount } = useMemo(() => {
+        if (!bulkDeleteConfirmation) {
+            return { deletableAssetsCount: 0, skippableAssetsCount: 0 };
+        }
+        const selected = assets.filter(a => selectedAssetIds.includes(a.id));
+        const skippable = selected.filter(a => a.status === AssetStatus.IN_USE);
+        return {
+            deletableAssetsCount: selected.length - skippable.length,
+            skippableAssetsCount: skippable.length,
+        };
+    }, [bulkDeleteConfirmation, selectedAssetIds, assets]);
 
     const handleBulkDelete = () => {
         setIsLoading(true);
-        setTimeout(() => { // Simulate API Call
-            setAssets(prev => prev.filter(asset => !selectedAssetIds.includes(asset.id)));
-            addNotification(`${selectedAssetIds.length} aset berhasil dihapus.`, 'success');
+        setTimeout(() => {
+            const deletableAssetIds = selectedAssetIds.filter(id => {
+                const asset = assets.find(a => a.id === id);
+                return asset && asset.status !== AssetStatus.IN_USE;
+            });
+
+            if (deletableAssetIds.length === 0) {
+                addNotification('Tidak ada aset yang dapat dihapus (semua sedang digunakan).', 'warning');
+                setBulkDeleteConfirmation(false);
+                setIsLoading(false);
+                handleCancelBulkMode();
+                return;
+            }
+
+            setAssets(prev => prev.filter(asset => !deletableAssetIds.includes(asset.id)));
+
+            let message = `${deletableAssetIds.length} aset berhasil dihapus.`;
+            if (skippableAssetsCount > 0) {
+                message += ` ${skippableAssetsCount} aset dilewati karena sedang digunakan.`;
+            }
+            addNotification(message, 'success');
+
             handleCancelBulkMode();
             setBulkDeleteConfirmation(false);
+            setIsLoading(false);
+        }, 1000);
+    };
+
+    const handleChangeStatus = () => {
+        if (!selectedAsset) return;
+        setIsLoading(true);
+        setTimeout(() => {
+            setAssets(prev => prev.map(a => a.id === selectedAsset.id ? { ...a, status: targetStatus } : a));
+            setSelectedAsset(prev => prev ? { ...prev, status: targetStatus } : null);
+            addNotification(`Status aset ${selectedAsset.id} berhasil diubah.`, 'success');
+            setIsChangeStatusModalOpen(false);
             setIsLoading(false);
         }, 1000);
     };
@@ -834,44 +1162,174 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
         exportToCSV(sortedAssets, `aset_tercatat_${new Date().toISOString().split('T')[0]}`);
     };
     
-    const handleAddAssets = (data: RegistrationFormData) => {
-        const baseAssetData = {
-            name: data.assetName,
-            category: data.category,
-            type: data.type,
-            brand: data.brand,
-            purchaseDate: data.purchaseDate,
-            purchasePrice: data.purchasePrice,
-            vendor: data.vendor,
-            warrantyEndDate: data.warrantyEndDate,
-            location: data.location,
-            currentUser: data.currentUser,
-            condition: data.condition,
-            notes: data.notes,
-            attachments: data.attachments,
-            woRoIntNumber: data.relatedRequestId || `INT-${Math.floor(Math.random() * 90000) + 10000}`,
-            status: data.currentUser ? AssetStatus.IN_USE : AssetStatus.IN_STORAGE,
-        };
+    const handleSaveAsset = (data: RegistrationFormData, assetIdToUpdate?: string) => {
+        if (assetIdToUpdate) {
+            // Update logic
+            setAssets(prevAssets => prevAssets.map(asset => {
+                if (asset.id === assetIdToUpdate) {
+                    return {
+                        ...asset,
+                        name: data.assetName,
+                        category: data.category,
+                        type: data.type,
+                        brand: data.brand,
+                        purchasePrice: data.purchasePrice,
+                        vendor: data.vendor,
+                        poNumber: data.poNumber,
+                        invoiceNumber: data.invoiceNumber,
+                        purchaseDate: data.purchaseDate,
+                        registrationDate: data.registrationDate,
+                        recordedBy: data.recordedBy,
+                        warrantyEndDate: data.warrantyEndDate,
+                        condition: data.condition,
+                        location: data.location,
+                        locationDetail: data.locationDetail,
+                        currentUser: data.currentUser,
+                        notes: data.notes,
+                        serialNumber: data.bulkItems[0].serialNumber,
+                        macAddress: data.bulkItems[0].macAddress || null,
+                        lastModifiedDate: new Date().toISOString(),
+                        lastModifiedBy: currentUser.name,
+                        activityLog: [
+                            ...(asset.activityLog || []),
+                            {
+                                id: `log-edit-${Date.now()}`,
+                                timestamp: new Date().toISOString(),
+                                user: currentUser.name,
+                                action: 'Data Aset Diperbarui',
+                                details: 'Informasi aset telah diubah melalui form edit.',
+                            } as ActivityLogEntry
+                        ]
+                    };
+                }
+                return asset;
+            }));
+            addNotification(`Aset ${assetIdToUpdate} berhasil diperbarui.`, 'success');
+            handleSetView('list');
+        } else {
+            // Creation logic
+            const baseAssetData = {
+                name: data.assetName,
+                category: data.category,
+                type: data.type,
+                brand: data.brand,
+                registrationDate: data.registrationDate,
+                recordedBy: data.recordedBy,
+                purchaseDate: data.purchaseDate,
+                purchasePrice: data.purchasePrice,
+                vendor: data.vendor,
+                poNumber: data.poNumber,
+                invoiceNumber: data.invoiceNumber,
+                warrantyEndDate: data.warrantyEndDate,
+                location: data.location,
+                locationDetail: data.locationDetail,
+                currentUser: data.currentUser,
+                condition: data.condition,
+                notes: data.notes,
+                attachments: data.attachments,
+                woRoIntNumber: data.relatedRequestId || `INT-${Math.floor(Math.random() * 90000) + 10000}`,
+                status: data.currentUser ? AssetStatus.IN_USE : AssetStatus.IN_STORAGE,
+                lastModifiedDate: null,
+                lastModifiedBy: null,
+            };
 
-        const newAssets: Asset[] = data.bulkItems.map((item, index) => ({
-            ...baseAssetData,
-            id: `AST-${String(assets.length + 1 + index).padStart(3, '0')}`,
-            serialNumber: item.serialNumber,
-            macAddress: item.macAddress || null,
-        }));
-        
-        setAssets(prev => [...newAssets, ...prev]);
-        handleSetView('list');
-        if (data.relatedRequestId) {
-            onRegistrationComplete(data.relatedRequestId);
+            const newAssets: Asset[] = data.bulkItems.map((item, index) => ({
+                ...baseAssetData,
+                id: `AST-${String(assets.length + 1 + index).padStart(3, '0')}`,
+                serialNumber: item.serialNumber,
+                macAddress: item.macAddress || null,
+                activityLog: [],
+            }));
+            
+            setAssets(prev => [...newAssets, ...prev]);
+            handleSetView('list');
+            if (data.relatedRequestId) {
+                onRegistrationComplete(data.relatedRequestId);
+            }
+            addNotification(`${newAssets.length} aset baru berhasil dicatat.`, 'success');
         }
-        addNotification(`${newAssets.length} aset baru berhasil dicatat.`, 'success');
     };
     
     const formatCurrency = (value: number | null) => {
         if (value === null || value === undefined) return '-';
         return `Rp ${value.toLocaleString('id-ID')}`;
     };
+    
+    const handleCopyToClipboard = (text: string | null, message: string) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        addNotification(message, 'success');
+    };
+
+    const assetHistory = useMemo(() => {
+        if (!selectedAsset) return [];
+        
+        let history: { date: string, type: string, description: React.ReactNode, icon: React.FC<any>, color: string }[] = [];
+
+        // 1. Initial Registration
+        history.push({
+            date: selectedAsset.registrationDate,
+            type: 'Pencatatan Aset',
+            description: <>Aset dicatat oleh <ClickableLink onClick={() => onShowPreview({ type: 'user', id: selectedAsset.recordedBy })}>{selectedAsset.recordedBy}</ClickableLink>.</>,
+            icon: TagIcon,
+            color: 'text-blue-500',
+        });
+        
+        // 2. Related Request (if any)
+        const relatedRequest = requests.find(r => selectedAsset.woRoIntNumber === r.id);
+        if(relatedRequest) {
+             history.push({
+                date: relatedRequest.requestDate,
+                type: 'Permintaan Awal',
+                description: <>Disediakan berdasarkan request <ClickableLink onClick={() => onShowPreview({ type: 'request', id: relatedRequest.id })}>#{relatedRequest.id}</ClickableLink> oleh <ClickableLink onClick={() => onShowPreview({ type: 'user', id: relatedRequest.requester })}>{relatedRequest.requester}</ClickableLink>.</>,
+                icon: RequestIcon,
+                color: 'text-purple-500',
+            });
+        }
+
+        // 3. Handovers
+        handovers.filter(h => h.items.some(item => item.assetId === selectedAsset.id)).forEach(h => {
+            const isInstallation = h.penerima.includes('TMI-');
+            const customer = isInstallation ? customers.find(c => h.penerima.includes(c.id)) : null;
+            history.push({
+                date: h.handoverDate,
+                type: isInstallation ? 'Pemasangan di Pelanggan' : 'Serah Terima Internal',
+                description: isInstallation 
+                    ? <>Dipasang di Pelanggan: <ClickableLink onClick={() => onShowPreview({ type: 'customer', id: customer!.id })}>{customer ? customer.name : h.penerima}</ClickableLink> via form <ClickableLink onClick={() => onShowPreview({ type: 'handover', id: h.id })}>#{h.id}</ClickableLink>.</>
+                    : <>Diserahkan dari <ClickableLink onClick={() => onShowPreview({ type: 'user', id: h.menyerahkan })}>{h.menyerahkan}</ClickableLink> kepada <ClickableLink onClick={() => onShowPreview({ type: 'user', id: h.penerima })}>{h.penerima}</ClickableLink> via form <ClickableLink onClick={() => onShowPreview({ type: 'handover', id: h.id })}>#{h.id}</ClickableLink>.</>,
+                icon: isInstallation ? CustomerIcon : UsersIcon,
+                color: isInstallation ? 'text-green-500' : 'text-cyan-500',
+            });
+        });
+        
+        // 4. Dismantles
+        dismantles.filter(d => d.assetId === selectedAsset.id).forEach(d => {
+            history.push({
+                date: d.dismantleDate,
+                type: 'Penarikan Aset (Dismantle)',
+                description: <>Ditarik dari Pelanggan: <ClickableLink onClick={() => onShowPreview({ type: 'customer', id: d.customerId })}>{d.customerName}</ClickableLink> oleh teknisi <ClickableLink onClick={() => onShowPreview({ type: 'user', id: d.technician })}>{d.technician}</ClickableLink> via form <ClickableLink onClick={() => onShowPreview({ type: 'dismantle', id: d.id })}>#{d.id}</ClickableLink>.</>,
+                icon: WrenchIcon,
+                color: 'text-red-500',
+            });
+        });
+
+        // 5. Activity Log (Edits, etc.)
+        (selectedAsset.activityLog || []).forEach(log => {
+             if (log.action === 'Data Aset Diperbarui') {
+                 history.push({
+                    date: new Date(log.timestamp).toISOString().split('T')[0],
+                    type: 'Data Diperbarui',
+                    description: <>Informasi aset diperbarui oleh <ClickableLink onClick={() => onShowPreview({ type: 'user', id: log.user })}>{log.user}</ClickableLink>.</>,
+                    icon: PencilIcon,
+                    color: 'text-yellow-500',
+                });
+             }
+        });
+
+
+        return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    }, [selectedAsset, requests, handovers, dismantles, customers, onShowPreview]);
 
     const renderModalFooter = () => {
         if (!selectedAsset) return null;
@@ -880,56 +1338,328 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
         const canBeDismantled = selectedAsset.status === AssetStatus.IN_USE;
 
         return (
-            <div className="flex items-center justify-end flex-1 space-x-3">
+            <div className="flex items-center justify-end flex-1 space-x-3 no-print">
                 {canBeAssigned && (
                     <>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                onInitiateInstallation(selectedAsset);
-                                handleCloseModal();
-                            }}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
-                        >
-                            <CustomerIcon className="w-4 h-4" />
-                            Pasang ke Pelanggan
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                onInitiateHandover(selectedAsset);
-                                handleCloseModal();
-                            }}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-100"
-                        >
-                            <HandoverIcon className="w-4 h-4" />
-                            Serah Terima Internal
-                        </button>
+                        <Tooltip text="Buat form serah terima untuk pemasangan aset ke pelanggan.">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onInitiateInstallation(selectedAsset);
+                                }}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
+                            >
+                                <CustomerIcon className="w-4 h-4" />
+                                Pasang ke Pelanggan
+                            </button>
+                        </Tooltip>
+                        <Tooltip text="Buat form serah terima untuk pemindahan aset antar staf/divisi.">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onInitiateHandover(selectedAsset);
+                                    handleCloseModal();
+                                }}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-100"
+                            >
+                                <HandoverIcon className="w-4 h-4" />
+                                Serah Terima Internal
+                            </button>
+                        </Tooltip>
                     </>
                 )}
                  {canBeDismantled && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            onInitiateDismantle(selectedAsset);
-                            handleCloseModal();
-                        }}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-danger hover:bg-red-700"
-                    >
-                        <DismantleIcon className="w-4 h-4" />
-                        Tarik / Dismantle Aset
-                    </button>
+                    <Tooltip text="Buat form penarikan aset dari pelanggan (dismantle).">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onInitiateDismantle(selectedAsset);
+                                handleCloseModal();
+                            }}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-danger hover:bg-red-700"
+                        >
+                            <DismantleIcon className="w-4 h-4" />
+                            Tarik / Dismantle Aset
+                        </button>
+                    </Tooltip>
                 )}
             </div>
         )
     };
     
+    useEffect(() => {
+        if (activeTab === 'qr-code' && selectedAsset && qrCanvasRef.current) {
+            if (typeof QRCode !== 'undefined') {
+                QRCode.toCanvas(qrCanvasRef.current, selectedAsset.id, { width: 256, margin: 2 }, function (error: any) {
+                    if (error) {
+                        console.error("QR Code generation error:", error);
+                        addNotification('Gagal membuat Kode QR.', 'error');
+                    }
+                });
+            } else {
+                console.error("QRCode library is not loaded.");
+                addNotification('Pustaka Kode QR tidak dapat dimuat. Coba muat ulang halaman.', 'error');
+            }
+        }
+    }, [activeTab, selectedAsset, addNotification]);
+    
+    const handlePrintQr = () => {
+        if (!qrCanvasRef.current || !selectedAsset) {
+            addNotification('Konten QR tidak dapat dimuat untuk dicetak.', 'error');
+            return;
+        }
+
+        const qrImageURL = qrCanvasRef.current.toDataURL('image/png');
+
+        const printWindow = window.open('', '_blank', 'height=500,width=500');
+        if (!printWindow) {
+            addNotification('Gagal membuka jendela cetak. Mohon izinkan pop-up untuk situs ini.', 'error');
+            return;
+        }
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Cetak QR - ${selectedAsset.id}</title>
+                    <style>
+                        @media print {
+                            @page { size: 10cm 10cm; margin: 0; }
+                            body { margin: 0; }
+                        }
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                            text-align: center;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            height: 100%;
+                            margin: 0;
+                        }
+                        .container {
+                            padding: 20px;
+                        }
+                        h3 {
+                            margin: 0 0 5px 0;
+                            font-size: 16px;
+                        }
+                        p {
+                            margin: 0 0 10px 0;
+                            font-family: monospace;
+                            font-size: 14px;
+                        }
+                        img {
+                            max-width: 80%;
+                            height: auto;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h3>${selectedAsset.name}</h3>
+                        <p>${selectedAsset.id}</p>
+                        <img src="${qrImageURL}" alt="QR Code for ${selectedAsset.id}" />
+                    </div>
+                </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+        printWindow.focus();
+        
+        printWindow.onload = function() {
+            printWindow.print();
+            printWindow.close();
+        };
+    };
+
+    const handleBulkPrintQr = async () => {
+        if (selectedAssetIds.length === 0) {
+            addNotification('Pilih setidaknya satu aset untuk mencetak QR.', 'error');
+            return;
+        }
+        
+        setIsPrinting(true);
+        const selectedAssetsToPrint = assets.filter(a => selectedAssetIds.includes(a.id));
+
+        // Allow UI to update with loading state
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            addNotification('Gagal membuka jendela cetak. Mohon izinkan pop-up untuk situs ini.', 'error');
+            setIsPrinting(false);
+            return;
+        }
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Cetak QR Aset (${selectedAssetsToPrint.length} item)</title>
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+                        .qr-item {
+                            width: 100%;
+                            height: 100%;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            align-items: center;
+                            text-align: center;
+                            page-break-after: always;
+                            box-sizing: border-box;
+                        }
+                        .qr-item:last-child { page-break-after: auto; }
+                        h3 { margin: 0 0 5px 0; font-size: 16px; word-break: break-word; }
+                        p { margin: 0 0 10px 0; font-family: monospace; font-size: 14px; }
+                        canvas { max-width: 80%; height: auto; }
+                        @media print {
+                            @page { size: 10cm 10cm; margin: 0; }
+                            body { margin: 0; }
+                        }
+                    </style>
+                </head>
+                <body><div id="print-container"></div></body>
+            </html>
+        `);
+        printWindow.document.close();
+
+        try {
+            const container = printWindow.document.getElementById('print-container');
+            if (!container) throw new Error("Print container not found");
+            
+            for (const asset of selectedAssetsToPrint) {
+                const itemDiv = printWindow.document.createElement('div');
+                itemDiv.className = 'qr-item';
+                
+                const nameEl = printWindow.document.createElement('h3');
+                nameEl.textContent = asset.name;
+                itemDiv.appendChild(nameEl);
+                
+                const idEl = printWindow.document.createElement('p');
+                idEl.textContent = asset.id;
+                itemDiv.appendChild(idEl);
+
+                const canvasEl = printWindow.document.createElement('canvas');
+                itemDiv.appendChild(canvasEl);
+
+                container.appendChild(itemDiv);
+
+                await new Promise<void>((resolve, reject) => {
+                    QRCode.toCanvas(canvasEl, asset.id, { width: 256, margin: 2 }, (error: any) => {
+                        if (error) reject(error);
+                        else resolve();
+                    });
+                });
+            }
+
+            printWindow.focus();
+            printWindow.print();
+        } catch (error) {
+            console.error("Failed to generate QR codes for printing:", error);
+            addNotification('Gagal membuat satu atau lebih Kode QR.', 'error');
+        } finally {
+            printWindow.close();
+            setIsPrinting(false);
+        }
+    };
+
+
+    const handleDownloadQr = () => {
+        if (qrCanvasRef.current && selectedAsset) {
+            const link = document.createElement('a');
+            link.download = `qrcode-aset-${selectedAsset.id}.png`;
+            link.href = qrCanvasRef.current.toDataURL('image/png');
+            link.click();
+        }
+    };
+    
+    const handleStartScan = (itemId: number, field: 'serialNumber' | 'macAddress') => {
+        setScanningTarget({ itemId, field });
+        setIsScannerOpen(true);
+    };
+
+    const onScanSuccess = (decodedText: string) => {
+        if (!scanningTarget) return;
+
+        const parsed = parseScannedData(decodedText);
+        
+        setBulkItems(prevItems => prevItems.map(item => {
+            if (item.id === scanningTarget.itemId) {
+                const newItem = { ...item };
+                // Smart fill: if data contains both SN and MAC, fill both
+                if (parsed.serialNumber && parsed.macAddress) {
+                    newItem.serialNumber = parsed.serialNumber;
+                    newItem.macAddress = parsed.macAddress;
+                    addNotification('Nomor Seri dan MAC Address terisi.', 'success');
+                } else if (parsed.serialNumber) {
+                    newItem.serialNumber = parsed.serialNumber;
+                    addNotification('Nomor Seri terisi.', 'success');
+                } else if (parsed.macAddress) {
+                    newItem.macAddress = parsed.macAddress;
+                    addNotification('MAC Address terisi.', 'success');
+                } else {
+                    // Fallback: fill the targeted field with raw data
+                    newItem[scanningTarget.field] = parsed.raw;
+                    addNotification(`${scanningTarget.field === 'serialNumber' ? 'Nomor Seri' : 'MAC Address'} terisi.`, 'success');
+                }
+                return newItem;
+            }
+            return item;
+        }));
+
+        setIsScannerOpen(false);
+        setScanningTarget(null);
+    };
+
+    const ScannerModal = () => {
+        const scannerRef = useRef<any>(null);
+
+        useEffect(() => {
+            if (isScannerOpen) {
+                const html5QrCode = new Html5Qrcode("qr-reader");
+                scannerRef.current = html5QrCode;
+                
+                const successCallback = (decodedText: string, decodedResult: any) => {
+                    if (scannerRef.current?.isScanning) {
+                        scannerRef.current.stop();
+                    }
+                    onScanSuccess(decodedText);
+                };
+
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    successCallback,
+                    (errorMessage: string) => {} // error callback
+                ).catch(err => {
+                    addNotification('Gagal memulai kamera. Pastikan izin telah diberikan.', 'error');
+                    console.error("Unable to start scanning.", err);
+                    setIsScannerOpen(false);
+                });
+            }
+
+            return () => {
+                if (scannerRef.current && scannerRef.current.isScanning) {
+                    scannerRef.current.stop().catch((err: any) => console.error("Error stopping scanner:", err));
+                }
+            };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [isScannerOpen]);
+
+        return (
+            <Modal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} title="Pindai Kode Aset" size="md">
+                <div id="qr-reader" style={{ width: '100%' }}></div>
+            </Modal>
+        );
+    };
+
+    
     const renderContent = () => {
         if (view === 'form') {
-            return (
+             return (
                  <div className="p-4 sm:p-6">
                     <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
-                        <h1 className="text-2xl sm:text-3xl font-bold text-tm-dark">Catat Aset Baru</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-tm-dark">{assetToEdit ? 'Edit Data Aset' : 'Catat Aset Baru'}</h1>
                         <button
                             onClick={() => handleSetView('list')}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent"
@@ -938,7 +1668,16 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
                         </button>
                     </div>
                     <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
-                        <RegistrationForm onBack={() => handleSetView('list')} onSave={handleAddAssets} prefillData={prefillData} />
+                        <RegistrationForm 
+                            onBack={() => handleSetView('list')} 
+                            onSave={handleSaveAsset} 
+                            prefillData={prefillData}
+                            editingAsset={assetToEdit}
+                            currentUser={currentUser}
+                            onStartScan={handleStartScan}
+                            bulkItems={bulkItems}
+                            setBulkItems={setBulkItems}
+                        />
                     </div>
                 </div>
             )
@@ -955,6 +1694,13 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
                         >
                             <ExportIcon className="w-4 h-4"/>
                             Export CSV
+                        </button>
+                        <button
+                            onClick={() => setIsScannerOpen(true)}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50"
+                        >
+                            <QrCodeIcon className="w-4 h-4"/>
+                            Pindai QR
                         </button>
                         <button
                             onClick={() => handleSetView('form')}
@@ -1002,14 +1748,19 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
                             <option value="">Semua Kategori</option>
                             {filterOptions.categories.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        <select onChange={e => handleFilterChange('dismantled', e.target.value)} value={filters.dismantled} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg lg:col-span-3 focus:ring-tm-accent focus:border-tm-accent">
+                        <select onChange={e => handleFilterChange('dismantled', e.target.value)} value={filters.dismantled} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg lg:col-span-2 focus:ring-tm-accent focus:border-tm-accent">
                             <option value="">Semua Asal Aset</option>
                             <option value="yes">Hasil Dismantle</option>
                             <option value="no">Bukan Dismantle</option>
                         </select>
+                         <select onChange={e => handleFilterChange('warranty', e.target.value)} value={filters.warranty} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg lg:col-span-2 focus:ring-tm-accent focus:border-tm-accent">
+                            <option value="">Semua Garansi</option>
+                            <option value="expiring">Habis Bulan Ini</option>
+                            <option value="expired">Sudah Habis</option>
+                        </select>
                         
                         {isFiltering && (
-                            <div className="flex justify-start lg:col-span-3 lg:justify-end">
+                            <div className="flex justify-start lg:col-span-2 lg:justify-end">
                                 <button
                                     type="button"
                                     onClick={handleResetFilters}
@@ -1031,16 +1782,24 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
 
                      {isBulkSelectMode && (
                          <div className="pt-4 mt-4 border-t border-gray-200">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                                 {selectedAssetIds.length > 0 ? (
-                                    <div className="flex items-center space-x-3">
+                                    <div className="flex flex-wrap items-center gap-3">
                                         <span className="text-sm font-medium text-tm-primary">{selectedAssetIds.length} item terpilih</span>
-                                        <div className="h-5 border-l border-gray-300"></div>
+                                        <div className="hidden h-5 border-l border-gray-300 sm:block"></div>
                                         <button
                                             onClick={() => setIsChangeStatusModalOpen(true)}
                                             className="px-3 py-1.5 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200"
                                         >
                                             Ubah Status
+                                        </button>
+                                        <button
+                                            onClick={handleBulkPrintQr}
+                                            disabled={isPrinting || isLoading}
+                                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-green-600 bg-green-100 rounded-md hover:bg-green-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                        >
+                                            {isPrinting ? <SpinnerIcon className="w-4 h-4" /> : <QrCodeIcon className="w-4 h-4" />}
+                                            Cetak QR
                                         </button>
                                         <button
                                             onClick={() => setBulkDeleteConfirmation(true)}
@@ -1064,6 +1823,7 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
                     <div className="overflow-x-auto custom-scrollbar">
                        <RegistrationTable 
                             assets={paginatedAssets} 
+                            customers={customers}
                             onDetailClick={handleShowDetails} 
                             onDeleteClick={setAssetToDeleteId}
                             sortConfig={sortConfig}
@@ -1073,6 +1833,7 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
                             onSelectAll={handleSelectAll}
                             isBulkSelectMode={isBulkSelectMode}
                             onEnterBulkMode={() => setIsBulkSelectMode(true)}
+                            onShowPreview={onShowPreview}
                         />
                     </div>
                     <PaginationControls
@@ -1090,68 +1851,214 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
         )
     }
 
-    return (
-        <>
-            {renderContent()}
-            
-            {selectedAsset && (
-                <Modal
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
-                    title={`Detail Aset: ${selectedAsset.name}`}
-                    size="3xl"
-                    footerContent={renderModalFooter()}
-                >
-                    <div className="space-y-6">
-                        <div className="mb-4 space-y-1 text-center border-b pb-4">
-                            <h4 className="text-lg font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                            <p className="font-semibold text-tm-secondary">KARTU ASET (ASSET CARD)</p>
-                        </div>
+    const getTimelineIconBgClass = (textColor: string): string => {
+        const colorMap: { [key: string]: string } = {
+            'text-blue-500': 'bg-blue-100',
+            'text-purple-500': 'bg-purple-100',
+            'text-green-500': 'bg-green-100',
+            'text-cyan-500': 'bg-cyan-100',
+            'text-red-500': 'bg-red-100',
+            'text-yellow-500': 'bg-yellow-100',
+        };
+        return colorMap[textColor as keyof typeof colorMap] || 'bg-gray-100';
+    };
 
-                        {/* Section 1: Info */}
-                        <div>
-                            <h4 className="font-semibold text-tm-dark mb-2 border-b pb-2">Informasi Aset</h4>
-                            <dl className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
-                                <DetailItem label="ID Aset" value={<span className="font-mono">{selectedAsset.id}</span>} />
+    const renderModalContent = () => {
+        if (!selectedAsset) return null;
+
+        const customer = selectedAsset.currentUser?.startsWith('TMI-') 
+            ? customers.find(c => c.id === selectedAsset.currentUser) 
+            : null;
+        
+        const getWarrantyStatus = () => {
+            if (!selectedAsset.warrantyEndDate) return null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const warrantyEnd = new Date(selectedAsset.warrantyEndDate);
+            const thirtyDaysFromNow = new Date();
+            thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+            if (warrantyEnd < today) {
+                return { text: "Garansi telah berakhir", color: "text-danger-text" };
+            }
+            if (warrantyEnd <= thirtyDaysFromNow) {
+                return { text: "Garansi akan segera berakhir", color: "text-warning-text" };
+            }
+            return null;
+        };
+        const warrantyStatus = getWarrantyStatus();
+
+        const renderStatusHeader = () => {
+            let statusText = selectedAsset.status.toUpperCase();
+            let locationText: React.ReactNode = '';
+
+            switch(selectedAsset.status) {
+                case AssetStatus.IN_USE:
+                    statusText = 'DIGUNAKAN';
+                    if (customer) {
+                        locationText = <>Terpasang di Pelanggan: <ClickableLink title={`Lihat Pratinjau ${customer.name}`} onClick={() => onShowPreview({type: 'customer', id: customer.id})}>{customer.name}</ClickableLink></>;
+                    } else {
+                        locationText = <>Dipegang oleh: <ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedAsset.currentUser!})}>{selectedAsset.currentUser}</ClickableLink></>;
+                    }
+                    break;
+                case AssetStatus.IN_STORAGE:
+                    statusText = 'TERSEDIA';
+                    locationText = `Disimpan di: ${selectedAsset.location} ${selectedAsset.locationDetail ? `(${selectedAsset.locationDetail})` : ''}`;
+                    break;
+                case AssetStatus.DAMAGED:
+                    statusText = 'RUSAK';
+                    locationText = `Lokasi: ${selectedAsset.location}`;
+                    break;
+                case AssetStatus.DECOMMISSIONED:
+                    statusText = 'DIBERHENTIKAN';
+                    locationText = 'Aset sudah tidak digunakan lagi.';
+                    break;
+            }
+
+            return (
+                <div className={`p-4 rounded-lg mb-6 ${
+                    selectedAsset.status === AssetStatus.IN_USE ? 'bg-info-light' : 
+                    selectedAsset.status === AssetStatus.IN_STORAGE ? 'bg-gray-100' :
+                    selectedAsset.status === AssetStatus.DAMAGED ? 'bg-warning-light' : 'bg-danger-light'
+                }`}>
+                    <p className={`text-sm font-bold tracking-wider ${
+                         selectedAsset.status === AssetStatus.IN_USE ? 'text-info-text' : 
+                         selectedAsset.status === AssetStatus.IN_STORAGE ? 'text-gray-800' :
+                         selectedAsset.status === AssetStatus.DAMAGED ? 'text-warning-text' : 'text-danger-text'
+                    }`}>{statusText}</p>
+                    <p className="text-sm text-gray-700">{locationText}</p>
+                </div>
+            );
+        };
+
+        return (
+             <>
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900 -mt-1">{selectedAsset.name}</h2>
+                        <p className="text-sm text-gray-500 font-mono">{selectedAsset.id}</p>
+                    </div>
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                        <button onClick={() => setIsChangeStatusModalOpen(true)} disabled={selectedAsset.status === AssetStatus.DECOMMISSIONED} className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" title="Ubah Status Aset">
+                            <WrenchIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">Ubah Status</span>
+                        </button>
+                        <button onClick={() => setActiveTab('qr-code')} className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50" title="Lihat & Cetak Kode QR">
+                            <QrCodeIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">Cetak Label</span>
+                        </button>
+                         <button onClick={() => handleStartEdit(selectedAsset)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50" >
+                            <PencilIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">Edit</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="border-b border-gray-200 no-print">
+                    <nav className="flex -mb-px space-x-6" aria-label="Tabs">
+                        <button onClick={() => setActiveTab('details')} className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'details' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Detail Utama</button>
+                        <button onClick={() => setActiveTab('history')} className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'history' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Riwayat & Aktivitas</button>
+                        <button onClick={() => setActiveTab('attachments')} className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'attachments' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Lampiran</button>
+                        <button onClick={() => setActiveTab('qr-code')} className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'qr-code' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Kode QR</button>
+                    </nav>
+                </div>
+                
+                <div className="pt-6">
+                    {activeTab === 'details' && (
+                         <div className="space-y-6">
+                            {renderStatusHeader()}
+
+                            <DetailCard title="Spesifikasi Aset">
                                 <DetailItem label="Kategori" value={selectedAsset.category} />
-                                <DetailItem label="Brand" value={selectedAsset.brand} />
-                                <DetailItem label="Type" value={selectedAsset.type} />
-                                <DetailItem label="Nomor Seri" value={<span className="font-mono">{selectedAsset.serialNumber}</span>} />
-                                <DetailItem label="MAC Address" value={<span className="font-mono">{selectedAsset.macAddress}</span>} />
-                                <DetailItem label="Pengguna Saat Ini" value={selectedAsset.currentUser} />
-                                <DetailItem label="Lokasi Fisik" value={selectedAsset.location} />
-                            </dl>
-                        </div>
-                        {/* Section 2: Pembelian */}
-                         <div>
-                            <h4 className="font-semibold text-tm-dark mb-2 border-b pb-2">Informasi Pembelian</h4>
-                            <dl className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
+                                <DetailItem label="Tipe Aset" value={selectedAsset.type} />
+                                <DetailItem label="Brand / Merek" value={selectedAsset.brand} />
+                                <DetailItem label="Kondisi" value={selectedAsset.condition} />
+                                <DetailItem label="Nomor Seri">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-mono">{selectedAsset.serialNumber}</span>
+                                        <button onClick={() => handleCopyToClipboard(selectedAsset.serialNumber, `Nomor Seri disalin.`)} className="text-gray-400 hover:text-tm-primary"><CopyIcon className="w-4 h-4" /></button>
+                                    </div>
+                                </DetailItem>
+                                <DetailItem label="MAC Address">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-mono">{selectedAsset.macAddress}</span>
+                                        <button onClick={() => handleCopyToClipboard(selectedAsset.macAddress, `MAC Address disalin.`)} className="text-gray-400 hover:text-tm-primary"><CopyIcon className="w-4 h-4" /></button>
+                                    </div>
+                                </DetailItem>
+                                <DetailItem label="Asal Aset" value={selectedAsset.isDismantled ? <span className="font-semibold text-amber-700">Hasil Dismantle</span> : "Pembelian Baru / Stok Lama"} fullWidth />
+                            </DetailCard>
+
+                            <DetailCard title="Informasi Pembelian & Garansi">
+                                <DetailItem label="Tanggal Pembelian" value={selectedAsset.purchaseDate} />
                                 <DetailItem label="Harga Beli" value={<span className="font-semibold">{formatCurrency(selectedAsset.purchasePrice)}</span>} />
                                 <DetailItem label="Vendor / Toko" value={selectedAsset.vendor} />
-                                <DetailItem label="Tanggal Pembelian" value={selectedAsset.purchaseDate} />
-                                <DetailItem label="Akhir Garansi" value={selectedAsset.warrantyEndDate} />
-                            </dl>
-                        </div>
+                                <DetailItem label="Nomor PO">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span>{selectedAsset.poNumber}</span>
+                                        <button onClick={() => handleCopyToClipboard(selectedAsset.poNumber, `Nomor PO disalin.`)} className="text-gray-400 hover:text-tm-primary"><CopyIcon className="w-4 h-4" /></button>
+                                    </div>
+                                </DetailItem>
+                                <DetailItem label="Nomor Faktur">
+                                     <div className="flex items-center justify-between gap-2">
+                                        <span>{selectedAsset.invoiceNumber}</span>
+                                        <button onClick={() => handleCopyToClipboard(selectedAsset.invoiceNumber, `Nomor Faktur disalin.`)} className="text-gray-400 hover:text-tm-primary"><CopyIcon className="w-4 h-4" /></button>
+                                    </div>
+                                </DetailItem>
+                                <DetailItem label="Tanggal Pencatatan" value={selectedAsset.registrationDate} />
+                                <DetailItem label="Dicatat oleh" value={<ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedAsset.recordedBy})}>{selectedAsset.recordedBy}</ClickableLink>} />
+                                <DetailItem label="Akhir Garansi">
+                                    <div className="flex items-center gap-2">
+                                        <span>{selectedAsset.warrantyEndDate || '-'}</span>
+                                        {warrantyStatus && (
+                                            <span className={`flex items-center text-xs gap-1 ${warrantyStatus.color}`} title={warrantyStatus.text}>
+                                                <ExclamationTriangleIcon className="w-4 h-4" />
+                                                {warrantyStatus.text}
+                                            </span>
+                                        )}
+                                    </div>
+                                </DetailItem>
+                                 {selectedAsset.lastModifiedDate && (
+                                    <DetailItem label="Terakhir Diubah" fullWidth>
+                                        {new Date(selectedAsset.lastModifiedDate).toLocaleString('id-ID')} oleh <strong>{selectedAsset.lastModifiedBy}</strong>
+                                    </DetailItem>
+                                )}
+                            </DetailCard>
 
-                        {/* Section 3: Status & Kondisi */}
-                        <div>
-                            <h4 className="font-semibold text-tm-dark mb-2 border-b pb-2">Status & Kondisi</h4>
-                            <dl className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
-                                <DetailItem label="Status" value={<span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(selectedAsset.status)}`}>{selectedAsset.status}</span>} />
-                                <DetailItem label="Kondisi" value={selectedAsset.condition} />
-                                 <DetailItem label="Asal Aset" value={
-                                    selectedAsset.isDismantled
-                                        ? <span className="font-semibold text-amber-700">Hasil Dismantle</span>
-                                        : "Pembelian Baru / Stok Lama"
-                                } />
-                                <DetailItem label="Catatan" value={selectedAsset.notes} fullWidth={!selectedAsset.isDismantled} />
-                            </dl>
+                            {selectedAsset.isDismantled && selectedAsset.dismantleInfo && (
+                                <DetailCard title="Informasi Penarikan Aset">
+                                    <DetailItem label="Pelanggan Asal" value={<><ClickableLink onClick={() => onShowPreview({ type: 'customer', id: selectedAsset.dismantleInfo!.customerId})}>{selectedAsset.dismantleInfo.customerName}</ClickableLink> ({selectedAsset.dismantleInfo.customerId})</>} />
+                                    <DetailItem label="Tanggal Ditarik" value={selectedAsset.dismantleInfo.dismantleDate} />
+                                    <DetailItem label="Form Dismantle" value={<ClickableLink onClick={() => onShowPreview({ type: 'dismantle', id: selectedAsset.dismantleInfo!.dismantleId})}>#{selectedAsset.dismantleInfo.dismantleId}</ClickableLink>} fullWidth />
+                                </DetailCard>
+                            )}
+                             <DetailCard title="Catatan">
+                                 <DetailItem value={selectedAsset.notes || 'Tidak ada catatan.'} fullWidth />
+                             </DetailCard>
                         </div>
-
-                         {/* Section 4: Lampiran */}
-                        {selectedAsset.attachments.length > 0 && (
-                             <div>
-                                <h4 className="font-semibold text-tm-dark mb-2 border-b pb-2">Lampiran</h4>
+                    )}
+                    {activeTab === 'history' && (
+                       <div>
+                            {assetHistory.length > 0 ? (
+                                <ol className="relative border-l border-gray-200 ml-2">                  
+                                    {assetHistory.map((item, index) => (
+                                        <li key={index} className="mb-6 ml-6">
+                                            <span title={item.type} className={`absolute flex items-center justify-center w-6 h-6 rounded-full -left-3 ring-4 ring-white ${getTimelineIconBgClass(item.color)}`}>
+                                                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                                            </span>
+                                            <time className="block mb-1 text-xs font-normal leading-none text-gray-400">{item.date}</time>
+                                            <h3 className="text-sm font-semibold text-gray-900">{item.type}</h3>
+                                            <p className="text-sm font-normal text-gray-500">{item.description}</p>
+                                        </li>
+                                    ))}
+                                </ol>
+                            ) : (
+                                <p className="text-sm text-center text-gray-500">Tidak ada riwayat aktivitas untuk aset ini.</p>
+                            )}
+                        </div>
+                    )}
+                    {activeTab === 'attachments' && (
+                         <div>
+                            {selectedAsset.attachments.length > 0 ? (
                                 <ul className="space-y-2">
                                     {selectedAsset.attachments.map(file => (
                                         <li key={file.id} className="flex items-center p-2 text-sm bg-gray-50 rounded-md border">
@@ -1160,8 +2067,83 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
                                         </li>
                                     ))}
                                 </ul>
+                            ) : (
+                                <p className="text-sm text-center text-gray-500">Tidak ada lampiran untuk aset ini.</p>
+                            )}
+                        </div>
+                    )}
+                     {activeTab === 'qr-code' && (
+                         <div className="printable-area flex flex-col items-center justify-center text-center">
+                            <h3 className="text-lg font-semibold text-gray-800">{selectedAsset.name}</h3>
+                            <p className="text-sm text-gray-500 font-mono mb-4">{selectedAsset.id}</p>
+                            <canvas ref={qrCanvasRef}></canvas>
+                            <div className="flex items-center mt-6 space-x-3 no-print">
+                                <button onClick={handlePrintQr} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200">
+                                    Cetak
+                                </button>
+                                <button onClick={handleDownloadQr} className="px-4 py-2 text-sm font-semibold text-white rounded-lg bg-tm-primary hover:bg-tm-primary-hover">
+                                    Unduh
+                                </button>
                             </div>
-                        )}
+                        </div>
+                    )}
+                </div>
+            </>
+        )
+    };
+    
+    return (
+        <>
+            {renderContent()}
+
+            <ScannerModal />
+            
+            {selectedAsset && (
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={handleCloseModal}
+                    title=""
+                    size="3xl"
+                    footerContent={renderModalFooter()}
+                >
+                    {renderModalContent()}
+                </Modal>
+            )}
+
+            {isChangeStatusModalOpen && selectedAsset && (
+                <Modal
+                    isOpen={isChangeStatusModalOpen}
+                    onClose={() => setIsChangeStatusModalOpen(false)}
+                    title={`Ubah Status Aset: ${selectedAsset.id}`}
+                    size="md"
+                    footerContent={
+                        <>
+                            <button onClick={() => setIsChangeStatusModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                            <button
+                                type="button"
+                                onClick={handleChangeStatus}
+                                disabled={isLoading}
+                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70"
+                            >
+                                {isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}
+                                Simpan Perubahan
+                            </button>
+                        </>
+                    }
+                >
+                    <p className="mb-4 text-sm text-gray-600">Pilih status baru untuk aset ini.</p>
+                    <div>
+                        <label htmlFor="targetStatus" className="block text-sm font-medium text-gray-700">Status Baru</label>
+                        <select 
+                            id="targetStatus" 
+                            value={targetStatus}
+                            onChange={e => setTargetStatus(e.target.value as AssetStatus)}
+                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
+                        >
+                            {Object.values(AssetStatus).filter(s => s !== AssetStatus.DECOMMISSIONED).map(status => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
+                        </select>
                     </div>
                 </Modal>
             )}
@@ -1183,7 +2165,7 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
                                 className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-red-400"
                             >
                                 {isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                                Ya, Hapus
+                                Konfirmasi Hapus
                             </button>
                         </>
                     }
@@ -1199,28 +2181,50 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
                     onClose={() => setBulkDeleteConfirmation(false)}
                     title="Konfirmasi Hapus Aset Massal"
                     size="md"
-                    hideDefaultCloseButton={true}
-                    footerContent={
-                         <>
-                             <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                            <button
-                                type="button"
-                                onClick={handleBulkDelete}
-                                disabled={isLoading}
-                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400"
-                            >
-                                {isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                                Ya, Hapus Semua
-                            </button>
-                        </>
-                    }
+                    hideDefaultCloseButton
                 >
-                    <p className="text-sm text-gray-600">
-                        Apakah Anda yakin ingin menghapus <span className="font-bold text-tm-dark">{selectedAssetIds.length}</span> aset yang dipilih? Tindakan ini tidak dapat diurungkan.
-                    </p>
+                    <div className="flex flex-col items-center text-center">
+                        <div className="flex items-center justify-center w-12 h-12 mb-4 text-red-600 bg-red-100 rounded-full">
+                            <ExclamationTriangleIcon className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-800">
+                            Hapus {deletableAssetsCount} Aset?
+                        </h3>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Anda akan menghapus aset yang dipilih secara permanen. Aset yang sedang digunakan tidak akan dihapus.
+                        </p>
+
+                        <div className="w-full p-3 mt-4 text-sm text-left bg-gray-50 border rounded-lg">
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Total Aset Dipilih:</span>
+                                <span className="font-semibold text-gray-800">{selectedAssetIds.length}</span>
+                            </div>
+                            <div className="flex justify-between mt-1 text-green-700">
+                                <span className="font-medium">Akan Dihapus:</span>
+                                <span className="font-bold">{deletableAssetsCount}</span>
+                            </div>
+                            <div className="flex justify-between mt-1 text-amber-700">
+                                <span className="font-medium">Dilewati (sedang digunakan):</span>
+                                <span className="font-bold">{skippableAssetsCount}</span>
+                            </div>
+                        </div>
+                        
+                        {deletableAssetsCount === 0 && skippableAssetsCount > 0 && (
+                            <p className="mt-4 text-sm font-semibold text-red-700">
+                                Tidak ada aset yang dapat dihapus. Semua aset yang dipilih sedang digunakan.
+                            </p>
+                        )}
+                    </div>
+                     <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                        <button type="button" onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button type="button" onClick={handleBulkDelete} disabled={isLoading || deletableAssetsCount === 0} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed">
+                            {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}
+                            Ya, Hapus ({deletableAssetsCount}) Aset
+                        </button>
+                    </div>
                 </Modal>
             )}
-            {isChangeStatusModalOpen && (
+            {isChangeStatusModalOpen && isBulkSelectMode && (
                  <Modal
                     isOpen={isChangeStatusModalOpen}
                     onClose={() => setIsChangeStatusModalOpen(false)}
@@ -1263,5 +2267,3 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ assets, setAssets, 
         </>
     );
 };
-
-export default ItemRegistration;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Page } from '../types';
+import { Page, User } from '../types';
 import { DashboardIcon } from './icons/DashboardIcon';
 import { RequestIcon } from './icons/RequestIcon';
 import { RegisterIcon } from './icons/RegisterIcon';
@@ -11,15 +11,17 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { TrinitiLogoIcon } from './icons/TrinitiLogoIcon';
 import { CustomerIcon } from './icons/CustomerIcon';
+import { BoxIcon } from './icons/BoxIcon';
 
 interface SidebarProps {
+  currentUser: User;
   activePage: Page;
   setActivePage: (page: Page) => void;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
 }
 
-const menuItems = [
+const allMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
   {
     id: 'assetManagement',
@@ -27,15 +29,17 @@ const menuItems = [
     icon: AssetIcon,
     children: [
       { id: 'registration', label: 'Daftar Aset', icon: RegisterIcon },
-      { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon },
+      { id: 'stock', label: 'Stok Barang', icon: BoxIcon },
+      { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Admin', 'Super Admin'] },
       { id: 'request', label: 'Daftar Request', icon: RequestIcon },
       { id: 'handover', label: 'Daftar Handover', icon: HandoverIcon },
       { id: 'dismantle', label: 'Daftar Dismantle', icon: DismantleIcon },
     ],
   },
-  { id: 'accounts', label: 'Akun & Divisi', icon: UsersIcon },
+  { id: 'accounts', label: 'Akun & Divisi', icon: UsersIcon, roles: ['Admin', 'Super Admin'] },
 ];
-const assetPages = menuItems.find(i => i.id === 'assetManagement')?.children?.map(c => c.id) || [];
+
+const assetPages = allMenuItems.find(i => i.id === 'assetManagement')?.children?.map(c => c.id) || [];
 
 const NavLink: React.FC<{
   item: { id: string; label: string; icon: React.FC<{ className?: string }> };
@@ -65,8 +69,29 @@ const NavLink: React.FC<{
 };
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isOpen, setIsOpen }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setActivePage, isOpen, setIsOpen }) => {
     const [isAssetMenuOpen, setIsAssetMenuOpen] = useState(assetPages.includes(activePage));
+
+    const menuItems = React.useMemo(() => {
+        return allMenuItems.filter(item => {
+            if (item.roles) {
+                return item.roles.includes(currentUser.role);
+            }
+            return true;
+        }).map(item => {
+            if (item.children) {
+                const visibleChildren = item.children.filter(child => {
+                    if (child.roles) {
+                        return child.roles.includes(currentUser.role);
+                    }
+                    return true;
+                });
+                return { ...item, children: visibleChildren };
+            }
+            return item;
+        });
+    }, [currentUser.role]);
+
 
     useEffect(() => {
         if (assetPages.includes(activePage)) {

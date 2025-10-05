@@ -6,7 +6,8 @@ export type Page =
   | 'handover'
   | 'dismantle'
   | 'accounts'
-  | 'customers';
+  | 'customers'
+  | 'stock';
 
 export enum CustomerStatus {
   ACTIVE = 'Aktif',
@@ -23,6 +24,7 @@ export interface Customer {
   status: CustomerStatus;
   installationDate: string;
   servicePackage: string;
+  activityLog: ActivityLogEntry[];
 }
 
 export enum ItemStatus {
@@ -57,6 +59,15 @@ export interface Attachment {
   type: 'image' | 'pdf' | 'other';
 }
 
+export interface ActivityLogEntry {
+  id: string;
+  timestamp: string;
+  user: string;
+  action: string;
+  details: string;
+  referenceId?: string;
+}
+
 export interface Asset {
   id: string;
   name: string;
@@ -65,18 +76,32 @@ export interface Asset {
   brand: string;
   serialNumber: string;
   macAddress: string | null;
+  registrationDate: string;
+  recordedBy: string;
   purchaseDate: string;
   purchasePrice: number | null;
   vendor: string | null;
+  poNumber: string | null;
+  invoiceNumber: string | null;
   warrantyEndDate: string | null;
   location: string | null;
+  locationDetail: string | null;
   currentUser: string | null; // Can be staff name or Customer ID
   woRoIntNumber: string;
   status: AssetStatus;
   condition: AssetCondition;
   notes: string | null;
   attachments: Attachment[];
+  activityLog: ActivityLogEntry[];
   isDismantled?: boolean;
+  dismantleInfo?: {
+    customerId: string;
+    customerName: string;
+    dismantleDate: string;
+    dismantleId: string;
+  };
+  lastModifiedDate: string | null;
+  lastModifiedBy: string | null;
 }
 
 export interface RequestItem {

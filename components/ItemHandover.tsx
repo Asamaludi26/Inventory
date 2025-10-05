@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus } from '../types';
+import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry } from '../types';
 import Modal from './shared/Modal';
 import { EyeIcon } from './icons/EyeIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -20,14 +20,19 @@ import { PaginationControls } from './shared/PaginationControls';
 import DatePicker from './shared/DatePicker';
 import { SignatureStamp } from './shared/SignatureStamp';
 import FloatingActionBar from './shared/FloatingActionBar';
+import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
+import { PreviewData } from './shared/PreviewModal';
+import { ClickableLink } from './shared/ClickableLink';
 
 interface ItemHandoverProps {
+    currentUser: User;
     handovers: Handover[];
     setHandovers: React.Dispatch<React.SetStateAction<Handover[]>>;
     assets: Asset[];
     prefillData?: Asset | null;
     onClearPrefill: () => void;
-    onUpdateAsset: (assetId: string, updates: Partial<Asset>) => void;
+    onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
+    onShowPreview: (data: PreviewData) => void;
 }
 
 export const mockHandovers: Handover[] = Array.from({ length: 60 }, (_, i) => {
@@ -132,7 +137,6 @@ const HandoverTable: React.FC<HandoverTableProps> = ({ handovers, onDetailClick,
                     <SortableHeader columnKey="id" sortConfig={sortConfig} requestSort={requestSort}>ID / Tanggal</SortableHeader>
                     <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Pihak Terlibat</th>
                     <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Detail Barang</th>
-                    {/* FIX: Corrected typo 'sortSort' to 'requestSort' */}
                     <SortableHeader columnKey="status" sortConfig={sortConfig} requestSort={requestSort}>Status</SortableHeader>
                     <th className="relative px-6 py-3"><span className="sr-only">Aksi</span></th>
                 </tr>
@@ -211,7 +215,7 @@ const HandoverForm: React.FC<{
     onSave: (data: Omit<Handover, 'id' | 'status'>) => void; 
     assets: Asset[]; 
     prefillData?: Asset | null;
-    onUpdateAsset: (assetId: string, updates: Partial<Asset>) => void;
+    onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
 }> = ({ onSave, assets, prefillData, onUpdateAsset }) => {
     const [handoverDate, setHandoverDate] = useState<Date | null>(new Date());
     const [menyerahkan, setMenyerahkan] = useState('');
@@ -229,9 +233,11 @@ const HandoverForm: React.FC<{
     const formId = "handover-form";
     const addNotification = useNotification();
     
-    const availableAssets = useMemo(() => 
-        assets.filter(asset => asset.status === AssetStatus.IN_STORAGE || asset.status === AssetStatus.IN_USE),
-    []);
+    const availableAssets = useMemo(() => {
+        const inStorage = assets.filter(asset => asset.status === AssetStatus.IN_STORAGE);
+        const inUse = assets.filter(asset => asset.status === AssetStatus.IN_USE);
+        return { inStorage, inUse };
+    }, [assets]);
 
     useEffect(() => {
         if (prefillData) {
@@ -266,7 +272,8 @@ const HandoverForm: React.FC<{
     };
     
     const handleAssetSelection = (id: number, selectedAssetId: string) => {
-        const selectedAsset = availableAssets.find(asset => asset.id === selectedAssetId);
+        const allAvailable = [...availableAssets.inStorage, ...availableAssets.inUse];
+        const selectedAsset = allAvailable.find(asset => asset.id === selectedAssetId);
         
         setItems(items.map(item => 
             item.id === id 
@@ -292,7 +299,7 @@ const HandoverForm: React.FC<{
         }
         setIsSubmitting(true);
         setTimeout(() => {
-            onSave({
+            const handoverData = {
                 handoverDate: handoverDate!.toISOString().split('T')[0],
                 menyerahkan,
                 penerima,
@@ -300,18 +307,8 @@ const HandoverForm: React.FC<{
                 woRoIntNumber,
                 lembar,
                 items,
-            });
-
-            // Update asset status
-            items.forEach(item => {
-                if(item.assetId) {
-                    onUpdateAsset(item.assetId, {
-                        currentUser: penerima,
-                        status: AssetStatus.IN_USE,
-                        location: `Dipinjam oleh ${penerima}`
-                    })
-                }
-            });
+            };
+            onSave(handoverData);
             
             setIsSubmitting(false);
         }, 1000);
@@ -393,7 +390,12 @@ const HandoverForm: React.FC<{
                                 className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm disabled:bg-gray-200"
                             >
                                 <option value="">-- Pilih Aset --</option>
-                                {availableAssets.map(asset => <option key={asset.id} value={asset.id}>{asset.name} ({asset.id})</option>)}
+                                <optgroup label="Di Gudang (Tersedia)">
+                                    {availableAssets.inStorage.map(asset => <option key={asset.id} value={asset.id}>{asset.name} ({asset.id})</option>)}
+                                </optgroup>
+                                <optgroup label="Sedang Digunakan (Perlu Perhatian!)">
+                                    {availableAssets.inUse.map(asset => <option key={asset.id} value={asset.id}>{asset.name} ({asset.id})</option>)}
+                                </optgroup>
                             </select>
                         </div>
                         <div className="md:col-span-2">
@@ -494,7 +496,7 @@ const HandoverForm: React.FC<{
     );
 };
 
-const ItemHandover: React.FC<ItemHandoverProps> = ({ handovers, setHandovers, assets, prefillData, onClearPrefill, onUpdateAsset }) => {
+const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, setHandovers, assets, prefillData, onClearPrefill, onUpdateAsset, onShowPreview }) => {
     const [view, setView] = useState<'list' | 'form'>('list');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedHandover, setSelectedHandover] = useState<Handover | null>(null);
@@ -614,12 +616,32 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ handovers, setHandovers, as
     };
 
     const handleCreateHandover = (data: Omit<Handover, 'id' | 'status'>) => {
+        const newHandoverId = `HO-${String(handovers.length + 1).padStart(3, '0')}`;
         const newHandover: Handover = {
             ...data,
-            id: `HO-${String(handovers.length + 1).padStart(3, '0')}`,
+            id: newHandoverId,
             status: ItemStatus.COMPLETED,
         };
         setHandovers(prev => [newHandover, ...prev]);
+
+        // Update asset status and add log
+        data.items.forEach(item => {
+            if (item.assetId) {
+                const assetUpdates: Partial<Asset> = {
+                    currentUser: data.penerima,
+                    status: AssetStatus.IN_USE,
+                    location: `Digunakan oleh ${data.penerima}`
+                };
+                const logEntry = {
+                    user: data.menyerahkan,
+                    action: 'Serah Terima Internal',
+                    details: `Aset diserahkan dari ${data.menyerahkan} kepada ${data.penerima}.`,
+                    referenceId: newHandoverId,
+                };
+                onUpdateAsset(item.assetId, assetUpdates, logEntry);
+            }
+        });
+        
         handleSetView('list');
         addNotification('Formulir handover berhasil dibuat dan status aset diperbarui.', 'success');
     };
@@ -835,8 +857,8 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ handovers, setHandovers, as
                     <dl className="grid grid-cols-1 gap-x-6 gap-y-3 py-4 my-4 text-sm border-t border-b sm:grid-cols-2">
                         <div><dt className="font-semibold text-gray-600">Tanggal:</dt><dd className="text-gray-800">{selectedHandover.handoverDate}</dd></div>
                         <div><dt className="font-semibold text-gray-600">No Dokumen:</dt><dd className="font-mono text-gray-800">{selectedHandover.id}</dd></div>
-                        <div><dt className="font-semibold text-gray-600">Menyerahkan:</dt><dd className="text-gray-800">{selectedHandover.menyerahkan}</dd></div>
-                        <div><dt className="font-semibold text-gray-600">Penerima:</dt><dd className="text-gray-800">{selectedHandover.penerima}</dd></div>
+                        <div><dt className="font-semibold text-gray-600">Menyerahkan:</dt><dd className="text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'user', id: selectedHandover.menyerahkan })}>{selectedHandover.menyerahkan}</ClickableLink></dd></div>
+                        <div><dt className="font-semibold text-gray-600">Penerima:</dt><dd className="text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'user', id: selectedHandover.penerima })}>{selectedHandover.penerima}</ClickableLink></dd></div>
                         <div><dt className="font-semibold text-gray-600">No WO/RO/INT:</dt><dd className="font-mono text-gray-800">{selectedHandover.woRoIntNumber || '-'}</dd></div>
                         <div><dt className="font-semibold text-gray-600">Lembar:</dt><dd className="text-gray-800">{selectedHandover.lembar}</dd></div>
                     </dl>
@@ -853,7 +875,7 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ handovers, setHandovers, as
                             <tbody className="divide-y">
                                 {selectedHandover.items.map(item => (
                                 <tr key={item.id}>
-                                    <td className="px-4 py-2">{item.itemName}<br/><span className="text-xs text-gray-500">{item.itemTypeBrand}</span></td>
+                                    <td className="px-4 py-2"><ClickableLink onClick={() => onShowPreview({ type: 'asset', id: item.assetId! })}>{item.itemName}</ClickableLink><br/><span className="text-xs text-gray-500">{item.itemTypeBrand}</span></td>
                                     <td className="px-4 py-2">{item.conditionNotes}</td>
                                     <td className="px-4 py-2 text-center">{item.quantity}</td>
                                 </tr>
@@ -886,13 +908,33 @@ const ItemHandover: React.FC<ItemHandoverProps> = ({ handovers, setHandovers, as
             )}
             
             {handoverToDeleteId && (
-                <Modal isOpen={!!handoverToDeleteId} onClose={() => setHandoverToDeleteId(null)} title="Konfirmasi Hapus Handover" size="md" hideDefaultCloseButton={true} footerContent={<><button onClick={() => setHandoverToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button type="button" onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus</button></>}>
-                    <p className="text-sm text-gray-600">Apakah Anda yakin ingin menghapus data handover dengan ID <span className="font-bold text-tm-dark">{handoverToDeleteId}</span>? Tindakan ini tidak dapat diurungkan.</p>
+                <Modal isOpen={!!handoverToDeleteId} onClose={() => setHandoverToDeleteId(null)} title="Konfirmasi Hapus" size="md" hideDefaultCloseButton>
+                    <div className="text-center">
+                         <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                            <ExclamationTriangleIcon className="w-8 h-8" />
+                        </div>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Handover?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data handover <span className="font-bold">{handoverToDeleteId}</span>? Tindakan ini tidak dapat diurungkan.</p>
+                    </div>
+                     <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                        <button onClick={() => setHandoverToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button type="button" onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus</button>
+                    </div>
                 </Modal>
             )}
             {bulkDeleteConfirmation && (
-                <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Handover Massal" size="md" hideDefaultCloseButton={true} footerContent={<><button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button type="button" onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus ({selectedHandoverIds.length})</button></>}>
-                    <p className="text-sm text-gray-600">Anda yakin ingin menghapus <span className="font-bold text-tm-dark">{selectedHandoverIds.length}</span> handover yang dipilih?</p>
+                 <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal" size="md" hideDefaultCloseButton>
+                     <div className="text-center">
+                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                            <ExclamationTriangleIcon className="w-8 h-8" />
+                        </div>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {selectedHandoverIds.length} Handover?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus semua data handover yang dipilih? Tindakan ini tidak dapat diurungkan.</p>
+                    </div>
+                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                        <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button type="button" onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus ({selectedHandoverIds.length})</button>
+                    </div>
                 </Modal>
             )}
             {bulkCompleteConfirmation && (

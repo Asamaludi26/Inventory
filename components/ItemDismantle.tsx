@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dismantle, ItemStatus, Asset, AssetStatus, AssetCondition, Customer } from '../types';
+import { Dismantle, ItemStatus, Asset, AssetStatus, AssetCondition, Customer, User, ActivityLogEntry } from '../types';
 import Modal from './shared/Modal';
 import { EyeIcon } from './icons/EyeIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -21,16 +21,20 @@ import DatePicker from './shared/DatePicker';
 import { SignatureStamp } from './shared/SignatureStamp';
 import { ApprovalStamp } from './shared/ApprovalStamp';
 import FloatingActionBar from './shared/FloatingActionBar';
-
+import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
+import { PreviewData } from './shared/PreviewModal';
+import { ClickableLink } from './shared/ClickableLink';
 
 interface ItemDismantleProps {
+    currentUser: User;
     dismantles: Dismantle[];
     setDismantles: React.Dispatch<React.SetStateAction<Dismantle[]>>;
     assets: Asset[];
     customers: Customer[];
     prefillData?: Asset | null;
     onClearPrefill: () => void;
-    onUpdateAsset: (assetId: string, updates: Partial<Asset>) => void;
+    onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
+    onShowPreview: (data: PreviewData) => void;
 }
 
 export const mockDismantles: Dismantle[] = Array.from({ length: 50 }, (_, i) => {
@@ -437,7 +441,7 @@ const DismantleForm: React.FC<{
 };
 
 
-export const ItemDismantle: React.FC<ItemDismantleProps> = ({ dismantles, setDismantles, assets, customers, prefillData, onClearPrefill, onUpdateAsset }) => {
+export const ItemDismantle: React.FC<ItemDismantleProps> = ({ currentUser, dismantles, setDismantles, assets, customers, prefillData, onClearPrefill, onUpdateAsset, onShowPreview }) => {
     const [view, setView] = useState<'list' | 'form'>('list');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDismantle, setSelectedDismantle] = useState<Dismantle | null>(null);
@@ -552,20 +556,39 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ dismantles, setDis
     };
     
     const handleCreateDismantle = (data: Omit<Dismantle, 'id' | 'status' | 'acknowledger'>) => {
+        const newDismantleId = `DSM-${String(dismantles.length + 1).padStart(3, '0')}`;
         const newDismantle: Dismantle = {
             ...data,
-            id: `DSM-${String(dismantles.length + 1).padStart(3, '0')}`,
+            id: newDismantleId,
             status: ItemStatus.COMPLETED,
             acknowledger: 'Budi Santoso', // Auto-acknowledged for demo
         };
         setDismantles(prev => [newDismantle, ...prev]);
-        onUpdateAsset(data.assetId, { 
+        
+        const assetUpdates: Partial<Asset> = { 
             status: AssetStatus.IN_STORAGE, 
             currentUser: null, 
             location: 'Gudang Inventori',
             condition: data.retrievedCondition,
             isDismantled: true,
-        });
+            notes: `Aset hasil tarikan dari pelanggan ${data.customerName} (${data.customerId}).`,
+            dismantleInfo: {
+                customerId: data.customerId,
+                customerName: data.customerName,
+                dismantleDate: data.dismantleDate,
+                dismantleId: newDismantleId,
+            },
+        };
+        
+        const logEntry = {
+            user: data.technician,
+            action: 'Aset Ditarik (Dismantle)',
+            details: `Ditarik dari pelanggan ${data.customerName} (${data.customerId}). Kondisi: ${data.retrievedCondition}.`,
+            referenceId: newDismantleId,
+        };
+
+        onUpdateAsset(data.assetId, assetUpdates, logEntry);
+
         handleSetView('list');
         addNotification('Formulir dismantle berhasil dibuat dan status aset diperbarui.', 'success');
     };
@@ -780,10 +803,10 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ dismantles, setDis
                     </div>
 
                     <div className="space-y-4 text-sm">
-                        <h3 className="font-semibold text-tm-dark">Informasi Pelanggan & Teknisi</h3>
+                        <h4 className="pb-2 mb-4 text-lg font-semibold border-b text-tm-dark">Informasi Pelanggan & Teknisi</h4>
                         <div className="grid grid-cols-3 gap-x-4">
                             <span className="font-semibold text-gray-600">Nama Pelanggan</span>
-                            <span className="col-span-2 text-gray-800">{selectedDismantle.customerName} ({selectedDismantle.customerId})</span>
+                            <span className="col-span-2 text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'customer', id: selectedDismantle.customerId })}>{selectedDismantle.customerName}</ClickableLink> ({selectedDismantle.customerId})</span>
                         </div>
                          <div className="grid grid-cols-3 gap-x-4">
                             <span className="font-semibold text-gray-600">Alamat</span>
@@ -791,19 +814,19 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ dismantles, setDis
                         </div>
                          <div className="grid grid-cols-3 gap-x-4">
                             <span className="font-semibold text-gray-600">Teknisi</span>
-                            <span className="col-span-2 text-gray-800">{selectedDismantle.technician}</span>
+                            <span className="col-span-2 text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'user', id: selectedDismantle.technician })}>{selectedDismantle.technician}</ClickableLink></span>
                         </div>
                     </div>
 
                      <div className="mt-6 space-y-4 text-sm">
-                        <h3 className="font-semibold text-tm-dark">Informasi Aset yang di-Dismantle</h3>
+                        <h4 className="pb-2 mb-4 text-lg font-semibold border-b text-tm-dark">Informasi Aset yang di-Dismantle</h4>
                         {(() => {
                             const assetDetails = assets.find(a => a.id === selectedDismantle.assetId);
                             return (
                                 <dl className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                                     <div className="sm:col-span-2">
                                         <dt className="font-semibold text-gray-600">Nama Aset</dt>
-                                        <dd className="text-gray-800">{selectedDismantle.assetName} ({selectedDismantle.assetId})</dd>
+                                        <dd className="text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'asset', id: selectedDismantle.assetId })}>{selectedDismantle.assetName}</ClickableLink> ({selectedDismantle.assetId})</dd>
                                     </div>
                                     <div>
                                         <dt className="font-semibold text-gray-600">Nomor Seri</dt>
@@ -852,13 +875,33 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ dismantles, setDis
             )}
             
             {dismantleToDeleteId && (
-                <Modal isOpen={!!dismantleToDeleteId} onClose={() => setDismantleToDeleteId(null)} title="Konfirmasi Hapus Data" size="md" hideDefaultCloseButton={true} footerContent={<><button onClick={() => setDismantleToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button type="button" onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus</button></>}>
-                    <p className="text-sm text-gray-600">Apakah Anda yakin ingin menghapus data dismantle dengan ID <span className="font-bold text-tm-dark">{dismantleToDeleteId}</span>?</p>
+                <Modal isOpen={!!dismantleToDeleteId} onClose={() => setDismantleToDeleteId(null)} title="Konfirmasi Hapus" size="md" hideDefaultCloseButton>
+                    <div className="text-center">
+                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                            <ExclamationTriangleIcon className="w-8 h-8" />
+                        </div>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Data Dismantle?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data dismantle <span className="font-bold">{dismantleToDeleteId}</span>?</p>
+                    </div>
+                     <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                        <button onClick={() => setDismantleToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button type="button" onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus</button>
+                    </div>
                 </Modal>
             )}
             {bulkDeleteConfirmation && (
-                <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal" size="md" hideDefaultCloseButton={true} footerContent={<><button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button type="button" onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus ({selectedDismantleIds.length})</button></>}>
-                    <p className="text-sm text-gray-600">Anda yakin ingin menghapus <span className="font-bold text-tm-dark">{selectedDismantleIds.length}</span> data yang dipilih?</p>
+                 <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal" size="md" hideDefaultCloseButton>
+                    <div className="text-center">
+                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                            <ExclamationTriangleIcon className="w-8 h-8" />
+                        </div>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {selectedDismantleIds.length} Data?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus semua data dismantle yang dipilih? Tindakan ini tidak dapat diurungkan.</p>
+                    </div>
+                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                        <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button type="button" onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus ({selectedDismantleIds.length})</button>
+                    </div>
                 </Modal>
             )}
             {bulkCompleteConfirmation && (

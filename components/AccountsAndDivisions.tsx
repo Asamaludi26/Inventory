@@ -18,9 +18,19 @@ import { SearchIcon } from './icons/SearchIcon';
 import { CloseIcon } from './icons/CloseIcon';
 import { PaginationControls } from './shared/PaginationControls';
 import { Avatar } from './shared/Avatar';
+import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
+
+interface AccountsAndDivisionsProps {
+    currentUser: User;
+    users: User[];
+    setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+    divisions: Division[];
+    setDivisions: React.Dispatch<React.SetStateAction<Division[]>>;
+}
+
 
 // Mock Data
-const mockDivisions: Division[] = [
+export const mockDivisions: Division[] = [
     { id: 1, name: 'Inventori' },
     { id: 2, name: 'NOC' },
     { id: 3, name: 'Engineer' },
@@ -62,7 +72,7 @@ const generateMockUsers = (divisions: Division[]): User[] => {
     return users;
 };
 
-const mockUsers: User[] = generateMockUsers(mockDivisions);
+export const mockUsers: User[] = generateMockUsers(mockDivisions);
 
 type View = 'users' | 'divisions';
 
@@ -203,11 +213,9 @@ const AddDivisionForm: React.FC<{ onSave: (division: Omit<Division, 'id'>) => vo
 };
 
 
-const AccountsAndDivisions: React.FC = () => {
+const AccountsAndDivisions: React.FC<AccountsAndDivisionsProps> = ({ currentUser, users, setUsers, divisions, setDivisions }) => {
     const [view, setView] = useState<View>('users');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [users, setUsers] = useState(mockUsers);
-    const [divisions, setDivisions] = useState(mockDivisions);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [divisionToDelete, setDivisionToDelete] = useState<Division | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState<View | null>(null);
@@ -276,6 +284,25 @@ const AccountsAndDivisions: React.FC = () => {
     useEffect(() => {
         setCurrentPage(1);
     }, [view, itemsPerPage, userSearchQuery, userFilters]);
+    
+    const { deletableUsersCount, skippableUsersCount } = useMemo(() => {
+        if (bulkDeleteConfirmation !== 'users') return { deletableUsersCount: 0, skippableUsersCount: 0 };
+        const selected = users.filter(u => selectedUserIds.includes(u.id));
+        const skippable = selected.filter(u => u.role === 'Super Admin');
+        return {
+            deletableUsersCount: selected.length - skippable.length,
+            skippableUsersCount: skippable.length,
+        };
+    }, [bulkDeleteConfirmation, selectedUserIds, users]);
+
+    const { deletableDivisionsCount, skippableDivisionsCount } = useMemo(() => {
+        if (bulkDeleteConfirmation !== 'divisions') return { deletableDivisionsCount: 0, skippableDivisionsCount: 0 };
+        const deletableIds = selectedDivisionIds.filter(id => !users.some(u => u.divisionId === id));
+        return {
+            deletableDivisionsCount: deletableIds.length,
+            skippableDivisionsCount: selectedDivisionIds.length - deletableIds.length,
+        };
+    }, [bulkDeleteConfirmation, selectedDivisionIds, users]);
     
     const handleItemsPerPageChange = (newSize: number) => {
         setItemsPerPage(newSize);
@@ -377,28 +404,37 @@ const AccountsAndDivisions: React.FC = () => {
         setIsLoading(true);
         setTimeout(() => {
             if (bulkDeleteConfirmation === 'users') {
-                const usersToDelete = users.filter(u => selectedUserIds.includes(u.id));
-                if (usersToDelete.some(u => u.role === 'Super Admin')) {
-                    addNotification('Tidak dapat menghapus Super Admin dalam aksi massal.', 'error');
-                    setBulkDeleteConfirmation(null);
-                    setIsLoading(false);
-                    return;
+                 const deletableUserIds = selectedUserIds.filter(id => {
+                    const user = users.find(u => u.id === id);
+                    return user && user.role !== 'Super Admin';
+                });
+                
+                setUsers(prev => prev.filter(u => !deletableUserIds.includes(u.id)));
+
+                let message = `${deletableUserIds.length} akun berhasil dihapus.`;
+                if (skippableUsersCount > 0) {
+                    message += ` ${skippableUsersCount} akun dilewati (Super Admin).`;
                 }
-                setUsers(prev => prev.filter(u => !selectedUserIds.includes(u.id)));
-                addNotification(`${selectedUserIds.length} akun berhasil dihapus.`, 'success');
+                addNotification(message, 'success');
+                
             } else if (bulkDeleteConfirmation === 'divisions') {
-                const divisionsToDelete = divisions.filter(d => selectedDivisionIds.includes(d.id));
-                const divisionsInUse = divisionsToDelete.filter(d => users.some(u => u.divisionId === d.id));
-
-                if (divisionsInUse.length > 0) {
-                    addNotification(`Divisi ${divisionsInUse.map(d=>d.name).join(', ')} tidak dapat dihapus karena masih memiliki anggota.`, 'error');
-                    setBulkDeleteConfirmation(null);
-                    setIsLoading(false);
-                    return;
+                const deletableDivisionIds = selectedDivisionIds.filter(id => !users.some(u => u.divisionId === id));
+                
+                if (deletableDivisionIds.length === 0) {
+                     addNotification('Tidak ada divisi yang dapat dihapus (semua memiliki anggota).', 'warning');
+                     setBulkDeleteConfirmation(null);
+                     setIsLoading(false);
+                     handleCancelBulkMode();
+                     return;
                 }
-
-                setDivisions(prev => prev.filter(d => !selectedDivisionIds.includes(d.id)));
-                addNotification(`${selectedDivisionIds.length} divisi berhasil dihapus.`, 'success');
+                
+                setDivisions(prev => prev.filter(d => !deletableDivisionIds.includes(d.id)));
+                
+                let message = `${deletableDivisionIds.length} divisi berhasil dihapus.`;
+                if (skippableDivisionsCount > 0) {
+                    message += ` ${skippableDivisionsCount} dilewati karena masih memiliki anggota.`;
+                }
+                addNotification(message, 'success');
             }
             setBulkDeleteConfirmation(null);
             handleCancelBulkMode();
@@ -601,6 +637,17 @@ const AccountsAndDivisions: React.FC = () => {
         );
     };
 
+    if (currentUser.role === 'Staff') {
+        return (
+            <div className="flex items-center justify-center h-full p-8 text-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-danger-text">Akses Ditolak</h1>
+                    <p className="mt-2 text-gray-600">Anda tidak memiliki izin untuk mengakses halaman ini. Silakan hubungi administrator.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 sm:p-6 md:p-8">
             <div className="flex flex-col items-start justify-between gap-4 mb-6 md:flex-row md:items-center">
@@ -722,17 +769,83 @@ const AccountsAndDivisions: React.FC = () => {
                 {view === 'users' ? <AddUserForm divisions={divisions} onSave={handleAddUser} /> : <AddDivisionForm onSave={handleAddDivision} />}
             </Modal>
             
-            <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title="Konfirmasi Hapus Akun" footerContent={<><button onClick={() => setUserToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button><button onClick={handleConfirmUserDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ya, Hapus</button></>}>
-                <p>Anda yakin ingin menghapus akun <strong>{userToDelete?.name}</strong>?</p>
+            <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title="Konfirmasi Hapus" hideDefaultCloseButton>
+                <div className="text-center">
+                    <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                        <ExclamationTriangleIcon className="w-8 h-8" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Akun?</h3>
+                    <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus akun <span className="font-bold">{userToDelete?.name}</span>?</p>
+                </div>
+                 <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                    <button onClick={() => setUserToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
+                    <button onClick={handleConfirmUserDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ya, Hapus</button>
+                </div>
             </Modal>
             
-            <Modal isOpen={!!divisionToDelete} onClose={() => setDivisionToDelete(null)} title="Konfirmasi Hapus Divisi" footerContent={<><button onClick={() => setDivisionToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button><button onClick={handleConfirmDivisionDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ya, Hapus</button></>}>
-                <p>Anda yakin ingin menghapus divisi <strong>{divisionToDelete?.name}</strong>?</p>
+            <Modal isOpen={!!divisionToDelete} onClose={() => setDivisionToDelete(null)} title="Konfirmasi Hapus" hideDefaultCloseButton>
+                 <div className="text-center">
+                    <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                        <ExclamationTriangleIcon className="w-8 h-8" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Divisi?</h3>
+                    <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus divisi <span className="font-bold">{divisionToDelete?.name}</span>? Divisi yang masih memiliki anggota tidak dapat dihapus.</p>
+                </div>
+                <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                    <button onClick={() => setDivisionToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
+                    <button onClick={handleConfirmDivisionDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ya, Hapus</button>
+                </div>
             </Modal>
 
-            <Modal isOpen={!!bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(null)} title="Konfirmasi Hapus Massal" footerContent={<><button onClick={() => setBulkDeleteConfirmation(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button><button onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ya, Hapus</button></>}>
-                <p>Anda yakin ingin menghapus <strong>{bulkDeleteConfirmation === 'users' ? selectedUserIds.length : selectedDivisionIds.length}</strong> item terpilih?</p>
-            </Modal>
+            {bulkDeleteConfirmation && (
+                <Modal 
+                    isOpen={!!bulkDeleteConfirmation} 
+                    onClose={() => setBulkDeleteConfirmation(null)} 
+                    title="Konfirmasi Hapus Massal" 
+                    size="md" 
+                    hideDefaultCloseButton
+                >
+                    {bulkDeleteConfirmation === 'users' ? (
+                        <>
+                            <div className="text-center">
+                                <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                                    <ExclamationTriangleIcon className="w-8 h-8" />
+                                </div>
+                                <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {deletableUsersCount} Akun?</h3>
+                                <p className="mt-2 text-sm text-gray-600">Anda akan menghapus akun yang dipilih. Akun Super Admin tidak akan dihapus.</p>
+                                <div className="w-full p-3 mt-4 text-sm text-left bg-gray-50 border rounded-lg">
+                                    <div className="flex justify-between"><span>Total Akun Dipilih:</span><span className="font-semibold">{selectedUserIds.length}</span></div>
+                                    <div className="flex justify-between mt-1 text-green-700"><span className="font-medium">Akan Dihapus:</span><span className="font-bold">{deletableUsersCount}</span></div>
+                                    {skippableUsersCount > 0 && <div className="flex justify-between mt-1 text-amber-700"><span className="font-medium">Dilewati (Super Admin):</span><span className="font-bold">{skippableUsersCount}</span></div>}
+                                </div>
+                            </div>
+                             <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                                <button onClick={() => setBulkDeleteConfirmation(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
+                                <button onClick={handleBulkDelete} disabled={isLoading || deletableUsersCount === 0} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ya, Hapus ({deletableUsersCount})</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                             <div className="text-center">
+                                <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                                    <ExclamationTriangleIcon className="w-8 h-8" />
+                                </div>
+                                <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {deletableDivisionsCount} Divisi?</h3>
+                                <p className="mt-2 text-sm text-gray-600">Anda akan menghapus divisi yang dipilih. Divisi yang masih memiliki anggota akan dilewati.</p>
+                                <div className="w-full p-3 mt-4 text-sm text-left bg-gray-50 border rounded-lg">
+                                    <div className="flex justify-between"><span>Total Divisi Dipilih:</span><span className="font-semibold">{selectedDivisionIds.length}</span></div>
+                                    <div className="flex justify-between mt-1 text-green-700"><span className="font-medium">Akan Dihapus:</span><span className="font-bold">{deletableDivisionsCount}</span></div>
+                                    <div className="flex justify-between mt-1 text-amber-700"><span className="font-medium">Dilewati (memiliki anggota):</span><span className="font-bold">{skippableDivisionsCount}</span></div>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                                <button onClick={() => setBulkDeleteConfirmation(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
+                                <button onClick={handleBulkDelete} disabled={isLoading || deletableDivisionsCount === 0} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ya, Hapus ({deletableDivisionsCount})</button>
+                            </div>
+                        </>
+                    )}
+                </Modal>
+            )}
 
             <Modal isOpen={isMoveDivisionModalOpen} onClose={() => setIsMoveDivisionModalOpen(false)} title="Pindahkan Akun ke Divisi Lain" footerContent={<><button onClick={() => setIsMoveDivisionModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button><button onClick={handleBulkMoveDivision} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg hover:bg-tm-primary-hover">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Pindahkan</button></>}>
                 <p className="mb-4 text-sm text-gray-600">Pilih divisi tujuan untuk <strong>{selectedUserIds.length}</strong> akun yang dipilih.</p>

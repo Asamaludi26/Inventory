@@ -16,16 +16,19 @@ interface DashboardProps {
     handovers: Handover[];
     dismantles: Dismantle[];
     customers: Customer[];
-    setActivePage: (page: Page) => void;
+    setActivePage: (page: Page, filters?: any) => void;
 }
 
-const SummaryCard: React.FC<{ title: string; value: string | number; icon: React.FC<{ className?: string }>; trend: number; trendPeriod: string; }> = ({ title, value, icon: Icon, trend, trendPeriod }) => {
+const SummaryCard: React.FC<{ title: string; value: string | number; icon: React.FC<{ className?: string }>; trend: number; trendPeriod: string; onClick?: () => void; }> = ({ title, value, icon: Icon, trend, trendPeriod, onClick }) => {
     const isPositive = trend >= 0;
     const TrendIcon = isPositive ? ArrowUpIcon : ArrowDownIcon;
     const trendColor = isPositive ? 'text-success' : 'text-danger';
 
     return (
-        <div className="flex items-start p-6 bg-white border border-gray-200/80 rounded-xl shadow-md transition-all hover:shadow-lg hover:border-tm-accent/50">
+        <div 
+            onClick={onClick}
+            className={`flex items-start p-6 bg-white border border-gray-200/80 rounded-xl shadow-md transition-all hover:shadow-lg hover:border-tm-accent/50 ${onClick ? 'cursor-pointer' : ''}`}
+        >
             <div className="flex items-center justify-center flex-shrink-0 w-12 h-12 mr-4 text-white rounded-full bg-tm-primary">
                 <Icon className="w-6 h-6" />
             </div>
@@ -44,8 +47,8 @@ const SummaryCard: React.FC<{ title: string; value: string | number; icon: React
 
 const TaskItem: React.FC<{ icon: React.ReactNode; text: React.ReactNode; priority: 'Tinggi' | 'Sedang'; onClick?: () => void }> = ({ icon, text, priority, onClick }) => {
     const priorityClasses = priority === 'Tinggi' 
-        ? 'border-danger-light bg-danger-light/30 text-danger-text' 
-        : 'border-warning-light bg-warning-light/30 text-warning-text';
+        ? 'border-danger-light bg-danger-light text-danger-text' 
+        : 'border-warning-light bg-warning-light text-warning-text';
     return (
         <li
             onClick={onClick}
@@ -86,6 +89,51 @@ const AssetStatusBar: React.FC<{ status: AssetStatus; count: number; total: numb
     );
 };
 
+const CategoryDistributionChart: React.FC<{ assets: Asset[] }> = ({ assets }) => {
+    const categoryData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        assets.forEach(asset => {
+            counts[asset.category] = (counts[asset.category] || 0) + 1;
+        });
+        
+        const sorted = Object.entries(counts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 7); // Show top 7 categories
+
+        const maxCount = sorted.length > 0 ? sorted[0].count : 0;
+        
+        return { sorted, maxCount };
+    }, [assets]);
+
+    const { sorted, maxCount } = categoryData;
+    const barColors = ['bg-tm-primary', 'bg-blue-500', 'bg-blue-400', 'bg-sky-400', 'bg-cyan-400', 'bg-teal-400', 'bg-gray-400'];
+
+    return (
+        <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
+            <h2 className="p-6 text-lg font-semibold border-b border-gray-200 text-tm-dark">Distribusi Aset by Kategori</h2>
+            <div className="p-6 space-y-4">
+                {sorted.length > 0 ? sorted.map((item, index) => {
+                    const percentage = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+                    return (
+                        <div key={item.name} className="flex items-center text-sm">
+                            <span className="w-1/3 font-medium text-gray-600 truncate" title={item.name}>{item.name}</span>
+                            <div className="flex-1 w-2/3 mx-2 bg-gray-200 rounded-full h-3.5">
+                                <div 
+                                    className={`${barColors[index % barColors.length]} h-3.5 rounded-full`}
+                                    style={{ width: `${percentage}%` }}
+                                    title={`${item.count} aset`}
+                                />
+                            </div>
+                            <span className="w-10 text-right font-semibold text-gray-800">{item.count}</span>
+                        </div>
+                    );
+                }) : <p className="text-sm text-center text-gray-500">Belum ada data aset untuk ditampilkan.</p>}
+            </div>
+        </div>
+    );
+};
+
 
 const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dismantles, customers, setActivePage }) => {
 
@@ -95,12 +143,12 @@ const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dism
         const damagedAssetCount = assets.filter(a => a.status === AssetStatus.DAMAGED).length;
 
         return [
-            { title: 'Aset Digunakan', value: inUseCount, icon: WrenchIcon, trend: 5, trendPeriod: 'minggu lalu' },
-            { title: 'Aset di Gudang', value: assets.filter(a => a.status === AssetStatus.IN_STORAGE).length, icon: AssetIcon, trend: -2, trendPeriod: 'minggu lalu' },
-            { title: 'Perlu Persetujuan', value: pendingRequestCount, icon: RequestIcon, trend: 1, trendPeriod: 'kemarin' },
-            { title: 'Aset Rusak', value: damagedAssetCount, icon: DismantleIcon, trend: 0, trendPeriod: 'kemarin' },
+            { title: 'Aset Digunakan', value: inUseCount, icon: WrenchIcon, trend: 5, trendPeriod: 'minggu lalu', action: () => setActivePage('registration', { status: AssetStatus.IN_USE }) },
+            { title: 'Aset di Gudang', value: assets.filter(a => a.status === AssetStatus.IN_STORAGE).length, icon: AssetIcon, trend: -2, trendPeriod: 'minggu lalu', action: () => setActivePage('registration', { status: AssetStatus.IN_STORAGE }) },
+            { title: 'Perlu Persetujuan', value: pendingRequestCount, icon: RequestIcon, trend: 1, trendPeriod: 'kemarin', action: () => setActivePage('request', { status: 'awaiting-approval' }) },
+            { title: 'Aset Rusak', value: damagedAssetCount, icon: DismantleIcon, trend: 0, trendPeriod: 'kemarin', action: () => setActivePage('registration', { status: AssetStatus.DAMAGED }) },
         ];
-    }, [assets, requests]);
+    }, [assets, requests, setActivePage]);
     
     const assetStatusDistribution = useMemo(() => {
         const distribution = {
@@ -126,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dism
                 icon: <RequestIcon className="w-6 h-6 text-danger-text"/>,
                 text: <p>Ada <span className="font-bold">{pendingRequests.length} request</span> menunggu persetujuan.</p>,
                 priority: 'Tinggi' as const,
-                onClick: () => setActivePage('request'),
+                onClick: () => setActivePage('request', { status: 'awaiting-approval' }),
             });
         }
         
@@ -137,18 +185,26 @@ const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dism
                 icon: <WrenchIcon className="w-6 h-6 text-danger-text"/>,
                 text: <p><span className="font-bold">{damagedAssets.length} aset</span> dilaporkan rusak dan perlu diperiksa.</p>,
                 priority: 'Tinggi' as const,
-                onClick: () => setActivePage('registration'),
+                onClick: () => setActivePage('registration', { status: AssetStatus.DAMAGED }),
             });
         }
         
-        // Mock data for expiring warranties for demo
-        tasks.push({
-            id: 'task-warr',
-            icon: <CustomerIcon className="w-6 h-6 text-warning-text"/>,
-            text: <p><span className="font-bold">3 Aset</span> akan habis masa garansinya bulan ini.</p>,
-            priority: 'Sedang' as const,
-            onClick: () => setActivePage('registration'),
+        const now = new Date();
+        const expiringAssets = assets.filter(a => {
+            if (!a.warrantyEndDate) return false;
+            const warrantyEnd = new Date(a.warrantyEndDate);
+            return warrantyEnd.getMonth() === now.getMonth() && warrantyEnd.getFullYear() === now.getFullYear();
         });
+
+        if (expiringAssets.length > 0) {
+            tasks.push({
+                id: 'task-warr',
+                icon: <CustomerIcon className="w-6 h-6 text-warning-text"/>,
+                text: <p><span className="font-bold">{expiringAssets.length} Aset</span> akan habis masa garansinya bulan ini.</p>,
+                priority: 'Sedang' as const,
+                onClick: () => setActivePage('registration', { warranty: 'expiring' }),
+            });
+        }
 
         return tasks;
 
@@ -196,7 +252,7 @@ const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dism
             <h1 className="text-3xl font-bold text-tm-dark">Dashboard</h1>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {summaryData.map(item => <SummaryCard key={item.title} {...item} />)}
+                {summaryData.map(item => <SummaryCard key={item.title} {...item} onClick={item.action} />)}
             </div>
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -237,6 +293,8 @@ const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dism
                             <AssetStatusBar status={AssetStatus.DECOMMISSIONED} count={assetStatusDistribution[AssetStatus.DECOMMISSIONED]} total={assets.length} color="bg-danger" />
                         </div>
                     </div>
+                    {/* Category Distribution Chart */}
+                    <CategoryDistributionChart assets={assets} />
                 </div>
             </div>
         </div>

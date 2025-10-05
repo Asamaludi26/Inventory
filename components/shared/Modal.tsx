@@ -10,6 +10,7 @@ interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   hideDefaultCloseButton?: boolean;
   closeButtonText?: string;
+  zIndex?: string;
 }
 
 const sizeClasses = {
@@ -21,7 +22,7 @@ const sizeClasses = {
     '3xl': 'max-w-3xl'
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footerContent, size = 'lg', hideDefaultCloseButton = false, closeButtonText = 'Tutup' }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footerContent, size = 'lg', hideDefaultCloseButton = false, closeButtonText = 'Tutup', zIndex = 'z-50' }) => {
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -36,7 +37,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footerC
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-60"
+      className={`fixed inset-0 flex items-center justify-center p-4 overflow-y-auto bg-black bg-opacity-60 ${zIndex}`}
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"

@@ -23,6 +23,10 @@ import { SpinnerIcon } from './icons/SpinnerIcon';
 import { SearchIcon } from './icons/SearchIcon';
 import { PaginationControls } from './shared/PaginationControls';
 import { RegisterIcon } from './icons/RegisterIcon';
+import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
+import { Tooltip } from './shared/Tooltip';
+import { ClickableLink } from './shared/ClickableLink';
+import { PreviewData } from './shared/PreviewModal';
 
 
 interface ItemRequestProps {
@@ -31,6 +35,9 @@ interface ItemRequestProps {
     setRequests: React.Dispatch<React.SetStateAction<Request[]>>;
     assets: Asset[];
     onInitiateRegistration: (request: Request) => void;
+    initialFilters?: any;
+    onClearInitialFilters: () => void;
+    onShowPreview: (data: PreviewData) => void;
 }
 
 export const initialMockRequests: Request[] = Array.from({ length: 120 }, (_, i) => {
@@ -112,7 +119,8 @@ export const initialMockRequests: Request[] = Array.from({ length: 120 }, (_, i)
 });
 
 
-const getStatusClass = (status: ItemStatus) => {
+// FIX: Export getStatusClass to be used in other components.
+export const getStatusClass = (status: ItemStatus) => {
     switch (status) {
         case ItemStatus.APPROVED: return 'bg-success-light text-success-text';
         case ItemStatus.COMPLETED: return 'bg-gray-200 text-gray-800';
@@ -271,8 +279,9 @@ type RequestItemForm = Omit<RequestItem, 'id'> & { id: number };
 const RequestForm: React.FC<{ 
     currentUser: User; 
     assets: Asset[];
-    onCreateRequest: (data: Omit<Request, 'id' | 'status' | 'logisticApprover' | 'logisticApprovalDate' | 'finalApprover' | 'finalApprovalDate' | 'rejectionReason' | 'rejectedBy' | 'rejectionDate' | 'rejectedByDivision'>) => void 
-}> = ({ currentUser, assets, onCreateRequest }) => {
+    onCreateRequest: (data: Omit<Request, 'id' | 'status' | 'logisticApprover' | 'logisticApprovalDate' | 'finalApprover' | 'finalApprovalDate' | 'rejectionReason' | 'rejectedBy' | 'rejectionDate' | 'rejectedByDivision'>) => void;
+    prefillItem: { name: string; brand: string } | null;
+}> = ({ currentUser, assets, onCreateRequest, prefillItem }) => {
     const [requestDate, setRequestDate] = useState<Date | null>(new Date());
     const [requesterName, setRequesterName] = useState(currentUser.name);
     const [requesterDivision, setRequesterDivision] = useState('');
@@ -286,6 +295,25 @@ const RequestForm: React.FC<{
     const footerRef = useRef<HTMLDivElement>(null);
     
     const formId = "item-request-form";
+
+    const availableAssets = useMemo(() => assets.filter(asset => asset.status === AssetStatus.IN_STORAGE), [assets]);
+    const uniqueAvailableAssetNames = useMemo(() => [...new Set(availableAssets.map(asset => asset.name))], [availableAssets]);
+
+    useEffect(() => {
+        if (prefillItem) {
+            const stock = assets.filter(asset => asset.name === prefillItem.name && asset.status === AssetStatus.IN_STORAGE).length;
+            setItems([
+                {
+                    id: Date.now(),
+                    itemName: prefillItem.name,
+                    itemTypeBrand: prefillItem.brand,
+                    stock: stock,
+                    quantity: 1,
+                    keterangan: 'Permintaan dari halaman stok.'
+                }
+            ]);
+        }
+    }, [prefillItem, assets]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -306,9 +334,6 @@ const RequestForm: React.FC<{
             }
         };
     }, []);
-
-    const availableAssets = assets.filter(asset => asset.status === AssetStatus.IN_STORAGE);
-    const uniqueAvailableAssetNames = [...new Set(availableAssets.map(asset => asset.name))];
 
     const handleAddItem = () => {
         setItems([...items, { id: Date.now(), itemName: '', itemTypeBrand: '', stock: 0, quantity: 1, keterangan: '' }]);
@@ -554,8 +579,9 @@ const RequestForm: React.FC<{
     </>
 )};
 
-const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setRequests, assets, onInitiateRegistration }) => {
+const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setRequests, assets, onInitiateRegistration, initialFilters, onClearInitialFilters, onShowPreview }) => {
     const [view, setView] = useState<'list' | 'form'>('list');
+    const [itemToPrefill, setItemToPrefill] = useState<{ name: string; brand: string } | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
@@ -579,6 +605,20 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
 
     const addNotification = useNotification();
 
+    useEffect(() => {
+        if (initialFilters) {
+            if (initialFilters.status) {
+                setFilterStatus(initialFilters.status);
+            }
+            if (initialFilters.prefillItem) {
+                setItemToPrefill(initialFilters.prefillItem);
+                setView('form');
+            }
+            onClearInitialFilters();
+        }
+    }, [initialFilters, onClearInitialFilters]);
+
+
     const isFiltering = useMemo(() => {
         return searchQuery.trim() !== '' || filterStatus !== '';
     }, [searchQuery, filterStatus]);
@@ -598,7 +638,13 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                     req.division.toLowerCase().includes(searchLower)
                 );
             })
-            .filter(req => filterStatus ? req.status === filterStatus : true);
+            .filter(req => {
+                if (!filterStatus) return true;
+                if (filterStatus === 'awaiting-approval') {
+                    return [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(req.status);
+                }
+                return req.status === filterStatus;
+            });
     }, [requests, searchQuery, filterStatus]);
 
     const { items: sortedRequests, requestSort, sortConfig } = useSortableData(filteredRequests, { key: 'requestDate', direction: 'descending' });
@@ -707,6 +753,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
         };
         setRequests(prev => [newRequest, ...prev]);
         setView('list');
+        setItemToPrefill(null);
         addNotification('Request berhasil dibuat!', 'success');
     };
 
@@ -873,17 +920,19 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
         return (
             <div className="flex items-center justify-end flex-1 space-x-3">
                 {canRegister && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            onInitiateRegistration(selectedRequest);
-                            handleCloseDetailModal();
-                        }}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700"
-                    >
-                        <RegisterIcon className="w-4 h-4" />
-                        Catat sebagai Aset
-                    </button>
+                    <Tooltip text="Membuka formulir pencatatan aset baru dengan data dari permintaan ini.">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onInitiateRegistration(selectedRequest);
+                                handleCloseDetailModal();
+                            }}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700"
+                        >
+                            <RegisterIcon className="w-4 h-4" />
+                            Catat sebagai Aset
+                        </button>
+                    </Tooltip>
                 )}
                 {canReject && (
                     <button
@@ -917,14 +966,17 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                     <div className="flex items-center justify-between mb-6">
                         <h1 className="text-3xl font-bold text-tm-dark">Buat Request Baru</h1>
                         <button
-                            onClick={() => setView('list')}
+                            onClick={() => {
+                                setView('list');
+                                setItemToPrefill(null);
+                            }}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent"
                         >
                             Kembali ke Daftar
                         </button>
                     </div>
                     <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
-                        <RequestForm currentUser={currentUser} assets={assets} onCreateRequest={handleCreateRequest} />
+                        <RequestForm currentUser={currentUser} assets={assets} onCreateRequest={handleCreateRequest} prefillItem={itemToPrefill} />
                     </div>
                 </div>
             );
@@ -981,6 +1033,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                         
                         <select onChange={e => setFilterStatus(e.target.value)} value={filterStatus} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg sm:w-auto focus:ring-tm-accent focus:border-tm-accent">
                             <option value="">Semua Status</option>
+                            <option value="awaiting-approval" className="font-semibold">Perlu Persetujuan</option>
                             {Object.values(ItemStatus).map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                         
@@ -1135,6 +1188,16 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                             {selectedRequest.status}
                         </span>
                      </div>
+                     {selectedRequest.isRegistered && (
+                        <div className="pt-2 text-sm">
+                            <span className="font-semibold text-gray-600">Aset Terkait: </span>
+                            {assets.filter(a => a.woRoIntNumber === selectedRequest.id).map(asset => (
+                                <ClickableLink key={asset.id} onClick={() => onShowPreview({ type: 'asset', id: asset.id })}>
+                                    {asset.id}
+                                </ClickableLink>
+                            ))}
+                        </div>
+                    )}
 
 
                     {/* Signature Section */}
@@ -1248,27 +1311,31 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                 <Modal
                     isOpen={!!requestToDeleteId}
                     onClose={() => setRequestToDeleteId(null)}
-                    title="Konfirmasi Hapus Request"
+                    title="Konfirmasi Hapus"
                     size="md"
-                    hideDefaultCloseButton={true}
-                    footerContent={
-                        <>
-                             <button onClick={() => setRequestToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                            <button
-                                type="button"
-                                onClick={handleConfirmDelete}
-                                disabled={isLoading}
-                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-red-400"
-                            >
-                                {isLoading && <SpinnerIcon className="w-5 h-5 mr-2"/>}
-                                Ya, Hapus
-                            </button>
-                        </>
-                    }
+                    hideDefaultCloseButton
                 >
-                    <p className="text-sm text-gray-600">
-                        Apakah Anda yakin ingin menghapus request dengan ID <span className="font-bold text-tm-dark">{requestToDeleteId}</span>? Tindakan ini tidak dapat diurungkan.
-                    </p>
+                    <div className="text-center">
+                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                            <ExclamationTriangleIcon className="w-8 h-8" />
+                        </div>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Request?</h3>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Anda yakin ingin menghapus request <span className="font-bold">{requestToDeleteId}</span>? Tindakan ini tidak dapat diurungkan.
+                        </p>
+                    </div>
+                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                         <button onClick={() => setRequestToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button
+                            type="button"
+                            onClick={handleConfirmDelete}
+                            disabled={isLoading}
+                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-red-400"
+                        >
+                            {isLoading && <SpinnerIcon className="w-5 h-5 mr-2"/>}
+                            Ya, Hapus
+                        </button>
+                    </div>
                 </Modal>
             )}
 
@@ -1276,27 +1343,31 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                 <Modal
                     isOpen={bulkDeleteConfirmation}
                     onClose={() => setBulkDeleteConfirmation(false)}
-                    title="Konfirmasi Hapus Request Massal"
+                    title="Konfirmasi Hapus Massal"
                     size="md"
-                    hideDefaultCloseButton={true}
-                    footerContent={
-                         <>
-                             <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                            <button
-                                type="button"
-                                onClick={handleBulkDelete}
-                                disabled={isLoading}
-                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400"
-                            >
-                                {isLoading && <SpinnerIcon className="w-5 h-5 mr-2"/>}
-                                Ya, Hapus ({actionableCounts.deleteCount})
-                            </button>
-                        </>
-                    }
+                    hideDefaultCloseButton
                 >
-                    <p className="text-sm text-gray-600">
-                        Apakah Anda yakin ingin menghapus <span className="font-bold text-tm-dark">{selectedRequestIds.length}</span> request yang dipilih? Tindakan ini tidak dapat diurungkan.
-                    </p>
+                     <div className="text-center">
+                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
+                            <ExclamationTriangleIcon className="w-8 h-8" />
+                        </div>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {selectedRequestIds.length} Request?</h3>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Anda yakin ingin menghapus semua request yang dipilih? Tindakan ini tidak dapat diurungkan.
+                        </p>
+                    </div>
+                     <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                         <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button
+                            type="button"
+                            onClick={handleBulkDelete}
+                            disabled={isLoading}
+                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400"
+                        >
+                            {isLoading && <SpinnerIcon className="w-5 h-5 mr-2"/>}
+                            Ya, Hapus ({selectedRequestIds.length}) Request
+                        </button>
+                    </div>
                 </Modal>
             )}
 
