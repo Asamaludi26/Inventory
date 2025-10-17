@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronLeftIcon } from '../icons/ChevronLeftIcon';
 import { ChevronRightIcon } from '../icons/ChevronRightIcon';
+import { CustomSelect } from './CustomSelect';
 
 interface PaginationControlsProps {
     currentPage: number;
@@ -26,21 +27,25 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
     // Correctly calculate the start and end item numbers for display.
     const startItem = totalItems > 0 ? startIndex + 1 : 0;
     const endItem = Math.min(endIndex, totalItems);
+
+    const itemsPerPageOptions = [
+        { value: '10', label: '10' },
+        { value: '50', label: '50' },
+        { value: '100', label: '100' },
+    ];
     
     return (
         <div className="flex flex-col items-center justify-between gap-4 p-4 border-t border-gray-200 sm:flex-row">
             <div className="flex items-center space-x-2 text-sm text-gray-700">
                 <span>Tampilkan</span>
-                <select
-                    id="itemsPerPage"
-                    value={itemsPerPage}
-                    onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-                    className="h-8 px-2 py-1 text-sm bg-white border border-gray-300 rounded-md focus:ring-tm-accent focus:border-tm-accent"
-                >
-                    <option value={10}>10</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                </select>
+                <div className="w-20">
+                    <CustomSelect
+                        options={itemsPerPageOptions}
+                        value={itemsPerPage.toString()}
+                        onChange={(value) => onItemsPerPageChange(Number(value))}
+                        direction="up"
+                    />
+                </div>
                  <span>per halaman</span>
             </div>
 

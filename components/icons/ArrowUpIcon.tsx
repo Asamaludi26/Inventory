@@ -1,7 +1,6 @@
 import React from 'react';
+import { BsArrowUp } from 'react-icons/bs';
 
-export const ArrowUpIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-    </svg>
+export const ArrowUpIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <BsArrowUp className={className} />
 );

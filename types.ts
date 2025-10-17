@@ -1,21 +1,27 @@
-// FIX: Removed circular import and defined the Page type.
 export type Page =
   | 'dashboard'
   | 'registration'
   | 'request'
   | 'handover'
   | 'dismantle'
-  | 'akun'
-  | 'divisi'
+  | 'pengaturan-pengguna'
   | 'customers'
   | 'stock'
   | 'kategori';
 
-// FIX: Added PreviewData type to be shared across components.
 export type PreviewData = {
-    type: 'asset' | 'customer' | 'user' | 'request' | 'handover' | 'dismantle' | 'customerAssets' | 'stockItemAssets';
+    type: 'asset' | 'customer' | 'user' | 'request' | 'handover' | 'dismantle' | 'customerAssets' | 'stockItemAssets' | 'stockHistory';
     id: string | number;
 };
+
+export interface ParsedScanResult {
+    id?: string;
+    // FIX: Add name property to support displaying asset names from QR codes.
+    name?: string;
+    serialNumber?: string;
+    macAddress?: string;
+    raw: string;
+}
 
 export enum CustomerStatus {
   ACTIVE = 'Aktif',
@@ -39,6 +45,9 @@ export enum ItemStatus {
   PENDING = 'Menunggu Persetujuan',
   LOGISTIC_APPROVED = 'Disetujui Logistik',
   APPROVED = 'Disetujui',
+  PURCHASING = 'Proses Pengadaan',
+  IN_DELIVERY = 'Dalam Pengiriman',
+  ARRIVED = 'Telah Tiba',
   REJECTED = 'Ditolak',
   COMPLETED = 'Selesai',
   IN_PROGRESS = 'Dalam Proses',
@@ -82,7 +91,7 @@ export interface Asset {
   category: string;
   type: string;
   brand: string;
-  serialNumber: string;
+  serialNumber: string | null;
   macAddress: string | null;
   registrationDate: string;
   recordedBy: string;
@@ -139,6 +148,10 @@ export interface Request {
   rejectionDate: string | null;
   rejectedByDivision: string | null;
   isRegistered?: boolean;
+  estimatedDeliveryDate?: string | null;
+  arrivalDate?: string | null;
+  receivedBy?: string | null;
+  partiallyRegisteredItems?: Record<number, number>; // { [requestItemId]: count }
 }
 
 export interface HandoverItem {
@@ -174,8 +187,10 @@ export interface Dismantle {
     customerId: string;
     customerAddress: string;
     retrievedCondition: AssetCondition;
+    notes: string | null;
     acknowledger: string | null;
     status: ItemStatus;
+    attachments: Attachment[];
 }
 
 export interface ActivityLog {
@@ -206,9 +221,22 @@ export interface Division {
   name: string;
 }
 
+export interface StandardItem {
+  id: number;
+  name: string;
+  brand: string;
+}
+
+export type TrackingMethod = 'individual' | 'bulk';
+
 export interface AssetType {
   id: number;
   name: string;
+  trackingMethod?: TrackingMethod;
+  unitOfMeasure?: string;
+  baseUnitOfMeasure?: string;
+  quantityPerUnit?: number;
+  standardItems?: StandardItem[];
 }
 
 export interface AssetCategory {
@@ -216,4 +244,5 @@ export interface AssetCategory {
   name: string;
   types: AssetType[];
   associatedDivisions: number[]; // Array of Division IDs
+  isCustomerInstallable?: boolean;
 }

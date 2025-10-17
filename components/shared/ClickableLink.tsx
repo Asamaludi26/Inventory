@@ -15,7 +15,7 @@ export const ClickableLink: React.FC<ClickableLinkProps> = ({ children, onClick,
             if (onClick) onClick();
         }} 
         title={title} 
-        className={`inline-flex items-center gap-1.5 font-medium text-info hover:text-info-text hover:underline cursor-pointer transition-colors duration-150 align-middle ${className}`}
+        className={`inline-flex items-center gap-1.5 font-medium hover:underline cursor-pointer transition-colors duration-150 align-middle ${className}`}
     >
         <EyeIcon className="w-4 h-4 flex-shrink-0" />
         {children}

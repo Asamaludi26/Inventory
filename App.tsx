@@ -1,63 +1,35 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// FIX: Import PreviewData from central types file.
-import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory } from './types';
+import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory, Division, StandardItem, AssetType, RequestItem, ParsedScanResult, TrackingMethod } from './types';
 import { Sidebar } from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import ItemRequest, { initialMockRequests } from './components/ItemRequest';
-import { ItemRegistration, mockAssets } from './components/ItemRegistration';
-import { ItemHandover, mockHandovers } from './components/ItemHandover';
-import { ItemDismantle, mockDismantles } from './components/ItemDismantle';
-import AccountsAndDivisions, { mockUsers as initialMockUsers, mockDivisions } from './components/AccountsAndDivisions';
-import CustomerManagement, { mockCustomers } from './components/CustomerManagement';
+import ItemRequest from './components/ItemRequest';
+import { ItemRegistration, parseScanData } from './components/ItemRegistration';
+import { ItemHandover } from './components/ItemHandover';
+import { ItemDismantle } from './components/ItemDismantle';
+import { AccountsAndDivisions } from './components/AccountsAndDivisions';
+import CustomerManagement from './components/CustomerManagement';
 import { MenuIcon } from './components/icons/MenuIcon';
 import { NotificationProvider, useNotification } from './components/shared/Notification';
 import Modal from './components/shared/Modal';
-import { SpinnerIcon } from './components/icons/SpinnerIcon';
 import { QrCodeIcon } from './components/icons/QrCodeIcon';
 import { CheckIcon } from './components/icons/CheckIcon';
 import StockOverview from './components/StockOverview';
-// FIX: Remove PreviewData import from here as it's now in types.ts.
 import { PreviewModal } from './components/shared/PreviewModal';
-import { CategoryManagement } from './components/CategoryManagement';
+import CategoryManagement from './components/CategoryManagement';
+import { ModelManagementModal } from './components/shared/ModelManagementModal';
+import { TypeManagementModal } from './components/shared/TypeManagementModal';
+import QuotationPage from './components/QuotationPage';
+import PerjanjianPage from './components/PerjanjianPage';
+import LoginPage from './components/LoginPage';
+import { LogoutIcon } from './components/icons/LogoutIcon';
+import { ChevronDownIcon } from './components/icons/ChevronDownIcon';
+import { SpinnerIcon } from './components/icons/SpinnerIcon';
+import * as api from './services/api';
+import { ExclamationTriangleIcon } from './components/icons/ExclamationTriangleIcon';
 
 
 declare var Html5Qrcode: any;
-
-const currentUser: User = {
-    id: 99,
-    name: 'John Doe',
-    email: 'john.doe@triniti.com',
-    divisionId: 1,
-    role: 'Super Admin',
-};
-
-const ispAssetCategories: Record<string, string[]> = {
-    'Perangkat Jaringan': ['Router', 'Switch', 'Access Point', 'Firewall', 'OLT'],
-    'Perangkat Pelanggan (CPE)': ['Modem', 'Router WiFi', 'ONT/ONU', 'Set-Top Box'],
-    'Infrastruktur Fiber Optik': ['Kabel Fiber Optik', 'Splicer', 'OTDR', 'Patch Panel'],
-    'Server & Penyimpanan': ['Server Rack', 'Storage (NAS/SAN)', 'UPS'],
-    'Alat Ukur & Perkakas': ['Power Meter', 'Crimping Tools', 'LAN Tester'],
-    'Perangkat Pendukung': ['Tiang/Pole', 'Kabel UTP', 'Konektor'],
-    'Komputer': ['Laptop', 'PC Desktop'],
-    'Peripheral': ['Monitor', 'Printer', 'Scanner'],
-};
-
-const initialAssetCategories = (): AssetCategory[] => {
-  let categoryId = 1;
-  let typeId = 1;
-  return Object.entries(ispAssetCategories).map(([categoryName, types]) => {
-    return {
-      id: categoryId++,
-      name: categoryName,
-      types: types.map(typeName => ({
-        id: typeId++,
-        name: typeName,
-      })),
-      associatedDivisions: [], // Start with no associated divisions
-    };
-  });
-};
-
+declare var Html5QrcodeSupportedFormats: any;
 
 const getRoleClass = (role: User['role']) => {
     switch(role) {
@@ -154,26 +126,53 @@ const InstallToCustomerModal: React.FC<{
 const GlobalScannerModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onScanSuccess: (decodedText: string) => void;
+    onScanSuccess: (parsedData: ParsedScanResult) => void;
 }> = ({ isOpen, onClose, onScanSuccess }) => {
     const scannerRef = useRef<any>(null);
     const addNotification = useNotification();
+    const [isSuccess, setIsSuccess] = useState(false);
+    const [scanResult, setScanResult] = useState<ParsedScanResult | null>(null);
 
     useEffect(() => {
         if (isOpen && typeof Html5Qrcode !== 'undefined') {
+            setIsSuccess(false);
+            setScanResult(null);
             const html5QrCode = new Html5Qrcode("global-qr-reader");
             scannerRef.current = html5QrCode;
             
             const successCallback = (decodedText: string, decodedResult: any) => {
                 if (scannerRef.current?.isScanning) {
+                    const parsed = parseScanData(decodedText);
+                    setScanResult(parsed);
+                    setIsSuccess(true);
+                    
                     scannerRef.current.stop();
+                    setTimeout(() => onScanSuccess(parsed), 800); // Delay for visual feedback
                 }
-                onScanSuccess(decodedText);
+            };
+
+            const config = {
+                fps: 10,
+                qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                    const qrboxSize = Math.floor(minEdge * 0.7);
+                    return { width: qrboxSize, height: qrboxSize };
+                },
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                ],
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
             };
 
             html5QrCode.start(
                 { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
+                config,
                 successCallback,
                 (errorMessage: string) => {} // error callback
             ).catch(err => {
@@ -191,51 +190,187 @@ const GlobalScannerModal: React.FC<{
     }, [isOpen, onScanSuccess, onClose, addNotification]);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Pindai Kode QR Aset" size="md">
-            <div id="global-qr-reader" style={{ width: '100%' }}></div>
+        <Modal isOpen={isOpen} onClose={onClose} title="Pindai Kode QR atau Barcode" size="md">
+            <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-black">
+                <div id="global-qr-reader" className="w-full h-full"></div>
+                 {isSuccess && scanResult ? (
+                    <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white text-center p-4 animate-fade-in-down">
+                        <CheckIcon className="w-16 h-16 text-green-400 mb-4" />
+                        <h3 className="text-lg font-bold">Pindai Berhasil</h3>
+                        {scanResult.name && <p className="mt-2 text-base">{scanResult.name}</p>}
+                        {scanResult.id && <p className="text-sm font-mono text-gray-300">{scanResult.id}</p>}
+                        {scanResult.serialNumber && !scanResult.id && <p className="text-sm font-mono text-gray-300">SN: {scanResult.serialNumber}</p>}
+                    </div>
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="relative w-[70%] h-[70%]">
+                            <div className="absolute inset-0 border-4 rounded-lg border-white/50"></div>
+                            <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 rounded-tl-lg border-white"></div>
+                            <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 rounded-tr-lg border-white"></div>
+                            <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 rounded-bl-lg border-white"></div>
+                            <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 rounded-br-lg border-white"></div>
+                        </div>
+                    </div>
+                )}
+            </div>
+            <p className="mt-4 text-sm text-center text-gray-600">Posisikan Kode QR atau Barcode di dalam kotak.</p>
         </Modal>
     );
 };
 
 
-const AppContent: React.FC = () => {
+const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ currentUser, onLogout }) => {
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pageInitialState, setPageInitialState] = useState<any>(null);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Lifted state
-  const [assets, setAssets] = useState<Asset[]>(mockAssets);
-  const [requests, setRequests] = useState<Request[]>(initialMockRequests);
-  const [handovers, setHandovers] = useState<Handover[]>(mockHandovers);
-  const [dismantles, setDismantles] = useState<Dismantle[]>(mockDismantles);
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
-  const [users, setUsers] = useState<User[]>(initialMockUsers);
-  const [divisions, setDivisions] = useState(mockDivisions);
-  const [assetCategories, setAssetCategories] = useState<AssetCategory[]>(initialAssetCategories);
+  // --- Data States ---
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [handovers, setHandovers] = useState<Handover[]>([]);
+  const [dismantles, setDismantles] = useState<Dismantle[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [assetCategories, setAssetCategories] = useState<AssetCategory[]>([]);
   
+  // --- UI/App Status States ---
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // State for pre-filling forms & cross-module modals
-  const [prefillRegData, setPrefillRegData] = useState<Request | null>(null);
+  const [prefillRegData, setPrefillRegData] = useState<{ request: Request; itemToRegister?: RequestItem } | null>(null);
   const [prefillHoData, setPrefillHoData] = useState<Asset | null>(null);
   const [prefillDmData, setPrefillDmData] = useState<Asset | null>(null);
   const [assetToInstall, setAssetToInstall] = useState<Asset | null>(null);
   const [isGlobalScannerOpen, setIsGlobalScannerOpen] = useState(false);
   // State to show a specific asset detail modal after a QR scan.
   const [assetToViewId, setAssetToViewId] = useState<string | null>(null);
-  const [initialFilters, setInitialFilters] = useState<Record<string, any> | null>(null);
-
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [itemToEdit, setItemToEdit] = useState<{ type: string; data: any } | null>(null);
   
+  // QR Scanner context state
+  const [scanContext, setScanContext] = useState<'global' | 'form'>('global');
+  const [formScanCallback, setFormScanCallback] = useState<((data: ParsedScanResult) => void) | null>(null);
+
+
+  // State for global management modals
+  const [modelModalState, setModelModalState] = useState<{ category: AssetCategory; type: AssetType; onModelAdded?: (model: StandardItem) => void } | null>(null);
+  const [typeModalState, setTypeModalState] = useState<{ category: AssetCategory; typeToEdit: AssetType | null, onTypeAdded?: (type: AssetType) => void } | null>(null);
+
+  
   const addNotification = useNotification();
 
+    // Data fetching on initial load
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const data = await api.fetchAllData();
+                setAssets(data.assets);
+                setRequests(data.requests);
+                setHandovers(data.handovers);
+                setDismantles(data.dismantles);
+                setCustomers(data.customers);
+                setUsers(data.users);
+                setDivisions(data.divisions);
+                setAssetCategories(data.assetCategories);
+            } catch (err: any) {
+                setError(err.message || 'Gagal memuat data aplikasi. Silakan coba muat ulang halaman.');
+                addNotification('Gagal memuat data aplikasi.', 'error');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadData();
+    }, [addNotification]);
+    
+    // Smart Background Scanning for external devices
+    useEffect(() => {
+        let scanBuffer = '';
+        let lastKeyTime = Date.now();
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                return;
+            }
+            if (Date.now() - lastKeyTime > 100) {
+                scanBuffer = '';
+            }
+            lastKeyTime = Date.now();
+
+            if (e.key === 'Enter') {
+                if (scanBuffer.length > 3) {
+                    const parsedData = parseScanData(scanBuffer);
+                    
+                    let asset: Asset | undefined;
+                    if (parsedData.id) {
+                        asset = assets.find(a => a.id === parsedData.id);
+                    } else if (parsedData.serialNumber) {
+                        asset = assets.find(a => a.serialNumber === parsedData.serialNumber);
+                    }
+
+                    if (asset) {
+                        setPreviewData({ type: 'asset', id: asset.id });
+                        addNotification(`Aset ${asset.id} ditemukan via pindaian.`, 'success');
+                    } else {
+                        addNotification(`Aset dengan kode "${scanBuffer}" tidak ditemukan.`, 'error');
+                    }
+                }
+                scanBuffer = '';
+            } else if (e.key.length === 1) {
+                scanBuffer += e.key;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [assets, addNotification]);
+    
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+                setIsProfileDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+  const handleSetActivePage = (page: Page, initialState: any = null) => {
+    const preservePrefillReg = page === 'registration';
+    const preservePrefillHo = page === 'handover';
+    const preservePrefillDm = page === 'dismantle';
+    const preserveItemToEdit = page === 'registration' || page === 'customers';
+    const preserveAssetToView = page === 'registration';
+    
+    if (!preservePrefillReg) setPrefillRegData(null);
+    if (!preservePrefillHo) setPrefillHoData(null);
+    if (!preservePrefillDm) setPrefillDmData(null);
+    if (!preserveItemToEdit) setItemToEdit(null);
+    if (!preserveAssetToView) setAssetToViewId(null);
+    
+    setPageInitialState(initialState);
+    setActivePage(page);
+  };
+
+  const clearPageInitialState = useCallback(() => {
+    setPageInitialState(null);
+  }, []);
+
   const handleEditItem = (data: PreviewData) => {
-    setPreviewData(null); // Close the preview modal first
+    setPreviewData(null);
     
     switch (data.type) {
       case 'asset': {
         const asset = assets.find(a => a.id === data.id);
         if (asset) {
           setItemToEdit({ type: 'asset', data: asset });
-          setActivePage('registration');
+          handleSetActivePage('registration');
         }
         break;
       }
@@ -243,7 +378,7 @@ const AppContent: React.FC = () => {
         const customer = customers.find(c => c.id === data.id);
         if (customer) {
           setItemToEdit({ type: 'customer', data: customer });
-          setActivePage('customers');
+          handleSetActivePage('customers');
         }
         break;
       }
@@ -252,79 +387,211 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const logAssetActivity = (assetId: string, logEntry: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => {
-    setAssets(prevAssets =>
-      prevAssets.map(asset => {
-        if (asset.id === assetId) {
-          const newLog: ActivityLogEntry = {
-            ...logEntry,
-            id: `log-${assetId}-${Date.now()}`,
-            timestamp: new Date().toISOString(),
-          };
-          return {
-            ...asset,
-            activityLog: [...(asset.activityLog || []), newLog],
-          };
+    const setAndPersist = <T,>(
+        setter: React.Dispatch<React.SetStateAction<T>>,
+        valueOrFn: React.SetStateAction<T>,
+        key: string
+    ) => {
+        setter(prevState => {
+            const newState = typeof valueOrFn === 'function'
+                ? (valueOrFn as (prevState: T) => T)(prevState)
+                : valueOrFn;
+            
+            api.updateData(key, newState);
+            
+            return newState;
+        });
+    };
+
+    const handleUpdateAsset = (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => {
+        const updatedAssets = assets.map(asset => {
+            if (asset.id === assetId) {
+                const updatedAsset = { ...asset, ...updates };
+                if (logEntry) {
+                    const newLog: ActivityLogEntry = {
+                        ...logEntry,
+                        id: `log-${assetId}-${Date.now()}`,
+                        timestamp: new Date().toISOString(),
+                    };
+                    updatedAsset.activityLog = [...(asset.activityLog || []), newLog];
+                }
+                return updatedAsset;
+            }
+            return asset;
+        });
+        setAndPersist(setAssets, updatedAssets, 'app_assets');
+    };
+
+  const handleGlobalScanSuccess = (parsedData: ParsedScanResult) => {
+    setIsGlobalScannerOpen(false);
+    
+    if (scanContext === 'form' && formScanCallback) {
+        formScanCallback(parsedData);
+    } else {
+        let asset: Asset | undefined;
+        if (parsedData.id) asset = assets.find(a => a.id === parsedData.id);
+        else if (parsedData.serialNumber) asset = assets.find(a => a.serialNumber === parsedData.serialNumber);
+
+        if (asset) {
+            setPreviewData({ type: 'asset', id: asset.id });
+            addNotification(`Aset ${asset.id} ditemukan.`, 'success');
+        } else {
+            addNotification(`Kode QR/Barcode tidak valid atau aset tidak ditemukan.`, 'error');
         }
-        return asset;
-      })
-    );
-  };
-
-  const handleUpdateAsset = (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => {
-    setAssets(prev => prev.map(asset => asset.id === assetId ? { ...asset, ...updates } : asset));
-    if (logEntry) {
-        logAssetActivity(assetId, logEntry);
     }
+    setScanContext('global');
+    setFormScanCallback(null);
   };
-
-  const handleGlobalScanSuccess = (assetId: string) => {
-    const foundAsset = assets.find(a => a.id === assetId);
-    if (foundAsset) {
-        setIsGlobalScannerOpen(false);
-        setPreviewData({ type: 'asset', id: assetId });
-        addNotification(`Aset ${assetId} ditemukan.`, 'success');
-    } else {
-        addNotification(`Aset dengan ID ${assetId} tidak ditemukan.`, 'error');
-    }
-  };
-
-  // Handlers for cross-component communication
-  const handleNavigate = (page: Page, filters: Record<string, any> | null = null) => {
-    setActivePage(page);
-    if (filters) {
-        setInitialFilters({ [page]: filters });
-    } else {
-        setInitialFilters(null);
-    }
-    setPrefillRegData(null);
-    setPrefillHoData(null);
-    setPrefillDmData(null);
-    setAssetToViewId(null);
-  };
-
-  const clearInitialFilters = useCallback(() => {
-    setInitialFilters(null);
-  }, []);
   
-  const handleInitiateRegistration = (request: Request) => {
-    setPrefillRegData(request);
-    setActivePage('registration');
+  const handleOpenModelModal = (category: AssetCategory, type: AssetType, onModelAdded?: (model: StandardItem) => void) => {
+    setModelModalState({ category, type, onModelAdded });
+  };
+  
+  const handleSaveModel = (parentInfo: { category: AssetCategory; type: AssetType }, modelData: Omit<StandardItem, 'id'>, id?: number) => {
+    let savedModel: StandardItem | undefined;
+    let updatedCategory: AssetCategory | undefined;
+    let updatedType: AssetType | undefined;
+
+    const newCategories = assetCategories.map(cat => {
+        if (cat.id === parentInfo.category.id) {
+            const newTypes = cat.types.map(t => {
+                if (t.id === parentInfo.type.id) {
+                    let updatedItems;
+                    if (id) {
+                        updatedItems = (t.standardItems || []).map(item => item.id === id ? { ...item, ...modelData } : item);
+                        savedModel = updatedItems.find(item => item.id === id);
+                        addNotification(`Model "${modelData.name}" berhasil diperbarui.`, 'success');
+                    } else {
+                        const newItem: StandardItem = { ...modelData, id: Date.now() };
+                        savedModel = newItem;
+                        updatedItems = [...(t.standardItems || []), newItem];
+                        addNotification(`Model "${modelData.name}" berhasil ditambahkan.`, 'success');
+                    }
+                    updatedType = { ...t, standardItems: updatedItems };
+                    return updatedType;
+                }
+                return t;
+            });
+            updatedCategory = { ...cat, types: newTypes };
+            return updatedCategory;
+        }
+        return cat;
+    });
+    
+    setAndPersist(setAssetCategories, newCategories, 'app_assetCategories');
+
+    if (modelModalState && updatedCategory && updatedType && !modelModalState.onModelAdded) {
+        setModelModalState(prev => (prev ? { ...prev, category: updatedCategory, type: updatedType } : null));
+    }
+    if (savedModel && modelModalState?.onModelAdded) {
+        modelModalState.onModelAdded(savedModel);
+    }
+    if (modelModalState?.onModelAdded) {
+      setModelModalState(null);
+    }
+  };
+
+  const handleDeleteModel = (parentInfo: { category: AssetCategory, type: AssetType }, modelToDelete: StandardItem) => {
+    let updatedCategory: AssetCategory | undefined;
+    let updatedType: AssetType | undefined;
+
+    const newCategories = assetCategories.map(cat => {
+        if (cat.id === parentInfo.category.id) {
+            const newTypes = cat.types.map(t => {
+                if (t.id === parentInfo.type.id) {
+                    updatedType = { ...t, standardItems: (t.standardItems || []).filter(item => item.id !== modelToDelete.id) };
+                    return updatedType;
+                }
+                return t;
+            });
+            updatedCategory = { ...cat, types: newTypes };
+            return updatedCategory;
+        }
+        return cat;
+    });
+    setAndPersist(setAssetCategories, newCategories, 'app_assetCategories');
+
+    if (modelModalState && updatedCategory && updatedType && !modelModalState.onModelAdded) {
+        setModelModalState(prev => (prev ? { ...prev, category: updatedCategory, type: updatedType } : null));
+    }
+    addNotification(`Model "${modelToDelete.name}" berhasil dihapus.`, 'success');
+  }
+
+  const handleOpenTypeModal = (category: AssetCategory, typeToEdit: AssetType | null = null, onTypeAdded?: (type: AssetType) => void) => {
+    setTypeModalState({ category, typeToEdit, onTypeAdded });
+  };
+  
+  const handleSaveType = (parentCategory: AssetCategory, typeData: Omit<AssetType, 'id' | 'standardItems'>, typeId?: number) => {
+    let savedType: AssetType | undefined;
+    let updatedCategory: AssetCategory | undefined;
+
+    const newCategories = assetCategories.map(cat => {
+        if (cat.id === parentCategory.id) {
+            let updatedTypes;
+            if (typeId) {
+                updatedTypes = cat.types.map(t => t.id === typeId ? { ...t, ...typeData } : t);
+                savedType = updatedTypes.find(t => t.id === typeId);
+                addNotification(`Tipe "${typeData.name}" berhasil diperbarui.`, 'success');
+            } else {
+                const newType: AssetType = { ...typeData, id: Date.now(), standardItems: [] };
+                savedType = newType;
+                updatedTypes = [...cat.types, newType];
+                addNotification(`Tipe "${typeData.name}" berhasil ditambahkan.`, 'success');
+            }
+            updatedCategory = { ...cat, types: updatedTypes };
+            return updatedCategory;
+        }
+        return cat;
+    });
+    setAndPersist(setAssetCategories, newCategories, 'app_assetCategories');
+
+    if (typeModalState && updatedCategory && !typeModalState.onTypeAdded) { 
+        setTypeModalState(prev => (prev ? { ...prev, category: updatedCategory, typeToEdit: null } : null));
+    }
+    if (savedType && typeModalState?.onTypeAdded) {
+        typeModalState.onTypeAdded(savedType);
+    }
+    if (typeModalState?.onTypeAdded) {
+      setTypeModalState(null);
+    }
+  };
+
+  const handleDeleteType = (parentCategory: AssetCategory, typeToDelete: AssetType) => {
+    let updatedCategory: AssetCategory | undefined;
+    const newCategories = assetCategories.map(cat => {
+        if (cat.id === parentCategory.id) {
+            updatedCategory = { ...cat, types: cat.types.filter(t => t.id !== typeToDelete.id) };
+            return updatedCategory;
+        }
+        return cat;
+    });
+    setAndPersist(setAssetCategories, newCategories, 'app_assetCategories');
+
+    if (typeModalState && updatedCategory && !typeModalState.onTypeAdded) {
+        setTypeModalState(prev => (prev ? { ...prev, category: updatedCategory } : null));
+    }
+    addNotification(`Tipe "${typeToDelete.name}" berhasil dihapus.`, 'success');
+  };
+
+  const handleInitiateRegistration = (request: Request, itemToRegister: RequestItem) => {
+    setPrefillRegData({ request, itemToRegister });
+    handleSetActivePage('registration');
   };
   
   const handleInitiateHandover = (asset: Asset) => {
     setPrefillHoData(asset);
-    setActivePage('handover');
+    handleSetActivePage('handover');
   };
 
   const handleInitiateDismantle = (asset: Asset) => {
     setPrefillDmData(asset);
-    setActivePage('dismantle');
+    handleSetActivePage('dismantle');
   };
 
   const handleInitiateInstallation = (asset: Asset) => {
-    if (asset.category !== 'Perangkat Pelanggan (CPE)') {
-      addNotification("Hanya aset kategori 'Perangkat Pelanggan (CPE)' yang dapat dipasang.", 'error');
+    const category = assetCategories.find(c => c.name === asset.category);
+    if (!category?.isCustomerInstallable) {
+      addNotification("Aset dari kategori ini tidak dapat dipasang ke pelanggan.", 'error');
       return;
     }
     setAssetToInstall(asset);
@@ -335,135 +602,97 @@ const AppContent: React.FC = () => {
       const customer = customers.find(c => c.id === customerId);
       if (!customer) return;
 
-      // 1. Update the asset
-      const assetUpdates: Partial<Asset> = {
-        status: AssetStatus.IN_USE,
-        currentUser: customer.id,
-        location: `Terpasang di: ${customer.address}`,
-      };
-      const logEntry = {
-        user: currentUser.name,
-        action: 'Instalasi Pelanggan',
-        details: `Dipasang untuk pelanggan ${customer.name} (${customer.id}).`,
-      };
-      handleUpdateAsset(assetToInstall.id, assetUpdates, logEntry);
-
-      // 2. Create a handover record for audit trail
+      const newHandoverId = `HO-${String(handovers.length + 1).padStart(3, '0')}`;
       const newHandover: Handover = {
-        id: `HO-${String(handovers.length + 1).padStart(3, '0')}`,
-        handoverDate: new Date().toISOString().split('T')[0],
-        menyerahkan: currentUser.name, // The technician/staff
-        penerima: `${customer.name} (${customer.id})`, // The customer with their ID for clarity
-        mengetahui: currentUser.name,
-        woRoIntNumber: `INSTALL-${assetToInstall.id}`,
-        lembar: '1. Menyerahkan',
-        items: [{
-            id: Date.now(),
-            assetId: assetToInstall.id,
-            itemName: assetToInstall.name,
-            itemTypeBrand: assetToInstall.brand,
-            conditionNotes: 'Pemasangan baru ke pelanggan',
-            quantity: 1,
-            checked: true
-        }],
-        status: ItemStatus.COMPLETED
+        id: newHandoverId, handoverDate: new Date().toISOString().split('T')[0], menyerahkan: currentUser.name, penerima: `${customer.name} (${customer.id})`, mengetahui: currentUser.name, woRoIntNumber: `INSTALL-${assetToInstall.id}`, lembar: '1. Menyerahkan',
+        items: [{ id: Date.now(), assetId: assetToInstall.id, itemName: assetToInstall.name, itemTypeBrand: assetToInstall.brand, conditionNotes: 'Pemasangan baru ke pelanggan', quantity: 1, checked: true }], status: ItemStatus.COMPLETED
       };
-      setHandovers(prev => [newHandover, ...prev]);
+      setAndPersist(setHandovers, (prev: Handover[]) => [newHandover, ...prev], 'app_handovers');
+
+      handleUpdateAsset(assetToInstall.id, {
+        status: AssetStatus.IN_USE, currentUser: customer.id, location: `Terpasang di: ${customer.address}`,
+      }, {
+        user: currentUser.name, action: 'Instalasi Pelanggan', details: `Dipasang untuk pelanggan ${customer.name} (${customer.id}).`, referenceId: newHandoverId,
+      });
 
       addNotification(`Aset ${assetToInstall.name} berhasil dipasang ke pelanggan ${customer.name}.`, 'success');
       setAssetToInstall(null);
   };
 
-  const handleCompleteRequestRegistration = (requestId: string) => {
-     setRequests(prev => prev.map(req => 
-      req.id === requestId 
-        ? { ...req, isRegistered: true, status: ItemStatus.COMPLETED }
-        : req
-    ));
+  const handleCompleteRequestRegistration = (
+    requestId: string,
+    registeredItemInfo: { requestItemId: number; count: number }
+  ) => {
+    const updatedRequests = [...requests];
+    const requestIndex = updatedRequests.findIndex(r => r.id === requestId);
+    if (requestIndex === -1) return;
+
+    const updatedRequest = { ...updatedRequests[requestIndex] };
+    const currentCount = updatedRequest.partiallyRegisteredItems?.[registeredItemInfo.requestItemId] || 0;
+    const newCount = currentCount + registeredItemInfo.count;
+    updatedRequest.partiallyRegisteredItems = {
+        ...(updatedRequest.partiallyRegisteredItems || {}),
+        [registeredItemInfo.requestItemId]: newCount,
+    };
+    const allItemsRegistered = updatedRequest.items.every(item => (updatedRequest.partiallyRegisteredItems?.[item.id] || 0) >= item.quantity);
+
+    if (allItemsRegistered) {
+        updatedRequest.isRegistered = true;
+        updatedRequest.status = ItemStatus.COMPLETED;
+        addNotification(`Semua item untuk request ${requestId} telah dicatat. Status diubah menjadi Selesai.`, 'success');
+    }
+    updatedRequests[requestIndex] = updatedRequest;
+    setAndPersist(setRequests, updatedRequests, 'app_requests');
+  };
+
+  if (isLoading) {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-tm-light">
+            <div className="flex flex-col items-center">
+                <SpinnerIcon className="w-12 h-12 text-tm-primary" />
+                <p className="mt-4 text-lg font-semibold text-gray-700">Memuat Data Aplikasi...</p>
+            </div>
+        </div>
+    );
+  }
+
+  if (error) {
+     return (
+        <div className="flex items-center justify-center min-h-screen bg-red-50">
+            <div className="text-center p-8 max-w-md">
+                <ExclamationTriangleIcon className="w-16 h-16 mx-auto text-red-400" />
+                <h1 className="mt-4 text-2xl font-bold text-red-800">Terjadi Kesalahan Kritis</h1>
+                <p className="mt-2 text-gray-600">{error}</p>
+                 <button onClick={() => window.location.reload()} className="mt-6 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">
+                    Coba Muat Ulang
+                </button>
+            </div>
+        </div>
+    );
   }
   
-  const renderContent = () => {
+  const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
-        return <Dashboard assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} setActivePage={handleNavigate} onShowPreview={setPreviewData} />;
+        return <Dashboard assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} setActivePage={handleSetActivePage} onShowPreview={setPreviewData} />;
       case 'request':
-        return <ItemRequest 
-                  currentUser={currentUser} 
-                  requests={requests}
-                  setRequests={setRequests}
-                  assets={assets}
-                  onInitiateRegistration={handleInitiateRegistration}
-                  initialFilters={initialFilters?.request}
-                  onClearInitialFilters={clearInitialFilters}
-                  onShowPreview={setPreviewData}
-               />;
+        return <ItemRequest currentUser={currentUser} requests={requests} setRequests={(valueOrFn) => setAndPersist(setRequests, valueOrFn, 'app_requests')} assets={assets} assetCategories={assetCategories} divisions={divisions} onInitiateRegistration={handleInitiateRegistration} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} onShowPreview={setPreviewData} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal} setActivePage={handleSetActivePage}/>;
       case 'registration':
-        return <ItemRegistration 
-                  currentUser={currentUser}
-                  assets={assets}
-                  setAssets={setAssets}
-                  customers={customers}
-                  requests={requests}
-                  handovers={handovers}
-                  dismantles={dismantles}
-                  assetCategories={assetCategories}
-                  prefillData={prefillRegData}
-                  onClearPrefill={() => setPrefillRegData(null)}
-                  onRegistrationComplete={handleCompleteRequestRegistration}
-                  onInitiateHandover={handleInitiateHandover}
-                  onInitiateDismantle={handleInitiateDismantle}
-                  onInitiateInstallation={handleInitiateInstallation}
-                  assetToViewId={assetToViewId}
-                  initialFilters={initialFilters?.registration}
-                  onClearInitialFilters={clearInitialFilters}
-                  itemToEdit={itemToEdit}
-                  onClearItemToEdit={() => setItemToEdit(null)}
-                  onShowPreview={setPreviewData}
-               />;
+        return <ItemRegistration currentUser={currentUser} assets={assets} setAssets={(valueOrFn) => setAndPersist(setAssets, valueOrFn, 'app_assets')} customers={customers} requests={requests} handovers={handovers} dismantles={dismantles} assetCategories={assetCategories} prefillData={prefillRegData} onClearPrefill={() => setPrefillRegData(null)} onRegistrationComplete={handleCompleteRequestRegistration} onInitiateHandover={handleInitiateHandover} onInitiateDismantle={handleInitiateDismantle} onInitiateInstallation={handleInitiateInstallation} assetToViewId={assetToViewId} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)} onShowPreview={setPreviewData} setActivePage={handleSetActivePage} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal} setIsGlobalScannerOpen={setIsGlobalScannerOpen} setScanContext={setScanContext} setFormScanCallback={setFormScanCallback}/>;
       case 'handover':
-        return <ItemHandover
-                  currentUser={currentUser}
-                  handovers={handovers}
-                  setHandovers={setHandovers}
-                  assets={assets}
-                  prefillData={prefillHoData}
-                  onClearPrefill={() => setPrefillHoData(null)}
-                  onUpdateAsset={handleUpdateAsset}
-                  onShowPreview={setPreviewData}
-               />;
+        return <ItemHandover currentUser={currentUser} handovers={handovers} setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')} assets={assets} users={users} prefillData={prefillHoData} onClearPrefill={() => setPrefillHoData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={setPreviewData}/>;
       case 'dismantle':
-        return <ItemDismantle 
-                  currentUser={currentUser}
-                  dismantles={dismantles}
-                  setDismantles={setDismantles}
-                  assets={assets}
-                  customers={customers}
-                  prefillData={prefillDmData}
-                  onClearPrefill={() => setPrefillDmData(null)}
-                  onUpdateAsset={handleUpdateAsset}
-                  onShowPreview={setPreviewData}
-                />;
+        return <ItemDismantle currentUser={currentUser} dismantles={dismantles} setDismantles={(valueOrFn) => setAndPersist(setDismantles, valueOrFn, 'app_dismantles')} assets={assets} customers={customers} users={users} prefillData={prefillDmData} onClearPrefill={() => setPrefillDmData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={setPreviewData} setActivePage={handleSetActivePage}/>;
       case 'stock':
-        return <StockOverview assets={assets} setActivePage={handleNavigate} onShowPreview={setPreviewData} />;
-      case 'akun':
-        return <AccountsAndDivisions currentUser={currentUser} users={users} setUsers={setUsers} divisions={divisions} setDivisions={setDivisions} initialView="users" onNavigate={handleNavigate} />;
-      case 'divisi':
-        return <AccountsAndDivisions currentUser={currentUser} users={users} setUsers={setUsers} divisions={divisions} setDivisions={setDivisions} initialView="divisions" onNavigate={handleNavigate} />;
+        return <StockOverview assets={assets} assetCategories={assetCategories} setActivePage={handleSetActivePage} onShowPreview={setPreviewData} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} />;
+      case 'pengaturan-pengguna':
+        return <AccountsAndDivisions currentUser={currentUser} users={users} setUsers={(valueOrFn) => setAndPersist(setUsers, valueOrFn, 'app_users')} divisions={divisions} setDivisions={(valueOrFn) => setAndPersist(setDivisions, valueOrFn, 'app_divisions')} setActivePage={handleSetActivePage} />;
       case 'kategori':
-        return <CategoryManagement categories={assetCategories} setCategories={setAssetCategories} divisions={divisions} assets={assets} />;
+        return <CategoryManagement currentUser={currentUser} categories={assetCategories} setCategories={(valueOrFn) => setAndPersist(setAssetCategories, valueOrFn, 'app_assetCategories')} divisions={divisions} assets={assets} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal}/>;
       case 'customers':
-        return <CustomerManagement 
-                  currentUser={currentUser}
-                  customers={customers} 
-                  setCustomers={setCustomers} 
-                  assets={assets} 
-                  onInitiateDismantle={handleInitiateDismantle}
-                  onShowPreview={setPreviewData}
-                  itemToEdit={itemToEdit}
-                  onClearItemToEdit={() => setItemToEdit(null)}
-                />;
+        return <CustomerManagement currentUser={currentUser} customers={customers} setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} assets={assets} onInitiateDismantle={handleInitiateDismantle} onShowPreview={setPreviewData} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)}/>;
       default:
-        return <Dashboard assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} setActivePage={handleNavigate} onShowPreview={setPreviewData} />;
+        return <Dashboard assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} setActivePage={handleSetActivePage} onShowPreview={setPreviewData} />;
     }
   };
 
@@ -472,12 +701,12 @@ const AppContent: React.FC = () => {
         <Sidebar 
           currentUser={currentUser}
           activePage={activePage} 
-          setActivePage={handleNavigate}
+          setActivePage={handleSetActivePage}
           isOpen={sidebarOpen}
           setIsOpen={setSidebarOpen}
         />
         <div className="flex flex-col md:ml-64">
-          <header className="sticky top-0 z-20 flex items-center justify-between w-full h-16 px-4 bg-white border-b border-gray-200 md:justify-end">
+          <header className="sticky top-0 z-20 flex items-center justify-between w-full h-16 px-4 bg-white border-b border-gray-200 no-print md:justify-end">
               <button 
                   onClick={() => setSidebarOpen(true)}
                   className="text-gray-500 md:hidden"
@@ -486,21 +715,45 @@ const AppContent: React.FC = () => {
               </button>
               <div className="flex items-center space-x-4">
                   <button
-                    onClick={() => setIsGlobalScannerOpen(true)}
+                    onClick={() => {
+                        setScanContext('global');
+                        setIsGlobalScannerOpen(true);
+                    }}
                     className="p-2 text-gray-500 rounded-full hover:bg-gray-100 hover:text-tm-primary"
                     title="Pindai QR Aset"
                   >
                     <QrCodeIcon className="w-6 h-6"/>
                   </button>
-                  <div className="text-right">
-                      <span className="text-sm font-medium text-gray-700">{currentUser.name}</span>
-                      <span className={`ml-2 px-2.5 py-0.5 text-xs font-semibold rounded-full ${getRoleClass(currentUser.role)}`}>{currentUser.role}</span>
+                  <div className="relative" ref={profileDropdownRef}>
+                        <button onClick={() => setIsProfileDropdownOpen(prev => !prev)} className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100">
+                            <img className="w-8 h-8 rounded-full" src="https://i.pravatar.cc/100" alt="User Avatar" />
+                            <div className="hidden text-right sm:block">
+                                <span className="text-sm font-medium text-gray-700">{currentUser.name}</span>
+                            </div>
+                            <ChevronDownIcon className={`w-4 h-4 text-gray-500 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                         {isProfileDropdownOpen && (
+                            <div className="absolute right-0 z-30 w-48 mt-2 origin-top-right bg-white border border-gray-200 rounded-md shadow-lg">
+                                <div className="p-2">
+                                     <div className="px-2 py-2 mb-1 border-b">
+                                        <p className="text-sm font-semibold text-gray-800">{currentUser.name}</p>
+                                        <p className={`text-xs font-semibold rounded-full ${getRoleClass(currentUser.role)} inline-block px-2 py-0.5 mt-1`}>{currentUser.role}</p>
+                                    </div>
+                                    <button
+                                        onClick={onLogout}
+                                        className="flex items-center w-full gap-3 px-3 py-2 text-sm text-left text-gray-700 rounded-md hover:bg-gray-100 hover:text-tm-primary"
+                                    >
+                                        <LogoutIcon className="w-4 h-4" />
+                                        <span>Logout</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                   </div>
-                  <img className="w-8 h-8 rounded-full" src="https://picsum.photos/100" alt="User Avatar" />
               </div>
           </header>
           <main className="flex-1">
-              {renderContent()}
+              {renderPage()}
           </main>
         </div>
         <InstallToCustomerModal
@@ -527,16 +780,80 @@ const AppContent: React.FC = () => {
             handovers={handovers}
             dismantles={dismantles}
             divisions={divisions}
+            assetCategories={assetCategories}
+            onInitiateHandover={handleInitiateHandover}
+            onInitiateDismantle={handleInitiateDismantle}
+            onInitiateInstallation={handleInitiateInstallation}
         />
+        {modelModalState && (
+          <ModelManagementModal
+            isOpen={!!modelModalState}
+            onClose={() => setModelModalState(null)}
+            parentInfo={{ category: modelModalState.category, type: modelModalState.type }}
+            assets={assets}
+            onSave={handleSaveModel}
+            onDelete={handleDeleteModel}
+          />
+        )}
+        {typeModalState && (
+            <TypeManagementModal
+                isOpen={!!typeModalState}
+                onClose={() => setTypeModalState(null)}
+                parentCategory={typeModalState.category}
+                typeToEdit={typeModalState.typeToEdit}
+                assets={assets}
+                onSave={handleSaveType}
+                onDelete={handleDeleteType}
+            />
+        )}
       </div>
   );
 };
 
-const App: React.FC = () => (
-  <NotificationProvider>
-    <AppContent />
-  </NotificationProvider>
+const App: React.FC = () => {
+    const [currentUser, setCurrentUser] = useState<User | null>(() => {
+        try {
+            const storedUser = localStorage.getItem('currentUser');
+            if (storedUser) {
+                return JSON.parse(storedUser);
+            }
+        } catch (error) {
+            console.error("Failed to parse user from localStorage", error);
+        }
+        return null;
+    });
+    
+    const addNotification = useNotification();
+
+    const handleLogin = async (email: string, pass: string): Promise<User> => {
+        try {
+            const user = await api.loginUser(email, pass);
+            addNotification(`Selamat datang kembali, ${user.name}!`, 'success');
+            setCurrentUser(user);
+            return user;
+        } catch (err) {
+            // Error handling will be done in the component
+            throw err;
+        }
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('currentUser');
+        setCurrentUser(null);
+        addNotification('Anda telah berhasil logout.', 'success');
+    };
+
+    if (!currentUser) {
+        return <LoginPage onLogin={handleLogin} />;
+    }
+
+    return <AppContent currentUser={currentUser} onLogout={handleLogout} />;
+};
+
+const RootApp: React.FC = () => (
+    <NotificationProvider>
+        <App />
+    </NotificationProvider>
 );
 
-
-export default App;
+export default RootApp;

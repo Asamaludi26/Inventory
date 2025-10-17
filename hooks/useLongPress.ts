@@ -12,7 +12,6 @@ export const useLongPress = (
   callback: Callback,
   duration: number = 500
 ) => {
-  // FIX: Use ReturnType<typeof setTimeout> for browser compatibility instead of NodeJS.Timeout.
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const start = useCallback(() => {

@@ -125,7 +125,7 @@ const DatePicker: React.FC<DatePickerProps> = ({ id, selectedDate, onDateChange,
                     value={formattedDate}
                     onClick={() => setIsOpen(!isOpen)}
                     placeholder="Pilih tanggal"
-                    className="block w-full pl-3 pr-10 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm cursor-pointer focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
+                    className="block w-full pl-3 pr-10 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm cursor-pointer focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <CalendarIcon className="w-5 h-5 text-gray-500" />

@@ -1,341 +1,450 @@
-import React, { useState } from 'react';
-import { AssetCategory, Division, Asset, AssetType } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { AssetCategory, Division, Asset, AssetType, StandardItem, User } from '../types';
 import Modal from './shared/Modal';
 import { useNotification } from './shared/Notification';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { InboxIcon } from './icons/InboxIcon';
-import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
+import { SearchIcon } from './icons/SearchIcon';
+import { PlusIcon } from './icons/PlusIcon';
+import { CategoryIcon } from './icons/CategoryIcon';
+import { CustomerIcon } from './icons/CustomerIcon';
+import { Tooltip } from './shared/Tooltip';
 import { Checkbox } from './shared/Checkbox';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { CustomSelect } from './shared/CustomSelect';
+import { UsersIcon } from './icons/UsersIcon';
+import { CheckIcon } from './icons/CheckIcon';
 
 interface CategoryManagementProps {
+    currentUser: User;
     categories: AssetCategory[];
     setCategories: React.Dispatch<React.SetStateAction<AssetCategory[]>>;
     divisions: Division[];
     assets: Asset[];
+    openModelModal: (category: AssetCategory, type: AssetType, onModelAdded?: (model: StandardItem) => void) => void;
+    openTypeModal: (category: AssetCategory, typeToEdit: AssetType | null, onTypeAdded?: (type: AssetType) => void) => void;
 }
 
-interface CategoryFormData {
-    name: string;
-    associatedDivisions: number[];
-}
+const CategoryManagement: React.FC<CategoryManagementProps> = ({ currentUser, categories, setCategories, divisions, assets, openModelModal, openTypeModal }) => {
+    // --- STATE MANAGEMENT ---
+    const [expandedCategory, setExpandedCategory] = useState<number | null>(null);
+    const [expandedType, setExpandedType] = useState<number | null>(null);
 
-export const CategoryManagement: React.FC<CategoryManagementProps> = ({ categories, setCategories, divisions, assets }) => {
-    const [openCategoryId, setOpenCategoryId] = useState<number | null>(null);
-    
-    // Modal states
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-    const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-    // Data for modals
     const [editingCategory, setEditingCategory] = useState<AssetCategory | null>(null);
-    const [editingType, setEditingType] = useState<AssetType | null>(null);
-    const [parentCategoryForType, setParentCategoryForType] = useState<AssetCategory | null>(null);
-    const [itemToDelete, setItemToDelete] = useState<{ type: 'category' | 'type', data: any, parent?: AssetCategory } | null>(null);
-
+    const [itemToDelete, setItemToDelete] = useState<{ type: 'category' | 'type' | 'model', data: any, assetCount: number } | null>(null);
+    const [categorySearch, setCategorySearch] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [divisionFilter, setDivisionFilter] = useState<string>('all');
     const addNotification = useNotification();
 
-    const handleToggleCategory = (id: number) => {
-        setOpenCategoryId(prev => (prev === id ? null : id));
-    };
+    // --- DERIVED STATE ---
+    const isManager = currentUser.role === 'Admin' || currentUser.role === 'Super Admin';
+    const divisionFilterOptions = useMemo(() => [
+        { value: 'all', label: 'Semua Divisi' },
+        ...divisions.map(d => ({ value: d.id.toString(), label: d.name }))
+    ], [divisions]);
+
+    const filteredCategories = useMemo(() => {
+        let tempCategories = [...categories];
+
+        // 1. Filter by search text
+        if (categorySearch) {
+            tempCategories = tempCategories.filter(c => 
+                c.name.toLowerCase().includes(categorySearch.toLowerCase())
+            );
+        }
+
+        // 2. Filter by division
+        if (isManager) {
+            // Manager can filter by a specific division's view
+            if (divisionFilter !== 'all') {
+                const selectedDivisionId = parseInt(divisionFilter, 10);
+                tempCategories = tempCategories.filter(category => 
+                    category.associatedDivisions.length === 0 || 
+                    category.associatedDivisions.includes(selectedDivisionId)
+                );
+            }
+        } else {
+            // Staff only see their own division's categories + global ones
+            if (currentUser.divisionId) {
+                tempCategories = tempCategories.filter(category => 
+                    category.associatedDivisions.length === 0 || 
+                    category.associatedDivisions.includes(currentUser.divisionId!)
+                );
+            } else {
+                // Staff with no division only see global categories
+                tempCategories = tempCategories.filter(category => 
+                    category.associatedDivisions.length === 0
+                );
+            }
+        }
+
+        return tempCategories;
+    }, [categories, categorySearch, isManager, divisionFilter, currentUser.divisionId]);
+
+    // --- EFFECTS ---
+    useEffect(() => {
+        // Auto-expand the first category if none is selected
+        if (filteredCategories.length > 0 && expandedCategory === null) {
+            setExpandedCategory(filteredCategories[0].id);
+        } else if (filteredCategories.length > 0 && !filteredCategories.some(c => c.id === expandedCategory)) {
+            // If the expanded category is filtered out, expand the new first one
+            setExpandedCategory(filteredCategories[0].id);
+        } else if (filteredCategories.length === 0) {
+            setExpandedCategory(null);
+        }
+    }, [filteredCategories, expandedCategory]);
     
-    // --- Modal Openers ---
+    // --- EVENT HANDLERS ---
+    const handleCategoryClick = (categoryId: number) => {
+        setExpandedCategory(prev => (prev === categoryId ? null : categoryId));
+        setExpandedType(null); // Always collapse types when changing category
+    };
+
+    const handleTypeClick = (typeId: number) => {
+        setExpandedType(prev => (prev === typeId ? null : typeId));
+    };
+
+    // --- CRUD OPERATIONS ---
     const handleOpenCategoryModal = (category: AssetCategory | null) => {
         setEditingCategory(category);
         setIsCategoryModalOpen(true);
     };
 
-    const handleOpenTypeModal = (type: AssetType | null, parentCategory: AssetCategory) => {
-        setEditingType(type);
-        setParentCategoryForType(parentCategory);
-        setIsTypeModalOpen(true);
-    };
-
-    const handleOpenDeleteModal = (item: AssetCategory | AssetType, type: 'category' | 'type', parentCategory?: AssetCategory) => {
-        setItemToDelete({ type, data: item, parent: parentCategory });
-        setIsDeleteModalOpen(true);
-    };
-    
-    // --- CRUD Handlers ---
-    const handleSaveCategory = (formData: CategoryFormData) => {
+    const handleSaveCategory = (formData: Omit<AssetCategory, 'id'|'types'>) => {
         setIsLoading(true);
         setTimeout(() => {
             if (editingCategory) { // Update
-                setCategories(prev => prev.map(cat => cat.id === editingCategory.id ? { ...cat, name: formData.name, associatedDivisions: formData.associatedDivisions } : cat));
-                addNotification(`Kategori "${formData.name}" berhasil diperbarui.`, 'success');
+                setCategories(prev => prev.map(cat => cat.id === editingCategory.id ? { ...cat, ...formData } : cat));
+                addNotification(`Kategori "${formData.name}" diperbarui.`, 'success');
             } else { // Create
-                const newCategory: AssetCategory = {
-                    id: Date.now(),
-                    name: formData.name,
-                    types: [],
-                    associatedDivisions: formData.associatedDivisions
-                };
+                const newCategory: AssetCategory = { ...formData, id: Date.now(), types: [] };
                 setCategories(prev => [...prev, newCategory]);
-                addNotification(`Kategori "${formData.name}" berhasil ditambahkan.`, 'success');
+                setExpandedCategory(newCategory.id);
+                addNotification(`Kategori "${formData.name}" ditambahkan.`, 'success');
             }
             setIsLoading(false);
             setIsCategoryModalOpen(false);
-            setEditingCategory(null);
-        }, 500);
+        }, 300);
     };
 
-    const handleSaveType = (typeName: string) => {
-        if (!parentCategoryForType) return;
-        setIsLoading(true);
-        setTimeout(() => {
-            if (editingType) { // Update
-                setCategories(prev => prev.map(cat => {
-                    if (cat.id === parentCategoryForType.id) {
-                        return { ...cat, types: cat.types.map(t => t.id === editingType.id ? { ...t, name: typeName } : t) };
-                    }
-                    return cat;
-                }));
-                addNotification(`Tipe "${typeName}" berhasil diperbarui.`, 'success');
-            } else { // Create
-                const newType: AssetType = { id: Date.now(), name: typeName };
-                setCategories(prev => prev.map(cat => {
-                    if (cat.id === parentCategoryForType.id) {
-                        return { ...cat, types: [...cat.types, newType] };
-                    }
-                    return cat;
-                }));
-                 addNotification(`Tipe "${typeName}" berhasil ditambahkan ke kategori "${parentCategoryForType.name}".`, 'success');
-            }
-            setIsLoading(false);
-            setIsTypeModalOpen(false);
-            setEditingType(null);
-            setParentCategoryForType(null);
-        }, 500);
+    const handleOpenDeleteModal = (type: 'category' | 'type' | 'model', data: any, parentCategory?: AssetCategory, parentType?: AssetType) => {
+        let assetCount = 0;
+        if (type === 'category') assetCount = assets.filter(a => a.category === data.name).length;
+        if (type === 'type' && parentCategory) assetCount = assets.filter(a => a.category === parentCategory.name && a.type === data.name).length;
+        if (type === 'model') assetCount = assets.filter(a => a.name === data.name && a.brand === data.brand).length;
+        setItemToDelete({ type, data, assetCount });
     };
 
     const handleConfirmDelete = () => {
-        if (!itemToDelete) return;
-        
-        // Check if item is in use
-        if (itemToDelete.type === 'category') {
-            if (assets.some(a => a.category === itemToDelete.data.name)) {
-                addNotification(`Kategori "${itemToDelete.data.name}" tidak dapat dihapus karena sedang digunakan oleh aset.`, 'error');
-                setIsDeleteModalOpen(false);
-                return;
-            }
-            setCategories(prev => prev.filter(cat => cat.id !== itemToDelete.data.id));
-            addNotification(`Kategori "${itemToDelete.data.name}" berhasil dihapus.`, 'success');
-        } else if (itemToDelete.type === 'type' && itemToDelete.parent) {
-            if (assets.some(a => a.category === itemToDelete.parent!.name && a.type === itemToDelete.data.name)) {
-                addNotification(`Tipe "${itemToDelete.data.name}" tidak dapat dihapus karena sedang digunakan oleh aset.`, 'error');
-                setIsDeleteModalOpen(false);
-                return;
-            }
-            setCategories(prev => prev.map(cat => {
-                if (cat.id === itemToDelete.parent!.id) {
-                    return { ...cat, types: cat.types.filter(t => t.id !== itemToDelete.data.id) };
-                }
-                return cat;
-            }));
-            addNotification(`Tipe "${itemToDelete.data.name}" berhasil dihapus.`, 'success');
-        }
+        if (!itemToDelete || itemToDelete.assetCount > 0) return;
+        const { type, data } = itemToDelete;
+        const currentExpandedCategory = categories.find(c => c.id === expandedCategory);
+        const currentExpandedType = currentExpandedCategory?.types.find(t => t.id === expandedType);
 
-        setIsDeleteModalOpen(false);
+        if (type === 'category') {
+            setCategories(p => p.filter(c => c.id !== data.id));
+            if (expandedCategory === data.id) setExpandedCategory(categories[0]?.id || null);
+        }
+        if (type === 'type' && currentExpandedCategory) {
+            setCategories(p => p.map(c => c.id === currentExpandedCategory.id ? { ...c, types: c.types.filter(t => t.id !== data.id) } : c));
+            if (expandedType === data.id) setExpandedType(null);
+        }
+        if (type === 'model' && currentExpandedCategory && currentExpandedType) {
+            setCategories(p => p.map(c => c.id === currentExpandedCategory.id ? { ...c, types: c.types.map(t => t.id === currentExpandedType.id ? { ...t, standardItems: (t.standardItems || []).filter(m => m.id !== data.id) } : t) } : c));
+        }
+        
+        addNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} "${data.name}" berhasil dihapus.`, 'success');
         setItemToDelete(null);
     };
 
     return (
-        <div className="p-4 sm:p-6 md:p-8">
-            <div className="flex flex-col items-start justify-between gap-4 mb-6 md:flex-row md:items-center">
-                <h1 className="text-3xl font-bold text-tm-dark">Manajemen Kategori</h1>
-                <button onClick={() => handleOpenCategoryModal(null)} className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover">
-                    Tambah Kategori Baru
-                </button>
+        <div className="p-4 sm:p-6 md:p-8 h-full flex flex-col">
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+                <h1 className="text-3xl font-bold text-tm-dark">Pusat Manajemen Kategori</h1>
+                <div className="flex items-center gap-2">
+                    <div className="relative flex-grow md:flex-grow-0 md:w-52">
+                        <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input type="text" placeholder="Cari kategori..." value={categorySearch} onChange={e => setCategorySearch(e.target.value)} className="w-full h-10 py-2 pl-9 pr-4 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-tm-accent focus:border-tm-accent" />
+                    </div>
+                    {isManager && (
+                        <div className="md:w-48">
+                            <CustomSelect
+                                options={divisionFilterOptions}
+                                value={divisionFilter}
+                                onChange={setDivisionFilter}
+                            />
+                        </div>
+                    )}
+                    <button onClick={() => handleOpenCategoryModal(null)} className="inline-flex items-center justify-center gap-2 h-10 px-4 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover">
+                        <PlusIcon className="w-5 h-5" />
+                        <span>Kategori Baru</span>
+                    </button>
+                </div>
             </div>
             
-            <div className="space-y-4">
-                {categories.length > 0 ? categories.map(category => (
-                    <div key={category.id} className="overflow-hidden bg-white border border-gray-200/80 rounded-xl shadow-md">
-                        {/* Category Header */}
-                        <div className="flex items-center justify-between w-full p-4 text-left bg-gray-50/70">
-                            <button onClick={() => handleToggleCategory(category.id)} className="flex items-center flex-grow min-w-0 gap-4 group">
-                                <ChevronDownIcon className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${openCategoryId === category.id ? 'rotate-180' : ''}`} />
-                                <div className="min-w-0">
-                                    <h3 className="text-lg font-semibold truncate text-tm-dark group-hover:text-tm-primary">{category.name}</h3>
-                                    <p className="text-sm text-gray-500">{category.types.length} Tipe Aset</p>
-                                </div>
-                            </button>
-                            <div className="flex items-center flex-shrink-0 gap-2 pl-4">
-                                <button onClick={(e) => { e.stopPropagation(); handleOpenCategoryModal(category); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-yellow-100 hover:text-yellow-700" title="Edit Kategori"><PencilIcon className="w-4 h-4" /></button>
-                                <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(category, 'category'); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-red-100 hover:text-red-700" title="Hapus Kategori"><TrashIcon className="w-5 h-5" /></button>
-                            </div>
-                        </div>
-
-                        {/* Collapsible Content */}
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openCategoryId === category.id ? 'max-h-[1000px]' : 'max-h-0'}`}>
-                            <div className="p-6 border-t border-gray-200">
-                                <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-                                    {/* Asset Types Section */}
-                                    <div className="md:col-span-2">
-                                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-200">
-                                            <h4 className="text-sm font-semibold tracking-wider text-gray-600 uppercase">Tipe Aset</h4>
-                                            <button onClick={() => handleOpenTypeModal(null, category)} className="px-3 py-1 text-xs font-semibold text-white rounded-md shadow-sm bg-tm-accent hover:bg-tm-primary">+ Tambah Tipe</button>
+            <div className="flex-1 min-h-0 -mx-2 overflow-y-auto custom-scrollbar px-2 space-y-3">
+                {filteredCategories.length > 0 ? (
+                    filteredCategories.map(cat => {
+                        const isExpanded = expandedCategory === cat.id;
+                        const assetCount = assets.filter(a => a.category === cat.name).length;
+                        return (
+                            <div key={cat.id} className="bg-white rounded-xl border border-gray-200/80 shadow-sm transition-all duration-300">
+                                <div onClick={() => handleCategoryClick(cat.id)} className="flex items-center p-4 cursor-pointer group">
+                                    <div className="flex-1">
+                                        <p className="font-bold text-lg text-gray-800 group-hover:text-tm-primary">{cat.name}</p>
+                                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                                            <span><strong className="text-gray-700">{cat.types.length}</strong> Tipe</span>
+                                            <span><strong className="text-gray-700">{assetCount}</strong> Aset</span>
+                                            {cat.isCustomerInstallable && <Tooltip text="Dapat dipasang ke pelanggan"><CustomerIcon className="w-4 h-4 text-sky-600" /></Tooltip>}
                                         </div>
-                                        {category.types.length > 0 ? (
-                                            <ul className="space-y-1">
-                                                {category.types.map(type => (
-                                                    <li key={type.id} className="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-50/80">
-                                                        <span className="text-sm font-medium text-gray-800">{type.name}</span>
-                                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button onClick={() => handleOpenTypeModal(type, category)} className="p-1 text-gray-400 rounded-md hover:bg-gray-200 hover:text-yellow-600" title="Edit Tipe"><PencilIcon className="w-4 h-4" /></button>
-                                                            <button onClick={() => handleOpenDeleteModal(type, 'type', category)} className="p-1 text-gray-400 rounded-md hover:bg-gray-200 hover:text-red-600" title="Hapus Tipe"><TrashIcon className="w-4 h-4" /></button>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={(e) => { e.stopPropagation(); handleOpenCategoryModal(cat); }} className="p-2 text-gray-500 rounded-full hover:bg-yellow-100 hover:text-yellow-600"><PencilIcon className="w-4 h-4"/></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal('category', cat); }} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
+                                        <ChevronDownIcon className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                                    </div>
+                                </div>
+                                
+                                <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[2000px]' : 'max-h-0'}`}>
+                                    <div className="pt-2 pb-4 px-4 space-y-2 border-t border-gray-200">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="text-sm font-semibold text-gray-500">TIPE ASET ({cat.types.length})</h4>
+                                            <button onClick={(e) => { e.stopPropagation(); openTypeModal(cat, null); }} className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-tm-accent rounded-md shadow-sm hover:bg-tm-primary"><PlusIcon className="w-4 h-4" /><span>Tipe Baru</span></button>
+                                        </div>
+                                        {cat.types.map(type => {
+                                            const isTypeExpanded = expandedType === type.id;
+                                            return (
+                                                <div key={type.id} className="bg-gray-50/70 rounded-lg border border-gray-200/80">
+                                                    <div onClick={() => handleTypeClick(type.id)} className="flex items-center p-3 cursor-pointer group">
+                                                        <div className="flex-1">
+                                                            <p className="font-semibold text-gray-800">{type.name}</p>
+                                                            <p className="text-xs text-gray-500">{type.standardItems?.length || 0} Model &bull; {assets.filter(a => a.category === cat.name && a.type === type.name).length} Aset</p>
                                                         </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <div className="py-4 text-sm text-center text-gray-500 border-2 border-dashed rounded-lg">
-                                                Belum ada tipe untuk kategori ini.
-                                            </div>
-                                        )}
-                                    </div>
-                                    {/* Associated Divisions Section */}
-                                    <div>
-                                        <div className="pb-3 mb-3 border-b border-gray-200">
-                                            <h4 className="text-sm font-semibold tracking-wider text-gray-600 uppercase">Divisi Terkait</h4>
-                                        </div>
-                                        {category.associatedDivisions.length > 0 ? (
-                                            <div className="flex flex-wrap gap-2">
-                                                {category.associatedDivisions.map(divId => {
-                                                    const division = divisions.find(d => d.id === divId);
-                                                    return (
-                                                        <span key={divId} className="px-2.5 py-1 text-xs font-medium text-gray-800 bg-gray-100 rounded-full">
-                                                            {division?.name || 'Divisi Tidak Dikenal'}
-                                                        </span>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm italic text-gray-500">Berlaku untuk semua divisi.</p>
-                                        )}
+                                                        <div className="flex items-center gap-1">
+                                                            <button onClick={(e) => { e.stopPropagation(); openTypeModal(cat, type); }} className="p-2 text-gray-500 rounded-full hover:bg-yellow-100 hover:text-yellow-600 text-xs"><PencilIcon className="w-4 h-4"/></button>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal('type', type, cat); }} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 text-xs"><TrashIcon className="w-4 h-4"/></button>
+                                                            <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isTypeExpanded ? 'rotate-180' : ''}`} />
+                                                        </div>
+                                                    </div>
+                                                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isTypeExpanded ? 'max-h-[1000px]' : 'max-h-0'}`}>
+                                                        <div className="pt-2 pb-3 px-3 border-t">
+                                                            <div className="flex justify-between items-center mb-2 px-2">
+                                                                <h5 className="text-xs font-semibold text-gray-500">MODEL STANDAR ({type.standardItems?.length || 0})</h5>
+                                                                <button onClick={(e) => { e.stopPropagation(); openModelModal(cat, type); }} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold text-white bg-tm-accent/80 rounded hover:bg-tm-accent"><PlusIcon className="w-3 h-3"/><span>Model</span></button>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                {(type.standardItems || []).map(model => (
+                                                                    <div key={model.id} className="flex items-center justify-between p-2 rounded-md hover:bg-white/80">
+                                                                        <div>
+                                                                            <p className="text-sm font-medium text-gray-800">{model.name}</p>
+                                                                            <p className="text-xs text-gray-500">{model.brand}</p>
+                                                                        </div>
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal('model', model, cat, type); }} className="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600"><TrashIcon className="w-3.5 h-3.5"/></button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        );
+                    })
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500 bg-white border-2 border-dashed rounded-xl">
+                        <InboxIcon className="w-16 h-16 text-gray-300" />
+                        <p className="mt-4 text-lg font-semibold">Tidak Ada Kategori</p>
+                        <p className="mt-1 text-sm">Mulai dengan membuat kategori aset pertama Anda atau ubah filter Anda.</p>
+                        <button onClick={() => handleOpenCategoryModal(null)} className="inline-flex items-center justify-center gap-2 mt-4 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover">
+                           <PlusIcon className="w-5 h-5" /> Buat Kategori Baru
+                        </button>
                     </div>
-                )) : <div className="text-center text-gray-500 py-12"><InboxIcon className="w-12 h-12 mx-auto" /> <p className="mt-2">Belum ada kategori. Silakan buat yang baru.</p></div>}
+                )}
             </div>
 
             {isCategoryModalOpen && (
                 <Modal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} title={editingCategory ? "Edit Kategori" : "Tambah Kategori Baru"} hideDefaultCloseButton disableContentPadding>
-                    <CategoryFormModal
-                        category={editingCategory}
-                        divisions={divisions}
-                        onSave={handleSaveCategory}
-                        onClose={() => setIsCategoryModalOpen(false)}
-                        isLoading={isLoading}
-                    />
+                    <CategoryFormModal category={editingCategory} divisions={divisions} onSave={handleSaveCategory} onClose={() => setIsCategoryModalOpen(false)} isLoading={isLoading} />
                 </Modal>
             )}
 
-            {isTypeModalOpen && (
-                 <Modal isOpen={isTypeModalOpen} onClose={() => setIsTypeModalOpen(false)} title={editingType ? `Edit Tipe` : `Tambah Tipe Baru`} hideDefaultCloseButton disableContentPadding>
-                    <TypeFormModal
-                        type={editingType}
-                        onSave={handleSaveType}
-                        onClose={() => setIsTypeModalOpen(false)}
-                        isLoading={isLoading}
-                    />
-                </Modal>
-            )}
-            
-            {isDeleteModalOpen && itemToDelete && (
-                 <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Konfirmasi Hapus" size="md">
-                     <div className="text-center">
-                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
-                            <ExclamationTriangleIcon className="w-8 h-8" />
-                        </div>
-                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {itemToDelete.type === 'category' ? 'Kategori' : 'Tipe'}?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus <strong>"{itemToDelete.data.name}"</strong>? Aksi ini tidak dapat diurungkan.</p>
-                     </div>
-                      <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                        <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
-                        <button onClick={handleConfirmDelete} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg hover:bg-red-700">Ya, Hapus</button>
+            {itemToDelete && (
+                <Modal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} title={itemToDelete.assetCount > 0 ? "Tidak Dapat Menghapus" : "Konfirmasi Hapus"} size="md" hideDefaultCloseButton>
+                    <div className="text-center">
+                        <div className={`flex items-center justify-center w-12 h-12 mx-auto rounded-full ${itemToDelete.assetCount > 0 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}><ExclamationTriangleIcon className="w-8 h-8" /></div>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">{itemToDelete.assetCount > 0 ? 'Item Sedang Digunakan' : `Hapus ${itemToDelete.type}?`}</h3>
+                        <p className="mt-2 text-sm text-gray-600">
+                            {itemToDelete.assetCount > 0
+                                ? `Anda tidak dapat menghapus "${itemToDelete.data.name}" karena masih ada ${itemToDelete.assetCount} aset yang terhubung.`
+                                : `Anda yakin ingin menghapus "${itemToDelete.data.name}"? Aksi ini tidak dapat diurungkan.`}
+                        </p>
+                    </div>
+                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
+                        <button onClick={() => setItemToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">{itemToDelete.assetCount > 0 ? 'Mengerti' : 'Batal'}</button>
+                        {itemToDelete.assetCount === 0 && (<button onClick={handleConfirmDelete} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">Ya, Hapus</button>)}
                     </div>
                 </Modal>
             )}
-
         </div>
     );
 };
 
-const CategoryFormModal: React.FC<{ category: AssetCategory | null, divisions: Division[], onSave: (data: CategoryFormData) => void, onClose: () => void, isLoading: boolean }> = ({ category, divisions, onSave, onClose, isLoading }) => {
-    const [name, setName] = useState(category?.name || '');
-    const [selectedDivisions, setSelectedDivisions] = useState<number[]>(category?.associatedDivisions || []);
+const CategoryFormModal: React.FC<{
+    category: AssetCategory | null;
+    divisions: Division[];
+    onSave: (formData: Omit<AssetCategory, 'id'|'types'>) => void;
+    onClose: () => void;
+    isLoading: boolean;
+}> = ({ category, divisions, onSave, onClose, isLoading }) => {
+    const [name, setName] = useState('');
+    const [associatedDivisions, setAssociatedDivisions] = useState<number[]>([]);
+    const [isCustomerInstallable, setIsCustomerInstallable] = useState(false);
+    const [divisionSearch, setDivisionSearch] = useState('');
+    const [accessMode, setAccessMode] = useState<'global' | 'specific'>('global');
 
-    const handleDivisionToggle = (divId: number) => {
-        setSelectedDivisions(prev => prev.includes(divId) ? prev.filter(id => id !== divId) : [...prev, divId]);
+    useEffect(() => {
+        if (category) {
+            setName(category.name);
+            setAssociatedDivisions(category.associatedDivisions || []);
+            setIsCustomerInstallable(category.isCustomerInstallable || false);
+            setAccessMode(category.associatedDivisions && category.associatedDivisions.length > 0 ? 'specific' : 'global');
+        } else {
+            setName('');
+            setAssociatedDivisions([]);
+            setIsCustomerInstallable(false);
+            setAccessMode('global');
+        }
+    }, [category]);
+
+
+    const filteredDivisions = useMemo(() => {
+        return divisions.filter(d => d.name.toLowerCase().includes(divisionSearch.toLowerCase()));
+    }, [divisions, divisionSearch]);
+
+    const handleDivisionToggle = (divisionId: number) => {
+        setAssociatedDivisions(prev => prev.includes(divisionId) ? prev.filter(id => id !== divisionId) : [...prev, divisionId]);
+    };
+
+    const handleAccessModeChange = (mode: 'global' | 'specific') => {
+        setAccessMode(mode);
+        if (mode === 'global') {
+            setAssociatedDivisions([]);
+        }
+    };
+
+    const handleSelectAllDivisions = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setAssociatedDivisions(filteredDivisions.map(d => d.id));
+        } else {
+            setAssociatedDivisions([]);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave({ name, associatedDivisions: selectedDivisions });
+        onSave({ name, associatedDivisions, isCustomerInstallable });
     };
 
     return (
         <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-5">
-                <div>
-                    <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700">Nama Kategori</label>
-                    <input type="text" id="categoryName" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Divisi Terkait</label>
-                    <p className="mt-1 text-xs text-gray-500">Batasi kategori ini hanya untuk divisi tertentu. Kosongkan untuk mengizinkan semua divisi.</p>
-                    <div className="mt-2 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border p-3 rounded-lg">
-                        {divisions.map(div => (
-                            <label key={div.id} className="flex items-center space-x-3">
-                                <Checkbox
-                                    checked={selectedDivisions.includes(div.id)}
-                                    onChange={() => handleDivisionToggle(div.id)}
-                                />
-                                <span className="text-sm text-gray-700">{div.name}</span>
+            <div className="p-6">
+                <p className="text-sm text-gray-600 mb-6 -mt-2">
+                    {category ? `Perbarui detail untuk kategori aset "${category.name}".` : 'Isi detail untuk kategori aset baru.'}
+                </p>
+                <div className="space-y-6">
+                    <div>
+                        <h3 className="text-base font-semibold text-gray-800 mb-3 border-b pb-2">Detail Kategori</h3>
+                        <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700">Nama Kategori</label>
+                        <div className="relative mt-1">
+                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"><CategoryIcon className="w-5 h-5 text-gray-400" /></div>
+                            <input type="text" id="categoryName" value={name} onChange={e => setName(e.target.value)} required className="block w-full py-2.5 pl-10 pr-3 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-tm-accent sm:text-sm" />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="text-base font-semibold text-gray-800 mb-3 border-b pb-2">Opsi Tambahan</h3>
+                         <div className="flex items-start space-x-3 p-3 bg-blue-50/50 border border-blue-200/50 rounded-lg">
+                            <Checkbox id="is-customer-installable" checked={isCustomerInstallable} onChange={e => setIsCustomerInstallable(e.target.checked)} className="mt-1" />
+                            <label htmlFor="is-customer-installable" className="cursor-pointer">
+                                <span className="text-sm font-semibold text-gray-800">Dapat dipasang ke pelanggan</span>
+                                <p className="text-xs text-gray-500">Aktifkan jika aset kategori ini boleh diinstal di lokasi pelanggan.</p>
                             </label>
-                        ))}
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="text-base font-semibold text-gray-800 mb-2 border-b pb-2">Hak Akses Divisi</h3>
+                        <p className="text-xs text-gray-500 mb-3">Atur divisi mana yang dapat melihat dan membuat permintaan untuk kategori aset ini.</p>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            <button
+                                type="button"
+                                onClick={() => handleAccessModeChange('global')}
+                                className={`p-4 border-2 rounded-lg text-left transition-all duration-200 ${accessMode === 'global' ? 'bg-blue-50 border-tm-primary ring-2 ring-tm-primary/50' : 'bg-white border-gray-300 hover:border-tm-accent'}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <UsersIcon className="w-6 h-6 text-tm-primary" />
+                                    <span className="font-semibold text-gray-800">Semua Divisi (Global)</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2 pl-1">Kategori dapat diakses oleh semua divisi tanpa batasan.</p>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleAccessModeChange('specific')}
+                                className={`p-4 border-2 rounded-lg text-left transition-all duration-200 ${accessMode === 'specific' ? 'bg-blue-50 border-tm-primary ring-2 ring-tm-primary/50' : 'bg-white border-gray-300 hover:border-tm-accent'}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <CheckIcon className="w-6 h-6 text-tm-primary" />
+                                    <span className="font-semibold text-gray-800">Hanya Divisi Tertentu</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2 pl-1">Batasi akses kategori hanya untuk divisi yang dipilih.</p>
+                            </button>
+                        </div>
+
+                        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${accessMode === 'specific' ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                            <div className="p-4 border rounded-lg bg-gray-50/50 mt-2 space-y-3">
+                                <div className="relative">
+                                    <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                    <input type="text" placeholder="Cari divisi..." value={divisionSearch} onChange={e => setDivisionSearch(e.target.value)} className="w-full h-9 py-2 pl-9 pr-4 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-tm-accent focus:border-tm-accent" />
+                                </div>
+
+                                <div className="flex items-center justify-between px-2 py-1 border-b">
+                                    <label htmlFor="select-all-divisions" className="flex items-center space-x-2 cursor-pointer">
+                                        <Checkbox id="select-all-divisions" checked={filteredDivisions.length > 0 && associatedDivisions.length === filteredDivisions.length} onChange={handleSelectAllDivisions} />
+                                        <span className="text-sm font-medium text-gray-600">Pilih Semua</span>
+                                    </label>
+                                    <span className="text-xs text-gray-500">{associatedDivisions.length} / {divisions.length} dipilih</span>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-2 -mr-2">
+                                    {filteredDivisions.map(division => (
+                                        <div key={division.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
+                                            <Checkbox id={`division-toggle-${division.id}`} checked={associatedDivisions.includes(division.id)} onChange={() => handleDivisionToggle(division.id)} />
+                                            <label htmlFor={`division-toggle-${division.id}`} className="text-sm text-gray-800 cursor-pointer flex-1">{division.name}</label>
+                                        </div>
+                                    ))}
+                                    {filteredDivisions.length === 0 && <p className="text-sm text-gray-400 sm:col-span-2 text-center py-2">Tidak ada divisi yang cocok.</p>}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div className="flex items-center justify-end px-6 py-4 space-x-3 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+            <div className="flex items-center justify-end px-6 py-4 space-x-3 bg-gray-50 border-t">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                <button type="submit" disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
-                    {isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                    Simpan
+                <button type="submit" disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
+                    {isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />} Simpan
                 </button>
             </div>
         </form>
     );
 };
 
-const TypeFormModal: React.FC<{ type: AssetType | null, onSave: (name: string) => void, onClose: () => void, isLoading: boolean }> = ({ type, onSave, onClose, isLoading }) => {
-    const [name, setName] = useState(type?.name || '');
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onSave(name);
-    };
-
-    return (
-        <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-1">
-                <label htmlFor="typeName" className="block text-sm font-medium text-gray-700">Nama Tipe</label>
-                <input type="text" id="typeName" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
-            </div>
-            <div className="flex items-center justify-end px-6 py-4 space-x-3 bg-gray-50 border-t border-gray-200 rounded-b-xl">
-                <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                <button type="submit" disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
-                    {isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                    Simpan
-                </button>
-            </div>
-        </form>
-    );
-};
+export default CategoryManagement;

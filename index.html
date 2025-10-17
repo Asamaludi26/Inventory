@@ -48,27 +48,28 @@
     </script>
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
     <style>
-      /* Custom scrollbar styles to match the application's theme */
+      /* Custom scrollbar styles for a professional and consistent look */
       .custom-scrollbar::-webkit-scrollbar {
-        width: 8px; /* For vertical scrollbars */
-        height: 8px; /* For horizontal scrollbars */
+        width: 7px; /* A refined, slightly slimmer width */
+        height: 7px;
       }
       .custom-scrollbar::-webkit-scrollbar-track {
-        background: #F3F4F6; /* tm-light */
+        background: #F3F4F6; /* tm-light, matches the app's light background */
         border-radius: 10px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #3B82F6; /* tm-accent */
+        background: #9CA3AF; /* A neutral gray-400 for a subtle default state */
         border-radius: 10px;
-        border: 2px solid #F3F4F6; /* padding around thumb */
+        border: 2px solid #F3F4F6; /* Creates padding around the thumb matching the track */
+        transition: background-color 0.2s ease-out; /* Smooth transition for hover */
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #1D4ED8; /* tm-primary */
+        background: #3B82F6; /* Use tm-accent color on hover for brand consistency and feedback */
       }
       /* For Firefox */
       .custom-scrollbar {
         scrollbar-width: thin;
-        scrollbar-color: #3B82F6 #F3F4F6;
+        scrollbar-color: #9CA3AF #F3F4F6; /* thumb color track color */
       }
 
       /* Hide the default spinners on number inputs for a cleaner look */
@@ -82,42 +83,69 @@
       }
       
       /* Animation for notification popups */
-      @keyframes fade-in-down {
+      @keyframes fade-in-up {
         from {
           opacity: 0;
-          transform: translateY(-1rem);
+          transform: translateY(1rem);
         }
         to {
           opacity: 1;
           transform: translateY(0);
         }
       }
-      .animate-fade-in-down {
-        animation: fade-in-down 0.3s ease-out forwards;
+      .animate-fade-in-up {
+        animation: fade-in-up 0.3s ease-out forwards;
       }
 
-      /* Styles for printing QR Code */
-      @media print {
-        body * {
-          visibility: hidden;
+      @keyframes zoom-in {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
         }
-        .printable-area, .printable-area * {
-          visibility: visible;
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .animate-zoom-in {
+        animation: zoom-in 0.2s ease-out forwards;
+      }
+
+      /* General styles for printing */
+      @media print {
+        body {
+          background-color: #fff !important;
+        }
+        .no-print {
+          display: none !important;
         }
         .printable-area {
           position: absolute;
           left: 0;
           top: 0;
           width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
+          height: auto;
+          padding: 0 !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          border: none !important;
+          border-radius: 0 !important;
         }
-        .no-print {
-          display: none !important;
+        body * {
+          visibility: hidden;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
+        .printable-area, .printable-area * {
+          visibility: visible;
+        }
+      }
+
+      /* Fix for html5-qrcode video element not filling its container */
+      #global-qr-reader video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
       }
     </style>
   <script type="importmap">
@@ -125,7 +153,9 @@
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.1.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/"
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react-icons/bs": "https://esm.sh/react-icons/bs",
+    "react-icons/": "https://aistudiocdn.com/react-icons@^5.5.0/"
   }
 }
 </script>

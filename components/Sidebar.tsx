@@ -54,9 +54,8 @@ const allMenuItems: MenuItem[] = [
     icon: SettingsIcon,
     roles: ['Admin', 'Super Admin'],
     children: [
-        { id: 'settings-akun', page: 'akun', label: 'Akun', icon: UsersIcon },
-        { id: 'settings-divisi', page: 'divisi', label: 'Divisi', icon: UsersIcon },
-        { id: 'settings-kategori', page: 'kategori', label: 'Kategori', icon: CategoryIcon },
+        { id: 'settings-pengguna', page: 'pengaturan-pengguna', label: 'Akun & Divisi', icon: UsersIcon },
+        { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon },
     ]
   },
 ];
@@ -148,8 +147,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
         <div className="flex flex-col h-full">
             <div className="flex items-center justify-between h-20 px-4 border-b border-gray-700/80">
                 <div className="flex items-center gap-3">
-                    <TrinitiLogoIcon className="w-8 h-8 text-tm-accent" />
-                    <span className="text-xl font-bold tracking-wide text-white">TRINITI ASSET</span>
+                    <TrinitiLogoIcon className="w-10 h-10 text-tm-accent" />
+                    <span className="text-xl font-bold tracking-wider text-white">
+                        Triniti<span className="font-normal opacity-75">Asset</span>
+                    </span>
                 </div>
                 <button onClick={() => setIsOpen(false)} className="text-gray-400 md:hidden hover:text-white">
                     <CloseIcon />
@@ -209,12 +210,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
         <>
             {/* Mobile overlay */}
             <div 
-                className={`fixed inset-0 z-20 bg-black bg-opacity-50 transition-opacity md:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`fixed inset-0 z-20 bg-black bg-opacity-50 transition-opacity md:hidden no-print ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 onClick={() => setIsOpen(false)}
             />
             
             {/* Sidebar */}
-            <aside className={`fixed top-0 left-0 z-30 h-full w-64 bg-tm-dark text-white transform transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`fixed top-0 left-0 z-30 h-full w-64 bg-tm-dark text-white transform transition-transform duration-300 ease-in-out md:translate-x-0 no-print ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <SidebarContent />
             </aside>
         </>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-// FIX: Import PreviewData from the central types file.
-import { Dismantle, ItemStatus, Asset, AssetStatus, AssetCondition, Customer, User, ActivityLogEntry, PreviewData } from '../types';
+import { Dismantle, ItemStatus, Asset, AssetStatus, AssetCondition, Customer, User, ActivityLogEntry, PreviewData, Page, Attachment } from '../types';
 import Modal from './shared/Modal';
 import { EyeIcon } from './icons/EyeIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -24,6 +23,16 @@ import { ApprovalStamp } from './shared/ApprovalStamp';
 import FloatingActionBar from './shared/FloatingActionBar';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 import { ClickableLink } from './shared/ClickableLink';
+import { CustomSelect } from './shared/CustomSelect';
+import { FilterIcon } from './icons/FilterIcon';
+import { CheckIcon } from './icons/CheckIcon';
+import { DismantleIcon } from './icons/DismantleIcon';
+import { Letterhead } from './shared/Letterhead';
+import { AssetIcon } from './icons/AssetIcon';
+import { CustomerIcon } from './icons/CustomerIcon';
+import { DownloadIcon } from './icons/DownloadIcon';
+import { PaperclipIcon } from './icons/PaperclipIcon';
+
 
 interface ItemDismantleProps {
     currentUser: User;
@@ -31,47 +40,13 @@ interface ItemDismantleProps {
     setDismantles: React.Dispatch<React.SetStateAction<Dismantle[]>>;
     assets: Asset[];
     customers: Customer[];
+    users: User[];
     prefillData?: Asset | null;
     onClearPrefill: () => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
     onShowPreview: (data: PreviewData) => void;
+    setActivePage: (page: Page, initialState?: any) => void;
 }
-
-export const mockDismantles: Dismantle[] = Array.from({ length: 50 }, (_, i) => {
-    const technicianPool = ['Alice Johnson', 'Jack Taylor', 'Charlie Brown', 'Bob Williams', 'Henry Wilson', 'Fajar Nugroho'];
-    const customerPool = [
-        { name: 'PT. Maju Mundur Sejahtera', id: 'TMI-01002', address: 'Jl. Sudirman No. 123, Jakarta Selatan' },
-        { name: 'Warung Kopi Bahagia', id: 'TMI-01004', address: 'Jl. Gatot Subroto No. 45, Jakarta Pusat' },
-        { name: 'CV. Terang Benderang', id: 'TMI-01008', address: 'Jl. Pahlawan No. 8, Bandung' },
-        { name: 'Sekolah Harapan Bangsa', id: 'TMI-01013', address: 'Jl. Pendidikan No. 1, Surabaya' },
-        { name: 'Klinik Medika Utama', id: 'TMI-01021', address: 'Jl. Kesehatan No. 15, Yogyakarta' },
-    ];
-    const assetPool = [
-        { id: 'AST-0114', name: 'PC Rakitan i7' },
-        { id: 'AST-0112', name: 'LAN Tester NF-8209' },
-        { id: 'AST-0005', name: 'ONT HG8245H' },
-        { id: 'AST-0050', name: 'Server Dell PowerEdge R740' },
-        { id: 'AST-0075', name: 'Monitor LG 27UK850-W' },
-        { id: 'AST-0006', name: 'Router WiFi Archer C6' },
-    ];
-    const asset = assetPool[i % assetPool.length];
-    const customer = customerPool[i % customerPool.length];
-    
-    return {
-        id: `DSM-${String(50 - i).padStart(3, '0')}`,
-        assetId: asset.id,
-        assetName: asset.name,
-        dismantleDate: new Date(2024, 7, 5 - (i % 28)).toISOString().split('T')[0],
-        technician: technicianPool[i % technicianPool.length],
-        customerName: customer.name,
-        customerId: customer.id,
-        customerAddress: customer.address,
-        retrievedCondition: [AssetCondition.GOOD, AssetCondition.MINOR_DAMAGE, AssetCondition.USED_OKAY, AssetCondition.MAJOR_DAMAGE][i % 4],
-        acknowledger: (i % 3 === 0) ? 'Budi Santoso' : null,
-        status: (i % 3 === 0) ? ItemStatus.COMPLETED : ItemStatus.IN_PROGRESS
-    };
-});
-
 
 const getStatusClass = (status: ItemStatus) => {
     switch (status) {
@@ -135,7 +110,7 @@ const DismantleTable: React.FC<DismantleTableProps> = ({ dismantles, onDetailCli
         <table className="min-w-full divide-y divide-gray-200">
             <thead className="sticky top-0 z-10 bg-gray-50">
                 <tr>
-                     {isBulkSelectMode && (
+                    {isBulkSelectMode && (
                         <th scope="col" className="px-6 py-3">
                             <Checkbox
                                 checked={selectedDismantleIds.length === dismantles.length && dismantles.length > 0}
@@ -145,8 +120,8 @@ const DismantleTable: React.FC<DismantleTableProps> = ({ dismantles, onDetailCli
                         </th>
                     )}
                     <SortableHeader columnKey="id" sortConfig={sortConfig} requestSort={requestSort}>ID / Tanggal</SortableHeader>
-                    <SortableHeader columnKey="assetName" sortConfig={sortConfig} requestSort={requestSort}>Aset yang di-Dismantle</SortableHeader>
-                    <SortableHeader columnKey="technician" sortConfig={sortConfig} requestSort={requestSort}>Teknisi / Pelanggan</SortableHeader>
+                    <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Aset & Pelanggan</th>
+                    <SortableHeader columnKey="technician" sortConfig={sortConfig} requestSort={requestSort}>Teknisi</SortableHeader>
                     <SortableHeader columnKey="status" sortConfig={sortConfig} requestSort={requestSort}>Status</SortableHeader>
                     <th className="relative px-6 py-3"><span className="sr-only">Aksi</span></th>
                 </tr>
@@ -173,28 +148,25 @@ const DismantleTable: React.FC<DismantleTableProps> = ({ dismantles, onDetailCli
                                 <div className="text-sm font-semibold text-gray-900">{d.id}</div>
                                 <div className="text-xs text-gray-500">{d.dismantleDate}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">{d.assetName}</div>
-                                <div className="text-xs text-gray-500 font-mono">{d.assetId}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-sm font-medium text-gray-900">{d.technician}</div>
                                 <div className="text-xs text-gray-500">dari {d.customerName}</div>
                             </td>
+                            <td className="px-6 py-4 text-sm text-gray-800 whitespace-nowrap">{d.technician}</td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(d.status)}`}>
                                     {d.status}
                                 </span>
                             </td>
                             <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
-                                <div className="flex items-center justify-end space-x-2">
-                                    <button
+                                 <div className="flex items-center justify-end space-x-2">
+                                    <button 
                                         onClick={(e) => { e.stopPropagation(); onDetailClick(d); }}
                                         className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-info-light hover:text-info-text" title="Lihat Detail"
                                     >
                                       <EyeIcon className="w-5 h-5"/>
                                     </button>
-                                    <button onClick={(e) => { e.stopPropagation(); onDeleteClick(d.id); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-danger-light hover:text-danger-text" title="Hapus">
+                                     <button onClick={(e) => { e.stopPropagation(); onDeleteClick(d.id); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-danger-light hover:text-danger-text" title="Hapus">
                                       <TrashIcon className="w-5 h-5"/>
                                     </button>
                                 </div>
@@ -207,7 +179,7 @@ const DismantleTable: React.FC<DismantleTableProps> = ({ dismantles, onDetailCli
                             <div className="flex flex-col items-center">
                                 <InboxIcon className="w-12 h-12 text-gray-400" />
                                 <h3 className="mt-2 text-sm font-medium text-gray-900">Tidak Ada Data Dismantle</h3>
-                                <p className="mt-1 text-sm text-gray-500">Buat form dismantle baru untuk memulai.</p>
+                                <p className="mt-1 text-sm text-gray-500">Ubah filter atau mulai proses dismantle baru.</p>
                             </div>
                         </td>
                     </tr>
@@ -217,196 +189,202 @@ const DismantleTable: React.FC<DismantleTableProps> = ({ dismantles, onDetailCli
     );
 };
 
-const DismantleForm: React.FC<{ 
-    onSave: (data: Omit<Dismantle, 'id' | 'status' | 'acknowledger'>) => void;
-    assets: Asset[];
+const DismantleForm: React.FC<{
+    currentUser: User;
+    onSave: (data: Omit<Dismantle, 'id' | 'status'>) => void;
     customers: Customer[];
+    users: User[];
     prefillData?: Asset | null;
-}> = ({ onSave, assets, customers, prefillData }) => {
-    const [assetId, setAssetId] = useState('');
-    const [technician, setTechnician] = useState('');
-    const [customerName, setCustomerName] = useState('');
-    const [customerId, setCustomerId] = useState('');
-    const [customerAddress, setCustomerAddress] = useState('');
-    const [retrievedCondition, setRetrievedCondition] = useState<AssetCondition>(AssetCondition.USED_OKAY);
+    setActivePage: (page: Page, initialState?: any) => void;
+}> = ({ currentUser, onSave, customers, users, prefillData, setActivePage }) => {
     const [dismantleDate, setDismantleDate] = useState<Date | null>(new Date());
+    const [technician, setTechnician] = useState('');
+    const [retrievedCondition, setRetrievedCondition] = useState<AssetCondition>(AssetCondition.USED_OKAY);
+    const [notes, setNotes] = useState<string>('');
+    const [acknowledgerName, setAcknowledgerName] = useState('');
+    const [attachments, setAttachments] = useState<File[]>([]);
+    const [isDragging, setIsDragging] = useState(false);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const addNotification = useNotification();
     const [isFooterVisible, setIsFooterVisible] = useState(true);
     const footerRef = useRef<HTMLDivElement>(null);
     const formId = "dismantle-form";
+    const addNotification = useNotification();
 
-    const customersWithAssets = useMemo(() => {
-        const customerIdsInUse = new Set(assets.filter(a => a.status === AssetStatus.IN_USE && a.currentUser?.startsWith('TMI-')).map(a => a.currentUser));
-        return customers.filter(c => customerIdsInUse.has(c.id));
-    }, [assets, customers]);
-    
-    const availableAssetsForCustomer = useMemo(() => {
-        if (!customerId) return [];
-        return assets.filter(a => a.status === AssetStatus.IN_USE && a.currentUser === customerId);
-    }, [assets, customerId]);
+    const prefilledAsset = prefillData;
+    const prefilledCustomer = prefilledAsset ? customers.find(c => c.id === prefilledAsset.currentUser) : null;
     
     useEffect(() => {
-        if(prefillData && prefillData.currentUser) {
-            setCustomerId(prefillData.currentUser);
-            setAssetId(prefillData.id);
-        }
-    }, [prefillData]);
-    
-    useEffect(() => {
-        const customer = customers.find(c => c.id === customerId);
-        if (customer) {
-            setCustomerName(customer.name);
-            setCustomerAddress(customer.address);
-            
-            const assetsForCustomer = assets.filter(a => a.status === AssetStatus.IN_USE && a.currentUser === customerId);
-            
-            if (assetsForCustomer.length === 1) {
-                setAssetId(assetsForCustomer[0].id);
-            } else if (!prefillData || customerId !== prefillData.currentUser) {
-                setAssetId('');
-            }
-        } else {
-            setCustomerName('');
-            setCustomerAddress('');
-            setAssetId('');
-        }
-    }, [customerId, customers, assets, prefillData]);
+        setTechnician(currentUser.name);
+    }, [currentUser]);
 
-     useEffect(() => {
+    useEffect(() => {
         const observer = new IntersectionObserver(([entry]) => setIsFooterVisible(entry.isIntersecting), { threshold: 0.1 });
         const currentRef = footerRef.current;
         if (currentRef) observer.observe(currentRef);
         return () => { if (currentRef) observer.unobserve(currentRef); };
     }, []);
 
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) {
+            setAttachments(prev => [...prev, ...Array.from(event.target.files!)]);
+        }
+    };
+
+    const removeAttachment = (fileName: string) => {
+        setAttachments(prev => prev.filter(file => file.name !== fileName));
+    };
+    
+    const handleDragEvents = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === 'dragenter' || e.type === 'dragover') {
+            setIsDragging(true);
+        } else if (e.type === 'dragleave') {
+            setIsDragging(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            setAttachments(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
+            e.dataTransfer.clearData();
+        }
+    };
+
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!assetId || !technician || !customerId || !dismantleDate) {
-            addNotification('Harap lengkapi semua field yang wajib diisi.', 'error');
+        if (!prefilledAsset || !prefilledCustomer) {
+            addNotification('Aset atau pelanggan tidak valid.', 'error');
             return;
         }
         setIsSubmitting(true);
-        const asset = assets.find(a => a.id === assetId);
         setTimeout(() => {
-             onSave({
-                assetId,
-                assetName: asset?.name || 'Aset Tidak Ditemukan',
+            const processedAttachments: Attachment[] = attachments.map((file, index) => ({
+                id: Date.now() + index,
+                name: file.name,
+                url: URL.createObjectURL(file), 
+                type: file.type.startsWith('image/') ? 'image' : (file.type === 'application/pdf' ? 'pdf' : 'other'),
+            }));
+
+            onSave({
+                assetId: prefilledAsset.id,
+                assetName: prefilledAsset.name,
+                dismantleDate: dismantleDate!.toISOString().split('T')[0],
                 technician,
-                customerName,
-                customerId,
-                customerAddress,
+                customerName: prefilledCustomer.name,
+                customerId: prefilledCustomer.id,
+                customerAddress: prefilledCustomer.address,
                 retrievedCondition,
-                dismantleDate: dismantleDate.toISOString().split('T')[0],
+                notes: notes.trim() || null,
+                acknowledger: acknowledgerName.trim() || null,
+                attachments: processedAttachments,
             });
             setIsSubmitting(false);
         }, 1000);
     };
 
-    const ActionButtons: React.FC<{ formId: string }> = ({ formId }) => (
-         <button 
+     const ActionButtons: React.FC<{ formId?: string }> = ({ formId }) => (
+        <button 
             type="submit" 
             form={formId}
-            disabled={isSubmitting}
-            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent disabled:bg-tm-primary/70 disabled:cursor-not-allowed">
+            disabled={isSubmitting || !prefilledAsset}
+            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70 disabled:cursor-not-allowed">
              {isSubmitting ? <SpinnerIcon className="w-5 h-5 mr-2" /> : null}
-            {isSubmitting ? 'Memproses...' : 'Simpan Form Dismantle'}
+            {isSubmitting ? 'Memproses...' : 'Proses Dismantle'}
         </button>
     );
 
     return (
         <>
-            <form id={formId} className="space-y-6" onSubmit={handleSubmit}>
-                {prefillData && (
-                    <div className="p-4 border-l-4 rounded-r-lg bg-info-light border-tm-primary">
-                        <p className="text-sm text-info-text">
-                            Membuat form dismantle untuk aset: <span className="font-bold">{prefillData.name} ({prefillData.id})</span> dari pelanggan <span className="font-bold">{prefillData.currentUser}</span>.
-                        </p>
-                    </div>
-                )}
+            <form id={formId} onSubmit={handleSubmit} className="space-y-6">
                 <div className="mb-6 space-y-2 text-center">
                     <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                    <p className="font-semibold text-tm-secondary">FORMULIR DISMANTLE PERANGKAT</p>
-                </div>
-                
-                <div className="p-4 border-t border-b border-gray-200">
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <div>
-                            <label htmlFor="docNumber" className="block text-sm font-medium text-gray-700">No Dokumen</label>
-                            <input type="text" id="docNumber" readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm" value="[Otomatis]" />
-                        </div>
-                        <div>
-                            <label htmlFor="dismantleDate" className="block text-sm font-medium text-gray-700">Tanggal Dismantle</label>
-                             <div className="mt-1">
-                                <DatePicker 
-                                    id="dismantleDate"
-                                    selectedDate={dismantleDate}
-                                    onDateChange={setDismantleDate}
-                                />
-                            </div>
-                        </div>
-                    </div>
+                    <p className="font-semibold text-tm-secondary">BERITA ACARA PENARIKAN ASET (DISMANTLE)</p>
                 </div>
 
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-tm-dark">Informasi Pelanggan & Teknisi</h3>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                         <div>
-                            <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">ID Pelanggan</label>
-                            <select
-                                id="customerId"
-                                value={customerId}
-                                onChange={e => setCustomerId(e.target.value)}
-                                disabled={!!prefillData}
-                                required
-                                className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm disabled:bg-gray-200"
+                <div className="p-4 bg-gray-50 border rounded-lg">
+                    <h3 className="text-base font-semibold text-gray-800">Detail Aset & Pelanggan</h3>
+                    {!prefilledAsset ? (
+                        <div className="text-center p-4">
+                            <p className="text-sm text-red-600">Aset tidak dipilih.</p>
+                            <button
+                                type="button"
+                                onClick={() => setActivePage('registration')}
+                                className="mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover"
                             >
-                                <option value="">-- Pilih Pelanggan --</option>
-                                {customersWithAssets.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
-                                ))}
-                            </select>
+                                Kembali ke daftar aset untuk memulai
+                            </button>
                         </div>
-                        <div>
-                            <label htmlFor="customerName" className="block text-sm font-medium text-gray-700">Nama Pelanggan</label>
-                            <input type="text" id="customerName" value={customerName} readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm" />
+                    ) : !prefilledCustomer ? (
+                        <p className="text-sm text-center text-red-600">Pelanggan untuk aset ini tidak ditemukan.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-4 mt-4 text-sm md:grid-cols-2">
+                            <div><span className="font-semibold text-gray-500">Aset:</span><span className="pl-2 font-medium text-gray-900">{prefilledAsset.name} ({prefilledAsset.id})</span></div>
+                            <div><span className="font-semibold text-gray-500">Pelanggan:</span><span className="pl-2 font-medium text-gray-900">{prefilledCustomer.name} ({prefilledCustomer.id})</span></div>
+                            <div className="md:col-span-2"><span className="font-semibold text-gray-500">Alamat:</span><span className="pl-2 text-gray-900">{prefilledCustomer.address}</span></div>
                         </div>
-                    </div>
-                     <div>
-                        <label htmlFor="customerAddress" className="block text-sm font-medium text-gray-700">Alamat Pelanggan</label>
-                        <textarea id="customerAddress" rows={2} value={customerAddress} readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm"></textarea>
-                    </div>
-                     <div>
-                        <label htmlFor="technician" className="block text-sm font-medium text-gray-700">Teknisi Bertugas</label>
-                        <input type="text" id="technician" value={technician} onChange={e => setTechnician(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" />
-                    </div>
+                    )}
                 </div>
 
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-tm-dark">Detail Aset yang di-Dismantle</h3>
-                     <div>
-                        <label htmlFor="assetId" className="block text-sm font-medium text-gray-700">Aset</label>
-                         <select 
-                            id="assetId" 
-                            value={assetId}
-                            onChange={e => setAssetId(e.target.value)}
-                            required
-                            disabled={!customerId || !!prefillData || availableAssetsForCustomer.length === 1}
-                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-200"
-                        >
-                            <option value="">{customerId ? '-- Pilih Aset --' : 'Pilih pelanggan dahulu'}</option>
-                            {availableAssetsForCustomer.map(asset => (
-                                <option key={asset.id} value={asset.id}>
-                                    {asset.name} (SN: {asset.serialNumber})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                     <div>
-                        <label htmlFor="retrievedCondition" className="block text-sm font-medium text-gray-700">Kondisi Aset Saat Diterima</label>
-                        <select id="retrievedCondition" value={retrievedCondition} onChange={e => setRetrievedCondition(e.target.value as AssetCondition)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm">
-                            {Object.values(AssetCondition).map(c => <option key={c}>{c}</option>)}
-                        </select>
+                <div className="p-4 border-t border-b border-gray-200">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Tanggal Penarikan</label>
+                            <DatePicker id="dismantleDate" selectedDate={dismantleDate} onDateChange={setDismantleDate} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Teknisi</label>
+                            <CustomSelect options={users.map(u => ({ value: u.name, label: u.name }))} value={technician} onChange={setTechnician} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Kondisi Aset Saat Ditarik</label>
+                            <CustomSelect options={Object.values(AssetCondition).map(c => ({ value: c, label: c }))} value={retrievedCondition} onChange={v => setRetrievedCondition(v as AssetCondition)} />
+                        </div>
+                        <div className="md:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700">Catatan Penarikan</label>
+                            <textarea id="dismantleNotes" value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm" placeholder="Contoh: Unit ditarik karena pelanggan upgrade, kondisi fisik baik..."></textarea>
+                        </div>
+                         <div className="md:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700">Lampiran (Foto Kondisi, dll)</label>
+                            <div 
+                                onDragEnter={handleDragEvents} 
+                                onDragOver={handleDragEvents} 
+                                onDragLeave={handleDragEvents} 
+                                onDrop={handleDrop}
+                                className={`flex items-center justify-center w-full px-6 pt-5 pb-6 mt-1 border-2 border-dashed rounded-md transition-colors
+                                    ${isDragging ? 'border-tm-primary bg-blue-50' : 'border-gray-300'}`
+                                }
+                            >
+                                <div className="space-y-1 text-center">
+                                <PaperclipIcon className="w-10 h-10 mx-auto text-gray-400" />
+                                    <div className="flex text-sm text-gray-600">
+                                        <label htmlFor="file-upload" className="relative font-medium bg-transparent rounded-md cursor-pointer text-tm-primary hover:text-tm-accent focus-within:outline-none">
+                                            <span>Pilih file</span>
+                                            <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} />
+                                        </label>
+                                        <p className="pl-1">atau tarik dan lepas</p>
+                                    </div>
+                                    <p className="text-xs text-gray-500">PNG, JPG, PDF hingga 10MB</p>
+                                </div>
+                            </div>
+                            {attachments.length > 0 && (
+                                <div className="mt-4 space-y-2">
+                                    {attachments.map(file => (
+                                        <div key={file.name} className="flex items-center justify-between p-2 text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-md">
+                                            <span className="truncate">{file.name}</span>
+                                            <button type="button" onClick={() => removeAttachment(file.name)} className="text-red-500 hover:text-red-700">
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -415,70 +393,139 @@ const DismantleForm: React.FC<{
                         <div>
                             <p className="font-medium text-gray-700">Teknisi</p>
                             <div className="flex items-center justify-center mt-2 h-28">
-                                {technician && <SignatureStamp signerName={technician} signatureDate={dismantleDate?.toISOString() || ''} signerDivision="Divisi Engineer" />}
+                                {technician && <SignatureStamp signerName={technician} signatureDate={dismantleDate?.toISOString() || ''} />}
                             </div>
-                            <p className="pt-1 mt-2 text-sm text-gray-600 border-t border-gray-400">( {technician || 'Nama Jelas'} )</p>
+                            <p className="pt-1 mt-2 text-sm text-gray-600">( {technician || 'Nama Jelas'} )</p>
                         </div>
                         <div>
-                            <p className="font-medium text-gray-700">Mengetahui</p>
-                            <div className="flex items-center justify-center mt-2 h-28">
-                                <span className="text-sm italic text-gray-300">Menunggu Verifikasi Gudang</span>
+                            <label htmlFor="acknowledgerName" className="font-medium text-gray-700">Mengetahui (Pihak Pelanggan)</label>
+                             <div className="flex items-center justify-center mt-2 h-28">
+                                <span className="text-sm italic text-gray-400">Tanda Tangan Pelanggan</span>
+                             </div>
+                            <div className="mt-2 pt-1">
+                                <input id="acknowledgerName" type="text" value={acknowledgerName} onChange={e => setAcknowledgerName(e.target.value)} placeholder="( Nama Jelas )" className="w-full p-1 text-sm text-center bg-transparent border-0 focus:ring-0" />
                             </div>
-                            <p className="pt-1 mt-2 text-sm text-gray-600 border-t border-gray-400">( Nama Jelas )</p>
                         </div>
                     </div>
                 </div>
-                
+
                 <div ref={footerRef} className="flex justify-end pt-4 mt-4 border-t border-gray-200">
-                    <ActionButtons formId={formId} />
+                    <ActionButtons />
                 </div>
             </form>
-             <FloatingActionBar isVisible={!isFooterVisible}>
+            <FloatingActionBar isVisible={!isFooterVisible}>
                 <ActionButtons formId={formId} />
             </FloatingActionBar>
         </>
     );
 };
 
-
-export const ItemDismantle: React.FC<ItemDismantleProps> = ({ currentUser, dismantles, setDismantles, assets, customers, prefillData, onClearPrefill, onUpdateAsset, onShowPreview }) => {
+export const ItemDismantle: React.FC<ItemDismantleProps> = (props) => {
+    const { currentUser, dismantles, setDismantles, assets, customers, users, prefillData, onClearPrefill, onUpdateAsset, onShowPreview, setActivePage } = props;
+    
     const [view, setView] = useState<'list' | 'form'>('list');
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDismantle, setSelectedDismantle] = useState<Dismantle | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [dismantleToDeleteId, setDismantleToDeleteId] = useState<string | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState(false);
-    const [bulkCompleteConfirmation, setBulkCompleteConfirmation] = useState(false);
     const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
     const [selectedDismantleIds, setSelectedDismantleIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const addNotification = useNotification();
-    
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
-
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-
-    useEffect(() => {
-        if (prefillData) {
-            setView('form');
-        }
-    }, [prefillData]);
+    const addNotification = useNotification();
     
+    const initialFilterState = { status: '', technician: '', startDate: null, endDate: null };
+    const [filters, setFilters] = useState<{ status: string; technician: string; startDate: Date | null; endDate: Date | null; }>(initialFilterState);
+    const [tempFilters, setTempFilters] = useState(filters);
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+    const filterPanelRef = useRef<HTMLDivElement>(null);
+    
+    useEffect(() => {
+        if (prefillData) setView('form');
+    }, [prefillData]);
+
     const handleSetView = (newView: 'list' | 'form') => {
-        if (newView === 'list' && prefillData) {
-            onClearPrefill();
-        }
+        if (newView === 'list' && prefillData) onClearPrefill();
         setView(newView);
+    };
+
+    const handleCreateDismantle = (data: Omit<Dismantle, 'id' | 'status'>) => {
+        const newDismantle: Dismantle = {
+            ...data,
+            id: `DSM-${String(dismantles.length + 1).padStart(3, '0')}`,
+            status: ItemStatus.IN_PROGRESS,
+        };
+        setDismantles(prev => [newDismantle, ...prev]);
+
+        addNotification('Berita acara dismantle berhasil dibuat dan menunggu penyelesaian.', 'success');
+        handleSetView('list');
+    };
+
+    const handleCompleteDismantle = () => {
+        if (!selectedDismantle) return;
+        setIsLoading(true);
+
+        setTimeout(() => {
+            const updatedDismantle: Dismantle = { ...selectedDismantle, status: ItemStatus.COMPLETED, acknowledger: currentUser.name };
+            
+            setDismantles(prev => prev.map(d => d.id === updatedDismantle.id ? updatedDismantle : d));
+
+            onUpdateAsset(selectedDismantle.assetId, {
+                status: AssetStatus.IN_STORAGE,
+                condition: selectedDismantle.retrievedCondition,
+                currentUser: null,
+                location: 'Gudang Inventori',
+                isDismantled: true,
+                dismantleInfo: {
+                    customerId: selectedDismantle.customerId,
+                    customerName: selectedDismantle.customerName,
+                    dismantleDate: selectedDismantle.dismantleDate,
+                    dismantleId: selectedDismantle.id,
+                }
+            }, {
+                user: currentUser.name, // The user who acknowledges it
+                action: 'Dismantle Selesai',
+                details: `Aset dari pelanggan ${selectedDismantle.customerName} telah diterima di gudang.`,
+                referenceId: selectedDismantle.id,
+            });
+            
+            addNotification('Dismantle telah diselesaikan dan aset kembali ke stok.', 'success');
+            setIsLoading(false);
+            setIsDetailModalOpen(false);
+            setSelectedDismantle(null);
+        }, 1000);
     }
 
-    const isFiltering = useMemo(() => {
-        return searchQuery.trim() !== '' || filterStatus !== '';
-    }, [searchQuery, filterStatus]);
+    const handleShowDetails = (dismantle: Dismantle) => {
+        setSelectedDismantle(dismantle);
+        setIsDetailModalOpen(true);
+    };
+    
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (filterPanelRef.current && !filterPanelRef.current.contains(event.target as Node)) {
+                setIsFilterPanelOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => { document.removeEventListener("mousedown", handleClickOutside); };
+    }, [filterPanelRef]);
+
+    const activeFilterCount = useMemo(() => {
+        return Object.values(filters).filter(Boolean).length;
+    }, [filters]);
 
     const handleResetFilters = () => {
-        setSearchQuery('');
-        setFilterStatus('');
+        setFilters(initialFilterState);
+        setTempFilters(initialFilterState);
+        setIsFilterPanelOpen(false);
+    };
+
+    const handleApplyFilters = () => {
+        setFilters(tempFilters);
+        setIsFilterPanelOpen(false);
     };
 
     const filteredDismantles = useMemo(() => {
@@ -488,202 +535,152 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ currentUser, disma
                 return (
                     d.id.toLowerCase().includes(searchLower) ||
                     d.assetName.toLowerCase().includes(searchLower) ||
-                    d.technician.toLowerCase().includes(searchLower) ||
-                    d.customerName.toLowerCase().includes(searchLower)
+                    d.customerName.toLowerCase().includes(searchLower) ||
+                    d.technician.toLowerCase().includes(searchLower)
                 );
             })
-            .filter(d => filterStatus ? d.status === filterStatus : true);
-    }, [dismantles, searchQuery, filterStatus]);
+            .filter(d => filters.status ? d.status === filters.status : true)
+            .filter(d => filters.technician ? d.technician === filters.technician : true)
+            .filter(d => {
+                if (!filters.startDate || !filters.endDate) return true;
+                const dismantleDate = new Date(d.dismantleDate);
+                return dismantleDate >= filters.startDate && dismantleDate <= filters.endDate;
+            });
+    }, [dismantles, searchQuery, filters]);
 
     const { items: sortedDismantles, requestSort, sortConfig } = useSortableData(filteredDismantles, { key: 'dismantleDate', direction: 'descending' });
-
+    
     const totalItems = sortedDismantles.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedDismantles = sortedDismantles.slice(startIndex, endIndex);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, filterStatus, itemsPerPage]);
+    useEffect(() => { setCurrentPage(1); }, [searchQuery, filters, itemsPerPage]);
 
-    const handleItemsPerPageChange = (newSize: number) => {
-        setItemsPerPage(newSize);
-        setCurrentPage(1);
-    };
-
-    const handleCancelBulkMode = () => {
-        setIsBulkSelectMode(false);
-        setSelectedDismantleIds([]);
-    };
-
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                handleCancelBulkMode();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    const handleSelectOne = (id: string) => {
-        setSelectedDismantleIds(prev =>
-            prev.includes(id) ? prev.filter(reqId => reqId !== id) : [...prev, id]
-        );
-    };
-
-    const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.checked) {
-            setSelectedDismantleIds(paginatedDismantles.map(req => req.id));
-        } else {
-            setSelectedDismantleIds([]);
-        }
-    };
-
-    const handleShowDetails = (dismantle: Dismantle) => {
-        setSelectedDismantle(dismantle);
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setSelectedDismantle(null);
-    };
-
-    const handleExport = () => {
-        exportToCSV(sortedDismantles, `dismantle_aset_${new Date().toISOString().split('T')[0]}`);
-    };
-    
-    const handleCreateDismantle = (data: Omit<Dismantle, 'id' | 'status' | 'acknowledger'>) => {
-        const newDismantleId = `DSM-${String(dismantles.length + 1).padStart(3, '0')}`;
-        const newDismantle: Dismantle = {
-            ...data,
-            id: newDismantleId,
-            status: ItemStatus.COMPLETED,
-            acknowledger: 'Budi Santoso', // Auto-acknowledged for demo
-        };
-        setDismantles(prev => [newDismantle, ...prev]);
-        
-        const assetUpdates: Partial<Asset> = { 
-            status: AssetStatus.IN_STORAGE, 
-            currentUser: null, 
-            location: 'Gudang Inventori',
-            condition: data.retrievedCondition,
-            isDismantled: true,
-            notes: `Aset hasil tarikan dari pelanggan ${data.customerName} (${data.customerId}).`,
-            dismantleInfo: {
-                customerId: data.customerId,
-                customerName: data.customerName,
-                dismantleDate: data.dismantleDate,
-                dismantleId: newDismantleId,
-            },
-        };
-        
-        const logEntry = {
-            user: data.technician,
-            action: 'Aset Ditarik (Dismantle)',
-            details: `Ditarik dari pelanggan ${data.customerName} (${data.customerId}). Kondisi: ${data.retrievedCondition}.`,
-            referenceId: newDismantleId,
-        };
-
-        onUpdateAsset(data.assetId, assetUpdates, logEntry);
-
-        handleSetView('list');
-        addNotification('Formulir dismantle berhasil dibuat dan status aset diperbarui.', 'success');
-    };
-    
     const handleConfirmDelete = () => {
         if (!dismantleToDeleteId) return;
         setIsLoading(true);
         setTimeout(() => {
             setDismantles(prev => prev.filter(d => d.id !== dismantleToDeleteId));
-            addNotification(`Data dismantle ${dismantleToDeleteId} berhasil dihapus.`, 'success');
+            addNotification(`Dismantle ${dismantleToDeleteId} berhasil dihapus.`, 'success');
             setDismantleToDeleteId(null);
             setIsLoading(false);
         }, 1000);
     };
 
+    const { deletableDismantlesCount, skippableDismantlesCount } = useMemo(() => {
+        if (!bulkDeleteConfirmation) return { deletableDismantlesCount: 0, skippableDismantlesCount: 0 };
+        
+        const selected = dismantles.filter(d => selectedDismantleIds.includes(d.id));
+        const skippable = selected.filter(d => d.status === ItemStatus.IN_PROGRESS);
+        
+        return {
+            deletableDismantlesCount: selected.length - skippable.length,
+            skippableDismantlesCount: skippable.length,
+        };
+    }, [bulkDeleteConfirmation, selectedDismantleIds, dismantles]);
+
     const handleBulkDelete = () => {
+        const deletableIds = selectedDismantleIds.filter(id => {
+            const d = dismantles.find(dismantle => dismantle.id === id);
+            return d && d.status !== ItemStatus.IN_PROGRESS;
+        });
+
+        if (deletableIds.length === 0) {
+            addNotification('Tidak ada data yang dapat dihapus (semua sedang dalam proses).', 'error');
+            setBulkDeleteConfirmation(false);
+            return;
+        }
+
         setIsLoading(true);
         setTimeout(() => {
-            setDismantles(prev => prev.filter(d => !selectedDismantleIds.includes(d.id)));
-            addNotification(`${selectedDismantleIds.length} data dismantle berhasil dihapus.`, 'success');
-            handleCancelBulkMode();
+            setDismantles(prev => prev.filter(d => !deletableIds.includes(d.id)));
+            
+            let message = `${deletableIds.length} data dismantle berhasil dihapus.`;
+            if (skippableDismantlesCount > 0) {
+                message += ` ${skippableDismantlesCount} data dilewati karena berstatus "Dalam Proses".`;
+            }
+            addNotification(message, 'success');
+            
             setBulkDeleteConfirmation(false);
+            handleCancelBulkMode();
             setIsLoading(false);
         }, 1000);
     };
 
-    const handleBulkComplete = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            setDismantles(prev => prev.map(d => 
-                selectedDismantleIds.includes(d.id) ? { ...d, status: ItemStatus.COMPLETED } : d
-            ));
-            addNotification(`${selectedDismantleIds.length} data dismantle ditandai selesai.`, 'success');
-            handleCancelBulkMode();
-            setBulkCompleteConfirmation(false);
-            setIsLoading(false);
-        }, 1000);
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedDismantleIds(paginatedDismantles.map(d => d.id));
+        } else {
+            setSelectedDismantleIds([]);
+        }
     };
     
+    const handleSelectOne = (id: string) => {
+        setSelectedDismantleIds(prev => prev.includes(id) ? prev.filter(currentId => currentId !== id) : [...prev, id]);
+    };
+    
+    const handleCancelBulkMode = () => {
+        setIsBulkSelectMode(false);
+        setSelectedDismantleIds([]);
+    };
+
+    const statusOptions = Object.values(ItemStatus).filter(s => [ItemStatus.COMPLETED, ItemStatus.IN_PROGRESS, ItemStatus.PENDING].includes(s)).map(s => ({ value: s, label: s }));
+    const technicianOptions = [...new Set(dismantles.map(d => d.technician))].map(t => ({ value: t, label: t }));
+
+
     const renderContent = () => {
-         if (view === 'form') {
-             return (
+        if (view === 'form') {
+            return (
                 <div className="p-4 sm:p-6 md:p-8">
                     <div className="flex items-center justify-between mb-6">
-                        <h1 className="text-3xl font-bold text-tm-dark">Form Dismantle Aset</h1>
-                        <button
-                            onClick={() => handleSetView('list')}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
-                        >
+                        <h1 className="text-3xl font-bold text-tm-dark">Buat Berita Acara Dismantle</h1>
+                        <button onClick={() => handleSetView('list')} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">
                             Kembali ke Daftar
                         </button>
                     </div>
                     <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
-                        <DismantleForm onSave={handleCreateDismantle} assets={assets} customers={customers} prefillData={prefillData} />
+                        <DismantleForm 
+                            currentUser={currentUser}
+                            onSave={handleCreateDismantle}
+                            customers={customers}
+                            users={users}
+                            prefillData={prefillData}
+                            setActivePage={setActivePage}
+                        />
                     </div>
                 </div>
             );
         }
-        
+
         return (
             <div className="p-4 sm:p-6 md:p-8">
                 <div className="flex flex-col items-start justify-between gap-4 mb-6 md:flex-row md:items-center">
-                    <h1 className="text-3xl font-bold text-tm-dark">Daftar Dismantle</h1>
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={handleExport}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50"
-                        >
-                            <ExportIcon className="w-4 h-4"/>
-                            Export CSV
-                        </button>
-                        <button
-                            onClick={() => handleSetView('form')}
-                            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover"
-                        >
-                            Buat Form Dismantle
-                        </button>
-                    </div>
+                    <h1 className="text-3xl font-bold text-tm-dark">Daftar Dismantle Aset</h1>
+                     <button
+                        onClick={() => exportToCSV(sortedDismantles, `dismantle_aset_${new Date().toISOString().split('T')[0]}.csv`)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50"
+                    >
+                        <ExportIcon className="w-4 h-4"/>
+                        Export CSV
+                    </button>
                 </div>
 
-                {/* Toolbar */}
-                <div className="p-4 mb-4 bg-white border border-gray-200/80 rounded-xl shadow-md">
-                    <div className="flex flex-col w-full gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+                 <div className="p-4 mb-4 bg-white border border-gray-200/80 rounded-xl shadow-md">
+                    <div className="flex flex-wrap items-center gap-4">
                         <div className="relative flex-grow">
-                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <SearchIcon className="w-5 h-5 text-gray-400" />
                             </div>
-                            <input 
+                            <input
                                 type="text"
-                                placeholder="Cari ID, Aset, Teknisi, Pelanggan..."
+                                placeholder="Cari ID, Aset, Pelanggan..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 className="w-full h-10 py-2 pl-10 pr-10 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent"
                             />
-                             {searchQuery && (
+                            {searchQuery && (
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                                     <button
                                         type="button"
@@ -696,86 +693,79 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ currentUser, disma
                                 </div>
                             )}
                         </div>
-                        
-                        <select onChange={e => setFilterStatus(e.target.value)} value={filterStatus} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg sm:w-auto focus:ring-tm-accent focus:border-tm-accent">
-                            <option value="">Semua Status</option>
-                            {Object.values(ItemStatus).filter(s => s === ItemStatus.COMPLETED || s === ItemStatus.IN_PROGRESS).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        
-                        {isFiltering && (
+                        <div className="relative" ref={filterPanelRef}>
                             <button
-                                type="button"
-                                onClick={handleResetFilters}
-                                className="inline-flex items-center justify-center w-full h-10 px-4 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border border-gray-300 rounded-lg shadow-sm sm:w-auto sm:ml-auto hover:bg-red-50 hover:border-red-500 hover:text-red-600"
+                                onClick={() => {
+                                    setTempFilters(filters);
+                                    setIsFilterPanelOpen(p => !p);
+                                }}
+                                className="inline-flex items-center justify-center gap-2 w-full h-10 px-4 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border border-gray-300 rounded-lg shadow-sm sm:w-auto hover:bg-gray-50"
                             >
-                                Reset
+                                <FilterIcon className="w-4 h-4" />
+                                <span>Filter</span>
+                                {activeFilterCount > 0 && (
+                                    <span className="px-2 py-0.5 text-xs font-bold text-white rounded-full bg-tm-primary">{activeFilterCount}</span>
+                                )}
                             </button>
-                        )}
+                            {isFilterPanelOpen && (
+                                <>
+                                    <div onClick={() => setIsFilterPanelOpen(false)} className="fixed inset-0 z-20 bg-black/25 sm:hidden" />
+                                    <div className="fixed top-32 inset-x-4 z-30 origin-top rounded-xl border border-gray-200 bg-white shadow-lg sm:absolute sm:top-full sm:inset-x-auto sm:right-0 sm:mt-2 sm:w-80">
+                                        <div className="flex items-center justify-between p-4 border-b">
+                                            <h3 className="text-lg font-semibold text-gray-800">Filter Dismantle</h3>
+                                            <button onClick={() => setIsFilterPanelOpen(false)} className="p-1 text-gray-400 rounded-full hover:bg-gray-100"><CloseIcon className="w-5 h-5"/></button>
+                                        </div>
+                                        <div className="p-4 space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                                                <CustomSelect options={[{value: '', label: 'Semua Status'}, ...statusOptions]} value={tempFilters.status} onChange={v => setTempFilters(f => ({...f, status: v}))} />
+                                            </div>
+                                             <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Teknisi</label>
+                                                <CustomSelect options={[{value: '', label: 'Semua Teknisi'}, ...technicianOptions]} value={tempFilters.technician} onChange={v => setTempFilters(f => ({...f, technician: v}))} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Rentang Tanggal</label>
+                                                <div className="flex items-center gap-2">
+                                                    <DatePicker id="startDate" selectedDate={tempFilters.startDate} onDateChange={d => setTempFilters(f => ({...f, startDate: d}))}/>
+                                                    <span>-</span>
+                                                    <DatePicker id="endDate" selectedDate={tempFilters.endDate} onDateChange={d => setTempFilters(f => ({...f, endDate: d}))}/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-gray-50 border-t">
+                                            <button onClick={handleResetFilters} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Reset</button>
+                                            <button onClick={handleApplyFilters} className="px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">Terapkan</button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
-                     {isFiltering && (
-                         <div className="pt-4 mt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-600">
-                                Menampilkan <span className="font-semibold text-tm-dark">{sortedDismantles.length}</span> dari <span className="font-semibold text-tm-dark">{dismantles.length}</span> total data yang cocok.
-                            </p>
-                         </div>
-                     )}
                 </div>
 
                 {isBulkSelectMode && (
-                     <div className="p-4 mb-4 bg-blue-50 border-l-4 border-tm-accent rounded-r-lg">
-                        <div className="flex items-center justify-between">
-                            {selectedDismantleIds.length > 0 ? (
-                                <div className="flex items-center space-x-3">
-                                    <span className="text-sm font-medium text-tm-primary">{selectedDismantleIds.length} item terpilih</span>
-                                    <div className="h-5 border-l border-gray-300"></div>
-                                    <button
-                                        onClick={() => setBulkCompleteConfirmation(true)}
-                                        className="px-3 py-1.5 text-sm font-semibold text-green-600 bg-green-100 rounded-md hover:bg-green-200"
-                                    >
-                                        Tandai Selesai
-                                    </button>
-                                    <button
-                                        onClick={() => setBulkDeleteConfirmation(true)}
-                                        className="px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-100 rounded-md hover:bg-red-200"
-                                    >
-                                        Hapus
-                                    </button>
-                                </div>
-                            ) : (
-                                <span className="text-sm text-gray-500">Pilih item untuk memulai aksi massal.</span>
-                            )}
+                    <div className="p-4 mb-4 bg-blue-50 border-l-4 border-tm-accent rounded-r-lg">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-tm-primary">{selectedDismantleIds.length} item terpilih</span>
+                                <div className="h-5 border-l border-gray-300"></div>
+                                <button onClick={() => setBulkDeleteConfirmation(true)} className="px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-100 rounded-md hover:bg-red-200">
+                                    Hapus
+                                </button>
+                            </div>
                             <button onClick={handleCancelBulkMode} className="px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
                                 Batal
                             </button>
                         </div>
-                     </div>
-                )}
-                
-                <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <DismantleTable 
-                            dismantles={paginatedDismantles} 
-                            onDetailClick={handleShowDetails} 
-                            onDeleteClick={setDismantleToDeleteId} 
-                            sortConfig={sortConfig} 
-                            requestSort={requestSort}
-                            selectedDismantleIds={selectedDismantleIds}
-                            onSelectAll={handleSelectAll}
-                            onSelectOne={handleSelectOne}
-                            isBulkSelectMode={isBulkSelectMode}
-                            onEnterBulkMode={() => setIsBulkSelectMode(true)}
-                        />
                     </div>
-                    <PaginationControls
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        totalItems={totalItems}
-                        itemsPerPage={itemsPerPage}
-                        onPageChange={setCurrentPage}
-                        onItemsPerPageChange={handleItemsPerPageChange}
-                        startIndex={startIndex}
-                        endIndex={endIndex}
-                    />
+                )}
+
+                <div className="overflow-hidden bg-white border border-gray-200/80 rounded-xl shadow-md">
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <DismantleTable dismantles={paginatedDismantles} onDetailClick={handleShowDetails} onDeleteClick={setDismantleToDeleteId} sortConfig={sortConfig} requestSort={requestSort} selectedDismantleIds={selectedDismantleIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} isBulkSelectMode={isBulkSelectMode} onEnterBulkMode={() => setIsBulkSelectMode(true)} />
+                    </div>
+                    <PaginationControls currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={size => { setItemsPerPage(size); setCurrentPage(1);}} startIndex={startIndex} endIndex={endIndex} />
                 </div>
             </div>
         );
@@ -784,139 +774,212 @@ export const ItemDismantle: React.FC<ItemDismantleProps> = ({ currentUser, disma
     return (
         <>
             {renderContent()}
-
             {selectedDismantle && (
-                <Modal
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
-                    title={`Detail Dismantle Aset`}
-                    size="xl"
+                <Modal 
+                    isOpen={isDetailModalOpen} 
+                    onClose={() => setIsDetailModalOpen(false)} 
+                    title="" 
+                    size="3xl"
+                    disableContentPadding
+                    footerContent={
+                        selectedDismantle.status === ItemStatus.IN_PROGRESS && (currentUser.role === 'Admin' || currentUser.role === 'Super Admin') ? (
+                            <button onClick={handleCompleteDismantle} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">
+                                {isLoading ? <SpinnerIcon className="w-4 h-4" /> : <CheckIcon className="w-4 h-4" />}
+                                {isLoading ? 'Memproses...' : 'Acknowledge & Complete'}
+                            </button>
+                        ) : null
+                    }
                 >
-                    <div className="mb-4 space-y-2 text-center">
-                        <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                        <p className="font-semibold text-tm-secondary">FORMULIR DISMANTLE ASET</p>
-                    </div>
+                    <div className="p-6">
+                        <Letterhead />
 
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 py-4 my-4 text-sm border-t border-b border-gray-200">
-                        <div><span className="font-semibold text-gray-600">No Dokumen:</span><span className="pl-2 text-gray-800">{selectedDismantle.id}</span></div>
-                        <div><span className="font-semibold text-gray-600">Tanggal Dismantle:</span><span className="pl-2 text-gray-800">{selectedDismantle.dismantleDate}</span></div>
-                    </div>
-
-                    <div className="space-y-4 text-sm">
-                        <h4 className="pb-2 mb-4 text-lg font-semibold border-b text-tm-dark">Informasi Pelanggan & Teknisi</h4>
-                        <div className="grid grid-cols-3 gap-x-4">
-                            <span className="font-semibold text-gray-600">Nama Pelanggan</span>
-                            <span className="col-span-2 text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'customer', id: selectedDismantle.customerId })}>{selectedDismantle.customerName}</ClickableLink> ({selectedDismantle.customerId})</span>
+                        <div className="text-center mb-6">
+                            <h3 className="text-xl font-bold uppercase text-tm-dark">Berita Acara Penarikan Aset</h3>
+                            <p className="text-sm text-tm-secondary">Nomor: {selectedDismantle.id}</p>
                         </div>
-                         <div className="grid grid-cols-3 gap-x-4">
-                            <span className="font-semibold text-gray-600">Alamat</span>
-                            <span className="col-span-2 text-gray-800">{selectedDismantle.customerAddress}</span>
-                        </div>
-                         <div className="grid grid-cols-3 gap-x-4">
-                            <span className="font-semibold text-gray-600">Teknisi</span>
-                            <span className="col-span-2 text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'user', id: selectedDismantle.technician })}>{selectedDismantle.technician}</ClickableLink></span>
-                        </div>
-                    </div>
-
-                     <div className="mt-6 space-y-4 text-sm">
-                        <h4 className="pb-2 mb-4 text-lg font-semibold border-b text-tm-dark">Informasi Aset yang di-Dismantle</h4>
-                        {(() => {
-                            const assetDetails = assets.find(a => a.id === selectedDismantle.assetId);
-                            return (
-                                <dl className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-                                    <div className="sm:col-span-2">
-                                        <dt className="font-semibold text-gray-600">Nama Aset</dt>
-                                        <dd className="text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'asset', id: selectedDismantle.assetId })}>{selectedDismantle.assetName}</ClickableLink> ({selectedDismantle.assetId})</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="font-semibold text-gray-600">Nomor Seri</dt>
-                                        <dd className="font-mono text-gray-800">{assetDetails?.serialNumber || 'N/A'}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="font-semibold text-gray-600">MAC Address</dt>
-                                        <dd className="font-mono text-gray-800">{assetDetails?.macAddress || 'N/A'}</dd>
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                        <dt className="font-semibold text-gray-600">Kondisi Saat Ditarik</dt>
-                                        <dd className="text-gray-800">{selectedDismantle.retrievedCondition}</dd>
-                                    </div>
+                        
+                        <div className="space-y-6 text-sm">
+                            <section>
+                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">I. Informasi Umum</h4>
+                                <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
+                                    <div><dt className="text-gray-500">Tanggal Penarikan</dt><dd className="font-medium text-gray-900">{selectedDismantle.dismantleDate}</dd></div>
+                                    <div><dt className="text-gray-500">Nomor Dokumen</dt><dd className="font-medium text-gray-900">{selectedDismantle.id}</dd></div>
+                                    <div><dt className="text-gray-500">Teknisi</dt><dd className="font-medium text-gray-900"><ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedDismantle.technician})}>{selectedDismantle.technician}</ClickableLink></dd></div>
                                 </dl>
-                            );
-                        })()}
-                    </div>
-                     
-                    <div className="pt-8 mt-6 border-t border-gray-200">
-                        <div className="grid grid-cols-1 text-sm text-center gap-y-8 sm:grid-cols-2 sm:gap-x-8">
-                             <div>
-                                <p className="font-semibold text-gray-600">Teknisi</p>
-                                <div className="flex items-center justify-center mt-2 h-28">
-                                    <SignatureStamp signerName={selectedDismantle.technician} signatureDate={selectedDismantle.dismantleDate} signerDivision="Divisi Engineer" />
+                            </section>
+
+                           <section>
+                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">II. Detail Objek Penarikan</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Asset Card */}
+                                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <AssetIcon className="w-5 h-5 text-gray-500" />
+                                            <h5 className="font-semibold text-gray-700">Aset yang Ditarik</h5>
+                                        </div>
+                                        <dl className="space-y-2">
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Nama Aset</dt>
+                                                <dd className="font-medium text-gray-900">
+                                                    <ClickableLink onClick={() => onShowPreview({type: 'asset', id: selectedDismantle.assetId})}>
+                                                        {selectedDismantle.assetName}
+                                                    </ClickableLink>
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs text-gray-500">ID Aset</dt>
+                                                <dd className="font-mono text-gray-700">{selectedDismantle.assetId}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Kondisi Saat Ditarik</dt>
+                                                <dd className="font-medium text-gray-900">{selectedDismantle.retrievedCondition}</dd>
+                                            </div>
+                                        </dl>
+                                    </div>
+                                    {/* Customer Card */}
+                                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <CustomerIcon className="w-5 h-5 text-gray-500" />
+                                            <h5 className="font-semibold text-gray-700">Ditarik Dari Pelanggan</h5>
+                                        </div>
+                                        <dl className="space-y-2">
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Nama Pelanggan</dt>
+                                                <dd className="font-medium text-gray-900">
+                                                    <ClickableLink onClick={() => onShowPreview({type: 'customer', id: selectedDismantle.customerId})}>
+                                                        {selectedDismantle.customerName}
+                                                    </ClickableLink>
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs text-gray-500">ID Pelanggan</dt>
+                                                <dd className="font-mono text-gray-700">{selectedDismantle.customerId}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Alamat</dt>
+                                                <dd className="text-gray-700">{selectedDismantle.customerAddress}</dd>
+                                            </div>
+                                        </dl>
+                                    </div>
                                 </div>
-                                <div className="pt-1 mt-2 border-t border-gray-400">
-                                    <p>({selectedDismantle.technician})</p>
+                                {selectedDismantle.notes && (
+                                    <div className="mt-4">
+                                        <h5 className="text-sm font-semibold text-gray-700">Catatan Teknisi:</h5>
+                                        <p className="text-sm italic text-gray-800 p-3 bg-gray-50 rounded-md mt-1 border">"{selectedDismantle.notes}"</p>
+                                    </div>
+                                )}
+                            </section>
+
+                            {selectedDismantle.attachments && selectedDismantle.attachments.length > 0 && (
+                                <section>
+                                    <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">III. Lampiran</h4>
+                                    <div className="space-y-3">
+                                        {selectedDismantle.attachments.map(att => (
+                                            <div key={att.id} className="flex items-center justify-between p-3 text-sm bg-gray-50 border rounded-lg">
+                                                <div>
+                                                    <p className="font-semibold text-gray-800">{att.name}</p>
+                                                    <p className="text-xs text-gray-500">{att.type === 'image' ? 'Gambar' : att.type === 'pdf' ? 'Dokumen PDF' : 'Lainnya'}</p>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-500 rounded-full hover:bg-gray-200" title="Lihat"><EyeIcon className="w-4 h-4" /></a>
+                                                    <a href={att.url} download={att.name} className="p-2 text-gray-500 rounded-full hover:bg-gray-200" title="Unduh"><DownloadIcon className="w-4 h-4" /></a>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+                            
+                            <section className="pt-6">
+                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-6">{selectedDismantle.attachments && selectedDismantle.attachments.length > 0 ? 'IV.' : 'III.'} Status & Persetujuan</h4>
+                                <p className="text-xs text-center text-gray-500 mb-6">Demikian Berita Acara ini dibuat untuk dipergunakan sebagaimana mestinya.</p>
+                                <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-2">
+                                    <div>
+                                        <p className="font-semibold text-gray-600">Teknisi Lapangan,</p>
+                                        <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedDismantle.technician} signatureDate={selectedDismantle.dismantleDate} signerDivision="Divisi Engineer" /></div>
+                                        <div className="pt-1 mt-2"><p className="text-gray-800">({selectedDismantle.technician})</p></div>
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-600">Diterima oleh Gudang,</p>
+                                        <div className="flex items-center justify-center mt-2 h-28">
+                                            {selectedDismantle.status === ItemStatus.COMPLETED && selectedDismantle.acknowledger ? (
+                                                <ApprovalStamp approverName={selectedDismantle.acknowledger} approvalDate={new Date().toISOString()} approverDivision='Divisi Inventori' />
+                                            ) : (
+                                                <span className="italic text-gray-400">Menunggu Konfirmasi</span>
+                                            )}
+                                        </div>
+                                        <div className="pt-1 mt-2"><p className="text-gray-500">({selectedDismantle.acknowledger || '_________________________'})</p></div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-gray-600">Mengetahui</p>
-                                <div className="flex items-center justify-center mt-2 h-28">
-                                    {selectedDismantle.acknowledger ? (
-                                        <ApprovalStamp approverName={selectedDismantle.acknowledger} approvalDate={selectedDismantle.dismantleDate} approverDivision="Divisi Inventori" />
-                                    ) : (
-                                        <span className="italic text-gray-400">Belum Diverifikasi</span>
-                                    )}
-                                </div>
-                                <div className="pt-1 mt-2 border-t border-gray-400">
-                                    <p>({selectedDismantle.acknowledger || 'Nama Jelas'})</p>
-                                </div>
-                            </div>
+                            </section>
                         </div>
                     </div>
                 </Modal>
             )}
-            
+
             {dismantleToDeleteId && (
-                <Modal isOpen={!!dismantleToDeleteId} onClose={() => setDismantleToDeleteId(null)} title="Konfirmasi Hapus" size="md" hideDefaultCloseButton>
+                <Modal isOpen={!!dismantleToDeleteId} onClose={() => setDismantleToDeleteId(null)} title="Konfirmasi Hapus" hideDefaultCloseButton>
+                    <div className="text-center">
+                        <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-red-500" />
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Data Dismantle?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data dismantle <strong>{dismantleToDeleteId}</strong>? Tindakan ini tidak dapat diurungkan.</p>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <button onClick={() => setDismantleToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">
+                           {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus
+                        </button>
+                    </div>
+                </Modal>
+            )}
+
+             {bulkDeleteConfirmation && (
+                <Modal
+                    isOpen={bulkDeleteConfirmation}
+                    onClose={() => setBulkDeleteConfirmation(false)}
+                    title="Konfirmasi Hapus Massal"
+                    size="md"
+                    hideDefaultCloseButton
+                >
                      <div className="text-center">
                         <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
                             <ExclamationTriangleIcon className="w-8 h-8" />
                         </div>
-                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Data Dismantle?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data dismantle <span className="font-bold">{dismantleToDeleteId}</span>? Tindakan ini tidak dapat diurungkan.</p>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {deletableDismantlesCount} Data Dismantle?</h3>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Anda akan menghapus data dismantle yang dipilih. Aksi ini tidak dapat diurungkan.
+                        </p>
+                        <div className="w-full p-3 mt-4 text-sm text-left bg-gray-50 border rounded-lg">
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Total Dipilih:</span>
+                                <span className="font-semibold text-gray-800">{selectedDismantleIds.length}</span>
+                            </div>
+                            <div className="flex justify-between mt-1 text-green-700">
+                                <span className="font-medium">Akan Dihapus:</span>
+                                <span className="font-bold">{deletableDismantlesCount}</span>
+                            </div>
+                            <div className="flex justify-between mt-1 text-amber-700">
+                                <span className="font-medium">Dilewati (status "Dalam Proses"):</span>
+                                <span className="font-bold">{skippableDismantlesCount}</span>
+                            </div>
+                        </div>
+
+                        {deletableDismantlesCount === 0 && skippableDismantlesCount > 0 && (
+                            <p className="mt-4 text-sm font-semibold text-red-700">
+                                Tidak ada data yang dapat dihapus. Semua yang dipilih sedang dalam proses.
+                            </p>
+                        )}
                     </div>
                      <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                        <button onClick={() => setDismantleToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                        <button type="button" onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus</button>
-                    </div>
-                </Modal>
-            )}
-            {bulkDeleteConfirmation && (
-                 <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal" size="md" hideDefaultCloseButton>
-                    <div className="text-center">
-                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
-                            <ExclamationTriangleIcon className="w-8 h-8" />
-                        </div>
-                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {selectedDismantleIds.length} Data?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus semua data dismantle yang dipilih? Tindakan ini tidak dapat diurungkan.</p>
-                    </div>
-                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
                         <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                        <button type="button" onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus ({selectedDismantleIds.length})</button>
-                    </div>
-                </Modal>
-            )}
-
-             {bulkCompleteConfirmation && (
-                 <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesai Massal" size="md" hideDefaultCloseButton>
-                    <div className="text-center">
-                        <h3 className="text-lg font-semibold text-gray-800">Tandai {selectedDismantleIds.length} Data Selesai?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda akan mengubah status data dismantle yang dipilih menjadi 'Selesai'. Lanjutkan?</p>
-                    </div>
-                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                        <button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                        <button type="button" onClick={handleBulkComplete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Tandai Selesai ({selectedDismantleIds.length})</button>
+                        <button onClick={handleBulkDelete} disabled={isLoading || deletableDismantlesCount === 0} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-400">
+                           {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus ({deletableDismantlesCount})
+                        </button>
                     </div>
                 </Modal>
             )}
         </>
     );
 };
+
+export default ItemDismantle;

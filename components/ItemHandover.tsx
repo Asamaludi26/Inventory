@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-// FIX: Import PreviewData from central types file to resolve import error.
 import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry, PreviewData } from '../types';
 import Modal from './shared/Modal';
 import { EyeIcon } from './icons/EyeIcon';
@@ -23,45 +22,22 @@ import { SignatureStamp } from './shared/SignatureStamp';
 import FloatingActionBar from './shared/FloatingActionBar';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 import { ClickableLink } from './shared/ClickableLink';
+import { CustomSelect } from './shared/CustomSelect';
+import { FilterIcon } from './icons/FilterIcon';
+import { Letterhead } from './shared/Letterhead';
+import { CheckIcon } from './icons/CheckIcon';
 
 interface ItemHandoverProps {
     currentUser: User;
     handovers: Handover[];
     setHandovers: React.Dispatch<React.SetStateAction<Handover[]>>;
     assets: Asset[];
+    users: User[];
     prefillData?: Asset | null;
     onClearPrefill: () => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
     onShowPreview: (data: PreviewData) => void;
 }
-
-export const mockHandovers: Handover[] = Array.from({ length: 60 }, (_, i) => {
-    const userPool = ['Alice Johnson', 'Evan Davis', 'Charlie Brown', 'Jack Taylor', 'Diana Miller', 'Bob Williams', 'Grace Lee', 'Henry Wilson'];
-    const assetPool = [
-        { id: 'AST-0001', name: 'Router Core RB4011iGS+', brand: 'Mikrotik' },
-        { id: 'AST-0013', name: 'Laptop Dell XPS 15', brand: 'Dell' },
-        { id: 'AST-0007', name: 'Fusion Splicer 90S', brand: 'Fujikura' },
-        { id: 'AST-0004', name: 'Access Point U6 Lite', brand: 'Ubiquiti' },
-        { id: 'AST-0111', name: 'LAN Tester NF-8209', brand: 'Noyafa' },
-        { id: 'AST-0113', name: 'PC Rakitan i7', brand: 'Custom' },
-    ];
-    const asset = assetPool[i % assetPool.length];
-    
-    return {
-        id: `HO-${String(60 - i).padStart(3, '0')}`,
-        handoverDate: new Date(2024, 7, 10 - (i % 28)).toISOString().split('T')[0],
-        menyerahkan: userPool[i % userPool.length],
-        penerima: userPool[(i + 2) % userPool.length],
-        mengetahui: 'John Doe',
-        woRoIntNumber: `RO-${11223 + i}`,
-        lembar: (i % 2 === 0 ? '1. Menyerahkan' : '2. Penerima') as any,
-        items: [
-            { id: 1, assetId: asset.id, itemName: asset.name, itemTypeBrand: asset.brand, conditionNotes: 'Kondisi baik, normal, siap pakai.', quantity: 1, checked: true }
-        ],
-        status: (i % 4 === 0) ? ItemStatus.IN_PROGRESS : ItemStatus.COMPLETED
-    };
-});
-
 
 const getStatusClass = (status: ItemStatus) => {
     switch (status) {
@@ -212,11 +188,13 @@ const HandoverTable: React.FC<HandoverTableProps> = ({ handovers, onDetailClick,
 };
 
 const HandoverForm: React.FC<{ 
+    currentUser: User;
     onSave: (data: Omit<Handover, 'id' | 'status'>) => void; 
     assets: Asset[]; 
+    users: User[];
     prefillData?: Asset | null;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
-}> = ({ onSave, assets, prefillData, onUpdateAsset }) => {
+}> = ({ currentUser, onSave, assets, users, prefillData, onUpdateAsset }) => {
     const [handoverDate, setHandoverDate] = useState<Date | null>(new Date());
     const [menyerahkan, setMenyerahkan] = useState('');
     const [penerima, setPenerima] = useState('');
@@ -233,11 +211,36 @@ const HandoverForm: React.FC<{
     const formId = "handover-form";
     const addNotification = useNotification();
     
+    const userOptions = useMemo(() => 
+        users.map(user => ({ value: user.name, label: user.name })), 
+    [users]);
+
+    const lembarOptions = [
+        { value: '1. Menyerahkan', label: '1. Menyerahkan' },
+        { value: '2. Penerima', label: '2. Penerima' },
+    ];
+
     const availableAssets = useMemo(() => {
         const inStorage = assets.filter(asset => asset.status === AssetStatus.IN_STORAGE);
         const inUse = assets.filter(asset => asset.status === AssetStatus.IN_USE);
         return { inStorage, inUse };
     }, [assets]);
+
+    const assetOptions = useMemo(() => {
+        const inStorageOptions = availableAssets.inStorage.map(asset => ({
+            value: asset.id,
+            label: `${asset.name} (${asset.id}) - Di Gudang`
+        }));
+        const inUseOptions = availableAssets.inUse.map(asset => ({
+            value: asset.id,
+            label: `${asset.name} (${asset.id}) - Digunakan!`
+        }));
+        return [...inStorageOptions, ...inUseOptions];
+    }, [availableAssets]);
+
+    useEffect(() => {
+        setMenyerahkan(currentUser.name);
+    }, [currentUser]);
 
     useEffect(() => {
         if (prefillData) {
@@ -250,9 +253,9 @@ const HandoverForm: React.FC<{
                 quantity: 1,
                 checked: true,
             }]);
-            setMenyerahkan(prefillData.currentUser || '');
+            setMenyerahkan(prefillData.currentUser || currentUser.name);
         }
-    }, [prefillData]);
+    }, [prefillData, currentUser.name]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(([entry]) => setIsFooterVisible(entry.isIntersecting), { threshold: 0.1 });
@@ -293,13 +296,17 @@ const HandoverForm: React.FC<{
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!menyerahkan || !penerima || !mengetahui) {
-            addNotification('Harap lengkapi nama pihak yang terlibat.', 'error');
+        if (items.some(item => !item.assetId)) {
+            addNotification('Harap pilih aset untuk semua item.', 'error');
+            return;
+        }
+        if (!penerima) {
+            addNotification('Penerima tidak boleh kosong.', 'error');
             return;
         }
         setIsSubmitting(true);
         setTimeout(() => {
-            const handoverData = {
+            onSave({
                 handoverDate: handoverDate!.toISOString().split('T')[0],
                 menyerahkan,
                 penerima,
@@ -307,350 +314,271 @@ const HandoverForm: React.FC<{
                 woRoIntNumber,
                 lembar,
                 items,
-            };
-            onSave(handoverData);
-            
+            });
             setIsSubmitting(false);
         }, 1000);
     };
-
+    
     const ActionButtons: React.FC<{ formId?: string }> = ({ formId }) => (
         <button 
             type="submit" 
             form={formId}
             disabled={isSubmitting}
-            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent disabled:bg-tm-primary/70 disabled:cursor-not-allowed">
+            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70 disabled:cursor-not-allowed">
              {isSubmitting ? <SpinnerIcon className="w-5 h-5 mr-2" /> : null}
             {isSubmitting ? 'Memproses...' : 'Proses Handover'}
         </button>
     );
 
     return (
-    <>
-        <form id={formId} className="space-y-6" onSubmit={handleSubmit}>
-            {prefillData && (
-                <div className="p-4 border-l-4 rounded-r-lg bg-info-light border-tm-primary">
-                    <p className="text-sm text-info-text">
-                        Membuat handover untuk aset: <span className="font-bold">{prefillData.name} ({prefillData.id})</span>.
-                    </p>
+        <>
+            <form id={formId} onSubmit={handleSubmit} className="space-y-6">
+                <div className="mb-6 space-y-2 text-center">
+                    <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
+                    <p className="font-semibold text-tm-secondary">BERITA ACARA SERAH TERIMA BARANG (INTERNAL)</p>
                 </div>
-            )}
-            <div className="mb-6 space-y-2 text-center">
-                <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                <p className="font-semibold text-tm-secondary">BERITA ACARA SERAH TERIMA BARANG (HANDOVER)</p>
-            </div>
-            
-            <div className="p-4 border-t border-b border-gray-200">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                        <label htmlFor="handoverDate" className="block text-sm font-medium text-gray-700">Tanggal</label>
-                         <DatePicker id="handoverDate" selectedDate={handoverDate} onDateChange={setHandoverDate} />
-                    </div>
-                    <div>
-                        <label htmlFor="menyerahkan" className="block text-sm font-medium text-gray-700">Menyerahkan</label>
-                        <input type="text" id="menyerahkan" value={menyerahkan} onChange={e => setMenyerahkan(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md sm:text-sm" />
-                    </div>
-                    <div>
-                        <label htmlFor="penerima" className="block text-sm font-medium text-gray-700">Penerima</label>
-                        <input type="text" id="penerima" value={penerima} onChange={e => setPenerima(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md sm:text-sm" />
-                    </div>
-                    <div>
-                        <label htmlFor="docNumber" className="block text-sm font-medium text-gray-700">No Dokumen</label>
-                        <input type="text" id="docNumber" readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md sm:text-sm" value="[Otomatis]" />
-                    </div>
-                    <div>
-                        <label htmlFor="woRoIntNumber" className="block text-sm font-medium text-gray-700">No WO/RO/INT</label>
-                        <input type="text" id="woRoIntNumber" value={woRoIntNumber} onChange={e => setWoRoIntNumber(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md sm:text-sm" />
-                    </div>
-                    <div>
-                        <label htmlFor="lembar" className="block text-sm font-medium text-gray-700">Lembar</label>
-                        <select id="lembar" value={lembar} onChange={e => setLembar(e.target.value as any)} className="block w-full px-3 py-2 mt-1 bg-gray-50 border border-gray-300 rounded-md sm:text-sm">
-                            <option value="1. Menyerahkan">1. Menyerahkan</option>
-                            <option value="2. Penerima">2. Penerima</option>
-                        </select>
+                
+                <div className="p-4 border-t border-b border-gray-200">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Tanggal</label>
+                            <DatePicker id="handoverDate" selectedDate={handoverDate} onDateChange={setHandoverDate} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">No. WO/RO/Internal</label>
+                            <input type="text" value={woRoIntNumber} onChange={e => setWoRoIntNumber(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Lembar</label>
+                             <CustomSelect options={lembarOptions} value={lembar} onChange={v => setLembar(v as any)} />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-tm-dark">Detail Barang</h3>
-                <button type="button" onClick={handleAddItem} disabled={!!prefillData} className="px-3 py-1 text-sm font-semibold text-white transition-colors duration-200 rounded-md shadow-sm bg-tm-accent hover:bg-tm-primary disabled:bg-gray-400 disabled:cursor-not-allowed">+ Tambah Item</button>
-            </div>
-            
-            <div className="space-y-4">
-                {items.map((item, index) => (
-                    <div key={item.id} className="relative grid grid-cols-1 gap-4 p-4 border border-gray-200 rounded-lg md:grid-cols-12">
-                        <div className="md:col-span-3">
-                            <label htmlFor={`itemName-${item.id}`} className="block text-sm font-medium text-gray-700">Nama Barang</label>
-                            <select 
-                                id={`itemName-${item.id}`} 
-                                value={item.assetId}
-                                onChange={(e) => handleAssetSelection(item.id, e.target.value)} 
-                                disabled={!!prefillData}
-                                className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm disabled:bg-gray-200"
-                            >
-                                <option value="">-- Pilih Aset --</option>
-                                <optgroup label="Di Gudang (Tersedia)">
-                                    {availableAssets.inStorage.map(asset => <option key={asset.id} value={asset.id}>{asset.name} ({asset.id})</option>)}
-                                </optgroup>
-                                <optgroup label="Sedang Digunakan (Perlu Perhatian!)">
-                                    {availableAssets.inUse.map(asset => <option key={asset.id} value={asset.id}>{asset.name} ({asset.id})</option>)}
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor={`itemTypeBrand-${item.id}`} className="block text-sm font-medium text-gray-700">Type / Brand</label>
-                            <input 
-                                type="text" 
-                                id={`itemTypeBrand-${item.id}`} 
-                                value={item.itemTypeBrand} 
-                                readOnly 
-                                className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm" 
-                                placeholder="Otomatis" 
-                            />
-                        </div>
-                         <div className="md:col-span-4">
-                            <label htmlFor={`conditionNotes-${item.id}`} className="block text-sm font-medium text-gray-700">Ket / Status Barang</label>
-                            <input 
-                                type="text" 
-                                id={`conditionNotes-${item.id}`} 
-                                value={item.conditionNotes} 
-                                onChange={(e) => handleItemChange(item.id, 'conditionNotes', e.target.value)}
-                                className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm"
-                                placeholder="Contoh: Baru, Bekas, Baik, Rusak"
-                            />
-                        </div>
-                        <div className="md:col-span-1">
-                            <label htmlFor={`quantity-${item.id}`} className="block text-sm font-medium text-gray-700">Jumlah</label>
-                            <input 
-                                type="number" 
-                                id={`quantity-${item.id}`} 
-                                value={item.quantity} 
-                                onChange={(e) => handleItemChange(item.id, 'quantity', parseInt(e.target.value))} 
-                                min="1" 
-                                className="block w-full px-3 py-2 mt-1 text-center text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" 
-                            />
-                        </div>
-                         <div className="flex flex-col items-center md:col-span-1">
-                            <label htmlFor={`check-${item.id}`} className="block mb-2 text-sm font-medium text-gray-700">Check</label>
-                            <Checkbox 
-                                id={`check-${item.id}`}
-                                checked={item.checked} 
-                                onChange={e => handleItemChange(item.id, 'checked', e.target.checked)} 
-                                className="mt-1"
-                            />
-                        </div>
-                        {items.length > 1 && !prefillData && (
-                            <div className="absolute top-2 right-2">
-                                <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-500">
-                                    <TrashIcon className="w-4 h-4" />
-                                </button>
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-tm-dark">Detail Barang</h3>
+                     <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-600">Daftar aset yang diserahterimakan.</p>
+                        <button type="button" onClick={handleAddItem} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-accent hover:bg-tm-primary">
+                            Tambah Aset
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        {items.map((item, index) => (
+                             <div key={item.id} className="relative p-5 pt-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                <div className="absolute flex items-center justify-center w-8 h-8 font-bold text-white rounded-full -top-4 -left-4 bg-tm-primary">
+                                    {index + 1}
+                                </div>
+                                {items.length > 1 && (
+                                    <div className="absolute top-2 right-2">
+                                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="flex items-center justify-center w-8 h-8 text-gray-400 transition-colors rounded-full hover:bg-red-100 hover:text-red-500">
+                                            <TrashIcon className="w-5 h-5"/>
+                                        </button>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-600">Pilih Aset</label>
+                                        <CustomSelect options={assetOptions} value={item.assetId || ''} onChange={value => handleAssetSelection(item.id, value)} placeholder="-- Pilih Aset dari Stok --" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600">Nama Barang</label>
+                                        <input type="text" value={item.itemName} readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600">Tipe/Brand</label>
+                                        <input type="text" value={item.itemTypeBrand} readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-600">Catatan Kondisi</label>
+                                        <input type="text" value={item.conditionNotes} onChange={e => handleItemChange(item.id, 'conditionNotes', e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm" placeholder="Contoh: Baik, lengkap dengan aksesoris" />
+                                    </div>
+                                </div>
                             </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-
-
-            <div className="pt-8 mt-6 border-t border-gray-200">
-                <div className="grid grid-cols-1 text-center gap-y-8 md:grid-cols-3 md:gap-x-8">
-                    <div>
-                        <p className="font-medium text-gray-700">Menyerahkan</p>
-                        <div className="flex items-center justify-center mt-2 h-28">
-                            {menyerahkan && <SignatureStamp signerName={menyerahkan} signatureDate={handoverDate?.toISOString() || ''} />}
-                        </div>
-                        <p className="pt-1 mt-2 text-sm text-gray-600 border-t border-gray-400">( {menyerahkan || 'Nama Jelas'} )</p>
-                    </div>
-                    <div>
-                        <p className="font-medium text-gray-700">Penerima</p>
-                        <div className="flex items-center justify-center mt-2 h-28">
-                            {penerima && <SignatureStamp signerName={penerima} signatureDate={handoverDate?.toISOString() || ''} />}
-                        </div>
-                        <p className="pt-1 mt-2 text-sm text-gray-600 border-t border-gray-400">( {penerima || 'Nama Jelas'} )</p>
-                    </div>
-                     <div>
-                        <label htmlFor="mengetahui" className="font-medium text-gray-700">Mengetahui</label>
-                         <div className="flex items-center justify-center mt-2 h-28">
-                            {mengetahui && <SignatureStamp signerName={mengetahui} signatureDate={handoverDate?.toISOString() || ''} />}
-                        </div>
-                        <input 
-                            type="text" 
-                            id="mengetahui" 
-                            value={mengetahui} 
-                            onChange={e => setMengetahui(e.target.value)} 
-                            className="w-48 p-1 mt-2 text-sm text-center bg-gray-50 border-t border-gray-400" 
-                            placeholder="( Nama Jelas )"
-                        />
+                        ))}
                     </div>
                 </div>
-            </div>
-            
-            <div ref={footerRef} className="flex justify-end pt-4 mt-4 border-t border-gray-200">
-                <ActionButtons />
-            </div>
-        </form>
-        <FloatingActionBar isVisible={!isFooterVisible}>
-            <ActionButtons formId={formId} />
-        </FloatingActionBar>
-    </>
+
+                <div className="pt-8 mt-6 border-t border-gray-200">
+                     <div className="grid grid-cols-1 text-center gap-y-8 md:grid-cols-3 md:gap-x-8">
+                        <div>
+                            <label htmlFor="menyerahkan" className="font-medium text-gray-700">Yang Menyerahkan</label>
+                            <div className="flex items-center justify-center mt-2 h-28">
+                                {menyerahkan && <SignatureStamp signerName={menyerahkan} signatureDate={handoverDate?.toISOString() || ''} />}
+                            </div>
+                            <div className="mt-2 border-t border-gray-400 pt-1">
+                                <CustomSelect options={userOptions} value={menyerahkan} onChange={setMenyerahkan} placeholder="( Nama Jelas )" />
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="penerima" className="font-medium text-gray-700">Penerima</label>
+                            <div className="flex items-center justify-center mt-2 h-28">
+                                {penerima && <SignatureStamp signerName={penerima} signatureDate={handoverDate?.toISOString() || ''} />}
+                            </div>
+                            <div className="mt-2 border-t border-gray-400 pt-1">
+                                <CustomSelect options={userOptions} value={penerima} onChange={setPenerima} placeholder="( Nama Jelas )" />
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="mengetahui" className="font-medium text-gray-700">Mengetahui</label>
+                            <div className="flex items-center justify-center mt-2 h-28">
+                                {mengetahui && <SignatureStamp signerName={mengetahui} signatureDate={handoverDate?.toISOString() || ''} />}
+                            </div>
+                            <div className="mt-2 border-t border-gray-400 pt-1">
+                                <CustomSelect options={userOptions} value={mengetahui} onChange={setMengetahui} placeholder="( Nama Jelas )" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div ref={footerRef} className="flex justify-end pt-4 mt-4 border-t border-gray-200">
+                    <ActionButtons />
+                </div>
+            </form>
+             <FloatingActionBar isVisible={!isFooterVisible}>
+                <ActionButtons formId={formId} />
+            </FloatingActionBar>
+        </>
     );
 };
 
-export const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handovers, setHandovers, assets, prefillData, onClearPrefill, onUpdateAsset, onShowPreview }) => {
+export const ItemHandover: React.FC<ItemHandoverProps> = (props) => {
+    const { currentUser, handovers, setHandovers, assets, users, prefillData, onClearPrefill, onUpdateAsset, onShowPreview } = props;
+
     const [view, setView] = useState<'list' | 'form'>('list');
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedHandover, setSelectedHandover] = useState<Handover | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [handoverToDeleteId, setHandoverToDeleteId] = useState<string | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState(false);
-    const [bulkCompleteConfirmation, setBulkCompleteConfirmation] = useState(false);
     const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
     const [selectedHandoverIds, setSelectedHandoverIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const addNotification = useNotification();
-    
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
 
+    const [bulkCompleteConfirmation, setBulkCompleteConfirmation] = useState(false);
+
+    const [searchQuery, setSearchQuery] = useState('');
+    const initialFilterState = { status: '' };
+    const [filters, setFilters] = useState(initialFilterState);
+    const [tempFilters, setTempFilters] = useState(filters);
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+    const filterPanelRef = useRef<HTMLDivElement>(null);
+    
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-
-     useEffect(() => {
-        if (prefillData) {
-            setView('form');
-        }
+    const addNotification = useNotification();
+    
+    useEffect(() => {
+        if (prefillData) setView('form');
     }, [prefillData]);
     
     const handleSetView = (newView: 'list' | 'form') => {
-        if (newView === 'list' && prefillData) {
-            onClearPrefill();
-        }
+        if (newView === 'list' && prefillData) onClearPrefill();
         setView(newView);
-    }
-
-    const isFiltering = useMemo(() => {
-        return searchQuery.trim() !== '' || filterStatus !== '';
-    }, [searchQuery, filterStatus]);
-
-    const handleResetFilters = () => {
-        setSearchQuery('');
-        setFilterStatus('');
     };
 
+    const handleCreateHandover = (data: Omit<Handover, 'id' | 'status'>) => {
+        const newHandover: Handover = {
+            ...data,
+            id: `HO-${String(handovers.length + 1).padStart(3, '0')}`,
+            status: ItemStatus.COMPLETED,
+        };
+        setHandovers(prev => [newHandover, ...prev]);
+
+        data.items.forEach(item => {
+            if (item.assetId) {
+                onUpdateAsset(item.assetId, {
+                    status: AssetStatus.IN_USE,
+                    currentUser: data.penerima,
+                    location: `Digunakan oleh ${data.penerima}`,
+                }, {
+                    user: data.menyerahkan,
+                    action: 'Serah Terima Internal',
+                    details: `Aset diserahkan kepada ${data.penerima}.`,
+                    referenceId: newHandover.id,
+                });
+            }
+        });
+
+        addNotification('Berita acara serah terima berhasil dibuat.', 'success');
+        handleSetView('list');
+    };
+    
+    const handleShowDetails = (handover: Handover) => {
+        setSelectedHandover(handover);
+        setIsDetailModalOpen(true);
+    };
+    
+     useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (filterPanelRef.current && !filterPanelRef.current.contains(event.target as Node)) {
+                setIsFilterPanelOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => { document.removeEventListener("mousedown", handleClickOutside); };
+    }, [filterPanelRef]);
+
+    const activeFilterCount = useMemo(() => {
+        return Object.values(filters).filter(Boolean).length;
+    }, [filters]);
+
+    const handleResetFilters = () => {
+        setFilters(initialFilterState);
+        setTempFilters(initialFilterState);
+        setIsFilterPanelOpen(false);
+    };
+
+    const handleApplyFilters = () => {
+        setFilters(tempFilters);
+        setIsFilterPanelOpen(false);
+    };
+
+    const handleCancelBulkMode = () => {
+        setIsBulkSelectMode(false);
+        setSelectedHandoverIds([]);
+    };
+
+    const actionableCounts = useMemo(() => {
+        if (!isBulkSelectMode) return { completeCount: 0, deleteCount: 0 };
+        const selected = handovers.filter(h => selectedHandoverIds.includes(h.id));
+        
+        const canComplete = (ho: Handover) => ho.status === ItemStatus.IN_PROGRESS;
+
+        return {
+            completeCount: selected.filter(canComplete).length,
+            deleteCount: selected.length,
+        };
+    }, [handovers, selectedHandoverIds, isBulkSelectMode]);
+
+
     const filteredHandovers = useMemo(() => {
-        return handovers
-            .filter(ho => {
-                const searchLower = searchQuery.toLowerCase();
-                return (
-                    ho.id.toLowerCase().includes(searchLower) ||
-                    ho.menyerahkan.toLowerCase().includes(searchLower) ||
-                    ho.penerima.toLowerCase().includes(searchLower) ||
-                    ho.items.some(item => item.itemName.toLowerCase().includes(searchLower))
-                );
-            })
-            .filter(ho => filterStatus ? ho.status === filterStatus : true);
-    }, [handovers, searchQuery, filterStatus]);
+        return handovers.filter(ho => {
+            const searchLower = searchQuery.toLowerCase();
+            return (
+                ho.id.toLowerCase().includes(searchLower) ||
+                ho.menyerahkan.toLowerCase().includes(searchLower) ||
+                ho.penerima.toLowerCase().includes(searchLower) ||
+                ho.items.some(item => item.itemName.toLowerCase().includes(searchLower))
+            );
+        }).filter(ho => filters.status ? ho.status === filters.status : true);
+    }, [handovers, searchQuery, filters]);
 
     const { items: sortedHandovers, requestSort, sortConfig } = useSortableData(filteredHandovers, { key: 'handoverDate', direction: 'descending' });
-    
+
     const totalItems = sortedHandovers.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedHandovers = sortedHandovers.slice(startIndex, endIndex);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, filterStatus, itemsPerPage]);
+    useEffect(() => { setCurrentPage(1); }, [searchQuery, filters, itemsPerPage]);
 
-    const handleItemsPerPageChange = (newSize: number) => {
-        setItemsPerPage(newSize);
-        setCurrentPage(1);
-    };
-
-    const actionableCompleteCount = useMemo(() => {
-        if (!isBulkSelectMode) return 0;
-        return handovers.filter(h => selectedHandoverIds.includes(h.id) && h.status === ItemStatus.IN_PROGRESS).length;
-    }, [handovers, selectedHandoverIds, isBulkSelectMode]);
-
-     const handleCancelBulkMode = () => {
-        setIsBulkSelectMode(false);
-        setSelectedHandoverIds([]);
-    };
-
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                handleCancelBulkMode();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    const handleSelectOne = (id: string) => {
-        setSelectedHandoverIds(prev =>
-            prev.includes(id) ? prev.filter(reqId => reqId !== id) : [...prev, id]
-        );
-    };
-
-    const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.checked) {
-            setSelectedHandoverIds(paginatedHandovers.map(req => req.id));
-        } else {
-            setSelectedHandoverIds([]);
-        }
-    };
-
-    const handleShowDetails = (handover: Handover) => {
-        setSelectedHandover(handover);
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setSelectedHandover(null);
-    };
-    
-    const handleExport = () => {
-        exportToCSV(sortedHandovers, `handover_barang_${new Date().toISOString().split('T')[0]}`);
-    };
-
-    const handleCreateHandover = (data: Omit<Handover, 'id' | 'status'>) => {
-        const newHandoverId = `HO-${String(handovers.length + 1).padStart(3, '0')}`;
-        const newHandover: Handover = {
-            ...data,
-            id: newHandoverId,
-            status: ItemStatus.COMPLETED,
-        };
-        setHandovers(prev => [newHandover, ...prev]);
-
-        // Update asset status and add log
-        data.items.forEach(item => {
-            if (item.assetId) {
-                const assetUpdates: Partial<Asset> = {
-                    currentUser: data.penerima,
-                    status: AssetStatus.IN_USE,
-                    location: `Digunakan oleh ${data.penerima}`
-                };
-                const logEntry = {
-                    user: data.menyerahkan,
-                    action: 'Serah Terima Internal',
-                    details: `Aset diserahkan dari ${data.menyerahkan} kepada ${data.penerima}.`,
-                    referenceId: newHandoverId,
-                };
-                onUpdateAsset(item.assetId, assetUpdates, logEntry);
-            }
-        });
-        
-        handleSetView('list');
-        addNotification('Formulir handover berhasil dibuat dan status aset diperbarui.', 'success');
-    };
-    
     const handleConfirmDelete = () => {
         if (!handoverToDeleteId) return;
         setIsLoading(true);
         setTimeout(() => {
-            setHandovers(prev => prev.filter(ho => ho.id !== handoverToDeleteId));
+            setHandovers(prev => prev.filter(h => h.id !== handoverToDeleteId));
             addNotification(`Handover ${handoverToDeleteId} berhasil dihapus.`, 'success');
             setHandoverToDeleteId(null);
             setIsLoading(false);
@@ -660,44 +588,64 @@ export const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handove
     const handleBulkDelete = () => {
         setIsLoading(true);
         setTimeout(() => {
-            setHandovers(prev => prev.filter(ho => !selectedHandoverIds.includes(ho.id)));
+            setHandovers(prev => prev.filter(h => !selectedHandoverIds.includes(h.id)));
             addNotification(`${selectedHandoverIds.length} handover berhasil dihapus.`, 'success');
-            handleCancelBulkMode();
             setBulkDeleteConfirmation(false);
-            setIsLoading(false);
-        }, 1000);
-    };
-
-    const handleBulkComplete = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            setHandovers(prev => prev.map(ho => 
-                selectedHandoverIds.includes(ho.id) && ho.status === ItemStatus.IN_PROGRESS
-                    ? { ...ho, status: ItemStatus.COMPLETED }
-                    : ho
-            ));
-            addNotification(`${actionableCompleteCount} handover ditandai selesai.`, 'success');
             handleCancelBulkMode();
-            setBulkCompleteConfirmation(false);
             setIsLoading(false);
         }, 1000);
     };
     
+    const handleBulkComplete = () => {
+        setIsLoading(true);
+        setTimeout(() => {
+            let completedCount = 0;
+            setHandovers(prev => prev.map(ho => {
+                if (selectedHandoverIds.includes(ho.id) && ho.status === ItemStatus.IN_PROGRESS) {
+                    completedCount++;
+                    return { ...ho, status: ItemStatus.COMPLETED };
+                }
+                return ho;
+            }));
+
+            if (completedCount > 0) {
+                addNotification(`${completedCount} handover berhasil diselesaikan.`, 'success');
+            } else {
+                addNotification('Tidak ada handover yang dapat diselesaikan (status bukan "Dalam Proses").', 'error');
+            }
+
+            setBulkCompleteConfirmation(false);
+            handleCancelBulkMode();
+            setIsLoading(false);
+        }, 1000);
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedHandoverIds(paginatedHandovers.map(h => h.id));
+        } else {
+            setSelectedHandoverIds([]);
+        }
+    };
+    
+    const handleSelectOne = (id: string) => {
+        setSelectedHandoverIds(prev => prev.includes(id) ? prev.filter(hid => hid !== id) : [...prev, id]);
+    };
+
+    const statusOptions = Object.values(ItemStatus).filter(s => [ItemStatus.COMPLETED, ItemStatus.IN_PROGRESS, ItemStatus.PENDING].includes(s)).map(s => ({ value: s, label: s }));
+
     const renderContent = () => {
         if (view === 'form') {
-             return (
+            return (
                 <div className="p-4 sm:p-6 md:p-8">
                     <div className="flex items-center justify-between mb-6">
-                        <h1 className="text-3xl font-bold text-tm-dark">Buat Handover Baru</h1>
-                        <button
-                            onClick={() => handleSetView('list')}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent"
-                        >
+                        <h1 className="text-3xl font-bold text-tm-dark">Buat Berita Acara Handover</h1>
+                        <button onClick={() => handleSetView('list')} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">
                             Kembali ke Daftar
                         </button>
                     </div>
                     <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
-                        <HandoverForm onSave={handleCreateHandover} assets={assets} prefillData={prefillData} onUpdateAsset={onUpdateAsset} />
+                        <HandoverForm {...props} onSave={handleCreateHandover} />
                     </div>
                 </div>
             );
@@ -706,134 +654,99 @@ export const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handove
         return (
             <div className="p-4 sm:p-6 md:p-8">
                 <div className="flex flex-col items-start justify-between gap-4 mb-6 md:flex-row md:items-center">
-                    <h1 className="text-3xl font-bold text-tm-dark">Daftar Handover Barang</h1>
+                    <h1 className="text-3xl font-bold text-tm-dark">Daftar Handover Aset</h1>
                     <div className="flex items-center space-x-2">
-                        <button
-                            onClick={handleExport}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50"
-                        >
-                            <ExportIcon className="w-4 h-4"/>
-                            Export CSV
+                        <button onClick={() => exportToCSV(sortedHandovers, 'handover_aset.csv')} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border rounded-lg shadow-sm hover:bg-gray-50">
+                            <ExportIcon className="w-4 h-4"/> Export CSV
                         </button>
-                         <button
-                            onClick={() => handleSetView('form')}
-                            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent"
-                        >
+                        <button onClick={() => handleSetView('form')} className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover">
                             Buat Handover Baru
                         </button>
                     </div>
                 </div>
-                
-                {/* Toolbar */}
+
                 <div className="p-4 mb-4 bg-white border border-gray-200/80 rounded-xl shadow-md">
-                    <div className="flex flex-col w-full gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div className="flex flex-wrap items-center gap-4">
                         <div className="relative flex-grow">
-                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <SearchIcon className="w-5 h-5 text-gray-400" />
-                            </div>
-                            <input 
-                                type="text"
-                                placeholder="Cari ID, Nama Aset, Pengguna..."
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full h-10 py-2 pl-10 pr-10 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent"
-                            />
-                             {searchQuery && (
-                                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSearchQuery('')}
-                                        className="p-1 text-gray-400 rounded-full hover:bg-gray-200 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-tm-accent"
-                                        aria-label="Hapus pencarian"
-                                    >
-                                        <CloseIcon className="w-4 h-4" />
-                                    </button>
-                                </div>
+                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"><SearchIcon className="w-5 h-5 text-gray-400" /></div>
+                            <input type="text" placeholder="Cari ID, Pihak, Barang..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 py-2 pl-10 pr-4 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent" />
+                        </div>
+                        <div className="relative" ref={filterPanelRef}>
+                            <button
+                                onClick={() => { setTempFilters(filters); setIsFilterPanelOpen(p => !p); }}
+                                className="inline-flex items-center justify-center gap-2 w-full h-10 px-4 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border border-gray-300 rounded-lg shadow-sm sm:w-auto hover:bg-gray-50"
+                            >
+                                <FilterIcon className="w-4 h-4" /> <span>Filter</span> {activeFilterCount > 0 && <span className="px-2 py-0.5 text-xs font-bold text-white rounded-full bg-tm-primary">{activeFilterCount}</span>}
+                            </button>
+                            {isFilterPanelOpen && (
+                                <>
+                                    <div onClick={() => setIsFilterPanelOpen(false)} className="fixed inset-0 z-20 bg-black/25 sm:hidden" />
+                                    <div className="fixed top-32 inset-x-4 z-30 origin-top rounded-xl border border-gray-200 bg-white shadow-lg sm:absolute sm:top-full sm:inset-x-auto sm:right-0 sm:mt-2 sm:w-72">
+                                        <div className="flex items-center justify-between p-4 border-b">
+                                            <h3 className="text-lg font-semibold text-gray-800">Filter Handover</h3>
+                                            <button onClick={() => setIsFilterPanelOpen(false)} className="p-1 text-gray-400 rounded-full hover:bg-gray-100"><CloseIcon className="w-5 h-5"/></button>
+                                        </div>
+                                        <div className="p-4 space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                                                <div className="space-y-2">
+                                                    {statusOptions.map(opt => (
+                                                        <button key={opt.value} type="button" onClick={() => setTempFilters(f => ({ ...f, status: f.status === opt.value ? '' : opt.value }))}
+                                                            className={`w-full px-3 py-2 text-sm rounded-md border text-left transition-colors ${ tempFilters.status === opt.value ? 'bg-tm-primary border-tm-primary text-white font-semibold' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50' }`}>
+                                                            {opt.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-gray-50 border-t">
+                                            <button onClick={handleResetFilters} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Reset</button>
+                                            <button onClick={handleApplyFilters} className="px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">Terapkan</button>
+                                        </div>
+                                    </div>
+                                </>
                             )}
                         </div>
-                        
-                        <select onChange={e => setFilterStatus(e.target.value)} value={filterStatus} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg sm:w-auto focus:ring-tm-accent focus:border-tm-accent">
-                            <option value="">Semua Status</option>
-                            {Object.values(ItemStatus).filter(s => s !== ItemStatus.REJECTED && s !== ItemStatus.LOGISTIC_APPROVED && s !== ItemStatus.APPROVED).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        
-                        {isFiltering && (
-                            <button
-                                type="button"
-                                onClick={handleResetFilters}
-                                className="inline-flex items-center justify-center w-full h-10 px-4 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border border-gray-300 rounded-lg shadow-sm sm:w-auto sm:ml-auto hover:bg-red-50 hover:border-red-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-400"
-                            >
-                                Reset
-                            </button>
-                        )}
                     </div>
-
-                     {isFiltering && (
-                         <div className="pt-4 mt-4 border-t border-gray-200">
-                            <p className="text-sm text-gray-600">
-                                Menampilkan <span className="font-semibold text-tm-dark">{sortedHandovers.length}</span> dari <span className="font-semibold text-tm-dark">{handovers.length}</span> total handover yang cocok.
-                            </p>
-                         </div>
-                    )}
                 </div>
 
-                {isBulkSelectMode && (
-                     <div className="p-4 mb-4 bg-blue-50 border-l-4 border-tm-accent rounded-r-lg">
+                 {isBulkSelectMode && (
+                    <div className="p-4 mb-4 bg-blue-50 border-l-4 border-tm-accent rounded-r-lg">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            {selectedHandoverIds.length > 0 ? (
+                             {selectedHandoverIds.length > 0 ? (
                                 <div className="flex flex-wrap items-center gap-3">
                                     <span className="text-sm font-medium text-tm-primary">{selectedHandoverIds.length} item terpilih</span>
                                     <div className="h-5 border-l border-gray-300"></div>
                                     <button
                                         onClick={() => setBulkCompleteConfirmation(true)}
-                                        disabled={actionableCompleteCount === 0}
-                                        className="px-3 py-1.5 text-sm font-semibold text-green-600 bg-green-100 rounded-md hover:bg-green-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                        disabled={actionableCounts.completeCount === 0}
+                                        className="px-3 py-1.5 text-sm font-semibold text-success-text bg-success-light rounded-md hover:bg-green-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                                     >
-                                        Tandai Selesai {actionableCompleteCount > 0 ? `(${actionableCompleteCount})` : ''}
+                                        Selesaikan {actionableCounts.completeCount > 0 ? `(${actionableCounts.completeCount})` : ''}
                                     </button>
                                     <button
                                         onClick={() => setBulkDeleteConfirmation(true)}
-                                        className="px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-100 rounded-md hover:bg-red-200"
+                                        disabled={actionableCounts.deleteCount === 0}
+                                        className="px-3 py-1.5 text-sm font-semibold text-danger-text bg-danger-light rounded-md hover:bg-red-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                                     >
-                                        Hapus
+                                        Hapus {actionableCounts.deleteCount > 0 ? `(${actionableCounts.deleteCount})` : ''}
                                     </button>
                                 </div>
                             ) : (
-                                <span className="text-sm text-gray-500">Pilih item untuk memulai aksi massal.</span>
+                                <span className="text-sm text-gray-500">Pilih item untuk memulai aksi massal. Tekan tahan pada baris untuk memulai.</span>
                             )}
                             <button onClick={handleCancelBulkMode} className="px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
                                 Batal
                             </button>
                         </div>
-                     </div>
+                    </div>
                 )}
 
-
-                <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
+                <div className="overflow-hidden bg-white border border-gray-200/80 rounded-xl shadow-md">
                     <div className="overflow-x-auto custom-scrollbar">
-                        <HandoverTable 
-                            handovers={paginatedHandovers} 
-                            onDetailClick={handleShowDetails} 
-                            onDeleteClick={setHandoverToDeleteId}
-                            sortConfig={sortConfig}
-                            requestSort={requestSort}
-                            selectedHandoverIds={selectedHandoverIds}
-                            onSelectAll={handleSelectAll}
-                            onSelectOne={handleSelectOne}
-                            isBulkSelectMode={isBulkSelectMode}
-                            onEnterBulkMode={() => setIsBulkSelectMode(true)}
-                        />
+                        <HandoverTable handovers={paginatedHandovers} onDetailClick={handleShowDetails} onDeleteClick={setHandoverToDeleteId} sortConfig={sortConfig} requestSort={requestSort} selectedHandoverIds={selectedHandoverIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} isBulkSelectMode={isBulkSelectMode} onEnterBulkMode={() => setIsBulkSelectMode(true)} />
                     </div>
-                    <PaginationControls
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        totalItems={totalItems}
-                        itemsPerPage={itemsPerPage}
-                        onPageChange={setCurrentPage}
-                        onItemsPerPageChange={handleItemsPerPageChange}
-                        startIndex={startIndex}
-                        endIndex={endIndex}
-                    />
+                    <PaginationControls currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={size => { setItemsPerPage(size); setCurrentPage(1); }} startIndex={startIndex} endIndex={endIndex} />
                 </div>
             </div>
         );
@@ -844,126 +757,116 @@ export const ItemHandover: React.FC<ItemHandoverProps> = ({ currentUser, handove
             {renderContent()}
 
             {selectedHandover && (
-                <Modal
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
-                    title={`Detail Handover`}
-                    size="2xl"
+                 <Modal 
+                    isOpen={isDetailModalOpen} 
+                    onClose={() => setIsDetailModalOpen(false)} 
+                    title="" 
+                    size="3xl"
+                    disableContentPadding
                 >
-                    <div className="mb-4 space-y-2 text-center">
-                        <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                        <p className="font-semibold text-tm-secondary">BERITA ACARA SERAH TERIMA BARANG (HANDOVER)</p>
-                    </div>
+                    <div className="p-6">
+                        <Letterhead />
+                        <div className="text-center mb-6">
+                            <h3 className="text-xl font-bold uppercase text-tm-dark">Berita Acara Serah Terima Barang</h3>
+                            <p className="text-sm text-tm-secondary">Nomor: {selectedHandover.id}</p>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 py-4 my-4 text-sm border-t border-b border-gray-200 lg:grid-cols-3">
-                        <div><span className="font-semibold text-gray-600">No Dokumen:</span><span className="pl-2 text-gray-800">{selectedHandover.id}</span></div>
-                        <div><span className="font-semibold text-gray-600">No WO/RO/INT:</span><span className="pl-2 text-gray-800">{selectedHandover.woRoIntNumber}</span></div>
-                        <div><span className="font-semibold text-gray-600">Tanggal:</span><span className="pl-2 text-gray-800">{selectedHandover.handoverDate}</span></div>
-                    </div>
-                    
-                    <div className="overflow-auto custom-scrollbar max-h-[40vh]">
-                        <table className="min-w-full text-sm divide-y divide-gray-200">
-                            <thead className="bg-gray-50/50">
-                                <tr>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">No</th>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Nama Barang</th>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Type/Brand</th>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Keterangan</th>
-                                    <th className="px-4 py-2 font-semibold text-center text-gray-600">Jumlah</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {selectedHandover.items.map((item, index) => (
-                                    <tr key={item.id}>
-                                        <td className="px-4 py-2 text-gray-700">{index + 1}</td>
-                                        <td className="px-4 py-2 font-medium text-gray-800"><ClickableLink onClick={() => onShowPreview({ type: 'asset', id: item.assetId! })}>{item.itemName}</ClickableLink></td>
-                                        <td className="px-4 py-2 text-gray-700">{item.itemTypeBrand}</td>
-                                        <td className="px-4 py-2 text-gray-700">{item.conditionNotes}</td>
-                                        <td className="px-4 py-2 font-bold text-center text-tm-primary">{item.quantity}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div className="pt-8 mt-6 border-t border-gray-200">
-                        <div className="grid grid-cols-1 text-sm text-center gap-y-8 sm:grid-cols-3 sm:gap-x-4">
-                            <div>
-                                <p className="font-semibold text-gray-600">Menyerahkan</p>
-                                <div className="flex items-center justify-center mt-2 h-28">
-                                    <SignatureStamp signerName={selectedHandover.menyerahkan} signatureDate={selectedHandover.handoverDate} />
+                        <div className="space-y-6 text-sm">
+                            <section>
+                                <p className="mb-2 text-gray-800">Pada hari ini, tanggal {new Date(selectedHandover.handoverDate).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}, telah dilaksanakan serah terima barang internal dengan rincian sebagai berikut:</p>
+                                <dl className="grid grid-cols-2 gap-x-6 gap-y-2 p-3 bg-gray-50 border rounded-md">
+                                    <div><dt className="text-gray-500">Pihak Pertama (Yang Menyerahkan)</dt><dd className="font-medium text-gray-900"><ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedHandover.menyerahkan})}>{selectedHandover.menyerahkan}</ClickableLink></dd></div>
+                                    <div><dt className="text-gray-500">Pihak Kedua (Yang Menerima)</dt><dd className="font-medium text-gray-900"><ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedHandover.penerima})}>{selectedHandover.penerima}</ClickableLink></dd></div>
+                                </dl>
+                            </section>
+                            
+                            <section>
+                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">Rincian Barang</h4>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-100 text-xs uppercase text-gray-700">
+                                            <tr>
+                                                <th className="p-2 w-10">No.</th>
+                                                <th className="p-2">Nama Barang</th>
+                                                <th className="p-2">ID Aset</th>
+                                                <th className="p-2">Kondisi</th>
+                                                <th className="p-2 text-center">Jumlah</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedHandover.items.map((item, index) => (
+                                                <tr key={item.id} className="border-b">
+                                                    <td className="p-2 text-center text-gray-800">{index + 1}.</td>
+                                                    <td className="p-2 font-semibold text-gray-800">{item.itemName}</td>
+                                                    <td className="p-2 text-gray-600 font-mono">
+                                                        <ClickableLink onClick={() => onShowPreview({type: 'asset', id: item.assetId!})}>
+                                                            {item.assetId}
+                                                        </ClickableLink>
+                                                    </td>
+                                                    <td className="p-2 text-gray-600">{item.conditionNotes}</td>
+                                                    <td className="p-2 text-center font-medium text-gray-800">{item.quantity} unit</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div className="pt-1 mt-2 border-t border-gray-400">
-                                    <p className="text-gray-800">({selectedHandover.menyerahkan})</p>
+                            </section>
+
+                            <section className="pt-6">
+                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-6">Persetujuan</h4>
+                                <p className="text-xs text-center text-gray-500 mb-6">Demikian Berita Acara ini dibuat untuk dipergunakan sebagaimana mestinya.</p>
+                                <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-3">
+                                    <div>
+                                        <p className="font-semibold text-gray-600">Yang Menyerahkan,</p>
+                                        <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.menyerahkan} signatureDate={selectedHandover.handoverDate} /></div>
+                                        <div className="pt-1 mt-2"><p className="text-gray-800">({selectedHandover.menyerahkan})</p></div>
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-600">Penerima,</p>
+                                        <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.penerima} signatureDate={selectedHandover.handoverDate} /></div>
+                                        <div className="pt-1 mt-2"><p className="text-gray-800">({selectedHandover.penerima})</p></div>
+                                    </div>
+                                     <div>
+                                        <p className="font-semibold text-gray-600">Mengetahui,</p>
+                                        <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.mengetahui} signatureDate={selectedHandover.handoverDate} /></div>
+                                        <div className="pt-1 mt-2"><p className="text-gray-800">({selectedHandover.mengetahui})</p></div>
+                                    </div>
                                 </div>
-                            </div>
-                             <div>
-                                <p className="font-semibold text-gray-600">Penerima</p>
-                                <div className="flex items-center justify-center mt-2 h-28">
-                                    <SignatureStamp signerName={selectedHandover.penerima} signatureDate={selectedHandover.handoverDate} />
-                                </div>
-                                <div className="pt-1 mt-2 border-t border-gray-400">
-                                    <p className="text-gray-800">({selectedHandover.penerima})</p>
-                                </div>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-gray-600">Mengetahui</p>
-                                 <div className="flex items-center justify-center mt-2 h-28">
-                                    <SignatureStamp signerName={selectedHandover.mengetahui} signatureDate={selectedHandover.handoverDate} />
-                                </div>
-                                <div className="pt-1 mt-2 border-t border-gray-400">
-                                    <p className="text-gray-800">({selectedHandover.mengetahui})</p>
-                                </div>
-                            </div>
+                            </section>
                         </div>
                     </div>
                 </Modal>
             )}
-            
-            {handoverToDeleteId && (
-                <Modal isOpen={!!handoverToDeleteId} onClose={() => setHandoverToDeleteId(null)} title="Konfirmasi Hapus" size="md" hideDefaultCloseButton>
-                     <div className="text-center">
-                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
-                            <ExclamationTriangleIcon className="w-8 h-8" />
-                        </div>
-                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Handover?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data handover <span className="font-bold">{handoverToDeleteId}</span>?</p>
-                    </div>
-                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                        <button onClick={() => setHandoverToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                        <button type="button" onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus</button>
-                    </div>
-                </Modal>
-            )}
 
-            {bulkDeleteConfirmation && (
-                 <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal" size="md" hideDefaultCloseButton>
-                    <div className="text-center">
-                        <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
-                            <ExclamationTriangleIcon className="w-8 h-8" />
-                        </div>
-                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {selectedHandoverIds.length} Handover?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus semua data handover yang dipilih? Tindakan ini tidak dapat diurungkan.</p>
-                    </div>
-                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                        <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                        <button type="button" onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Hapus ({selectedHandoverIds.length})</button>
-                    </div>
-                </Modal>
-            )}
+            <Modal isOpen={!!handoverToDeleteId} onClose={() => setHandoverToDeleteId(null)} title="Konfirmasi Hapus" hideDefaultCloseButton>
+                <div className="text-center">
+                    <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-red-500" />
+                    <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Handover?</h3>
+                    <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data handover <strong>{handoverToDeleteId}</strong>? Tindakan ini tidak dapat diurungkan.</p>
+                </div>
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                    <button onClick={() => setHandoverToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                    <button onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus</button>
+                </div>
+            </Modal>
 
-             {bulkCompleteConfirmation && (
-                 <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesai Massal" size="md" hideDefaultCloseButton>
-                    <div className="text-center">
-                        <h3 className="text-lg font-semibold text-gray-800">Tandai {actionableCompleteCount} Handover Selesai?</h3>
-                        <p className="mt-2 text-sm text-gray-600">Anda akan mengubah status handover yang dipilih menjadi 'Selesai'. Lanjutkan?</p>
-                    </div>
-                    <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                        <button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                        <button type="button" onClick={handleBulkComplete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}Ya, Tandai Selesai ({actionableCompleteCount})</button>
-                    </div>
-                </Modal>
-            )}
+            <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal">
+                 <p>Anda yakin ingin menghapus {selectedHandoverIds.length} data handover yang dipilih? Aksi ini tidak dapat diurungkan.</p>
+                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                    <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                    <button onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus ({selectedHandoverIds.length})</button>
+                </div>
+            </Modal>
+
+            <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesaikan Massal">
+                 <p>Anda akan menyelesaikan {actionableCounts.completeCount} dari {selectedHandoverIds.length} handover yang dipilih. Lanjutkan?</p>
+                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                    <button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                    <button onClick={handleBulkComplete} disabled={isLoading || actionableCounts.completeCount === 0} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Selesaikan ({actionableCounts.completeCount})</button>
+                </div>
+            </Modal>
         </>
     );
 };
+
+export default ItemHandover;

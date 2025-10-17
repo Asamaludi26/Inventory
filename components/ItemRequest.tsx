@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-// FIX: Import PreviewData from the central types file.
-import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData } from '../types';
+import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page } from '../types';
 import Modal from './shared/Modal';
 import { CloseIcon } from './icons/CloseIcon';
 import DatePicker from './shared/DatePicker';
@@ -27,6 +26,14 @@ import { RegisterIcon } from './icons/RegisterIcon';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
 import { Tooltip } from './shared/Tooltip';
 import { ClickableLink } from './shared/ClickableLink';
+import { CustomSelect } from './shared/CustomSelect';
+import { FilterIcon } from './icons/FilterIcon';
+import { RequestIcon } from './icons/RequestIcon';
+import { CheckIcon } from './icons/CheckIcon';
+import { ShoppingCartIcon } from './icons/ShoppingCartIcon';
+import { TruckIcon } from './icons/TruckIcon';
+import { ArchiveBoxIcon } from './icons/ArchiveBoxIcon';
+import { Letterhead } from './shared/Letterhead';
 
 
 interface ItemRequestProps {
@@ -34,107 +41,23 @@ interface ItemRequestProps {
     requests: Request[];
     setRequests: React.Dispatch<React.SetStateAction<Request[]>>;
     assets: Asset[];
-    onInitiateRegistration: (request: Request) => void;
+    assetCategories: AssetCategory[];
+    divisions: Division[];
+    onInitiateRegistration: (request: Request, itemToRegister: RequestItem) => void;
     initialFilters?: any;
     onClearInitialFilters: () => void;
     onShowPreview: (data: PreviewData) => void;
+    openModelModal: (category: AssetCategory, type: AssetType, onModelAdded: (model: StandardItem) => void) => void;
+    openTypeModal: (category: AssetCategory, typeToEdit: AssetType | null, onTypeAdded: (type: AssetType) => void) => void;
+    setActivePage: (page: Page, initialState?: any) => void;
 }
 
-export const initialMockRequests: Request[] = Array.from({ length: 120 }, (_, i) => {
-    const userPool = ['Evan Davis', 'Diana Miller', 'Charlie Brown', 'Bob Williams', 'Ivy Martinez', 'Grace Lee', 'Henry Wilson', 'Jack Taylor', 'Andi Susanto', 'Budi Wijaya', 'Citra Lestari'];
-    const divisionPool = ['NOC', 'Marketing', 'Engineer', 'Inventori', 'Finance', 'Sales'];
-    const itemPool = [
-        { name: 'Laptop Dell XPS 15', brand: 'Dell', stock: 5 },
-        { name: 'Access Point U6 Lite', brand: 'Ubiquiti', stock: 20 },
-        { name: 'Optical Power Meter', brand: 'Joinwit', stock: 15 },
-        { name: 'Monitor 27" LG', brand: 'LG', stock: 10 },
-        { name: 'ONT HG8245H', brand: 'Huawei', stock: 50 },
-        { name: 'Kabel UTP 305m', brand: 'Belden', stock: 8 },
-        { name: 'Router Core RB4011', brand: 'Mikrotik', stock: 3 },
-        { name: 'Patch Cord SC-UPC 3m', brand: 'Generic', stock: 100 },
-        { name: 'HTB 3100 A/B', brand: 'Netlink', stock: 40 },
-        { name: 'IP Phone GXP1625', brand: 'Grandstream', stock: 12 },
-    ];
-    const keteranganPool = [
-        'Kebutuhan project perluasan jaringan area Bintaro',
-        'Penggantian perangkat ONT lama di pelanggan',
-        'Stok untuk tim instalasi lapangan',
-        'Instalasi pelanggan korporat baru PT. ABC',
-        'Penambahan kapasitas pada core router utama',
-        'Untuk keperluan demo produk ke klien',
-        'Perbaikan perangkat OLT yang rusak di POP Cempaka Putih',
-        'Stok gudang menipis, perlu pengadaan rutin',
-        'Kebutuhan untuk event pameran teknologi',
-        'Upgrade perangkat access point di kantor internal',
-    ];
-    const statuses = [ItemStatus.APPROVED, ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.REJECTED, ItemStatus.COMPLETED, ItemStatus.PENDING, ItemStatus.APPROVED];
-    
-    const status = statuses[i % statuses.length];
-    const requester = userPool[i % userPool.length];
-    const division = divisionPool[i % divisionPool.length];
-    const requestDate = new Date(2024, 7, 15 - (i % 30)).toISOString().split('T')[0];
-    
-    const numItems = (i % 5 === 0) ? Math.floor(Math.random() * 2) + 2 : 1;
-    const items: RequestItem[] = [];
-    for (let j = 0; j < numItems; j++) {
-        const selectedItem = itemPool[(i + j) % itemPool.length];
-        const quantity = Math.floor(Math.random() * 5) + 1;
-        items.push({
-            id: j + 1,
-            itemName: selectedItem.name,
-            itemTypeBrand: selectedItem.brand,
-            stock: selectedItem.stock,
-            quantity,
-            keterangan: keteranganPool[(i + j) % keteranganPool.length],
-        });
-    }
-
-    const request: Request = {
-        id: `REQ-${String(120 - i).padStart(3, '0')}`,
-        requester,
-        division,
-        requestDate,
-        status,
-        order: ['Regular Stock', 'Urgent', 'Project Based'][i % 3],
-        lembar: ['1. Logistic', '2. Divisi', '3. Purchase'][i % 3] as any,
-        items,
-        logisticApprover: null,
-        logisticApprovalDate: null,
-        finalApprover: null,
-        finalApprovalDate: null,
-        rejectionReason: null,
-        rejectedBy: null,
-        rejectionDate: null,
-        rejectedByDivision: null,
-        isRegistered: false,
-    };
-
-    if (status === ItemStatus.LOGISTIC_APPROVED || status === ItemStatus.APPROVED || status === ItemStatus.COMPLETED) {
-        request.logisticApprover = 'Alice Johnson';
-        request.logisticApprovalDate = new Date(new Date(requestDate).getTime() + 86400000).toISOString().split('T')[0];
-    }
-    if (status === ItemStatus.APPROVED || status === ItemStatus.COMPLETED) {
-        request.finalApprover = 'John Doe';
-        request.finalApprovalDate = new Date(new Date(request.logisticApprovalDate!).getTime() + 86400000).toISOString().split('T')[0];
-    }
-    if (status === ItemStatus.COMPLETED) {
-        request.isRegistered = true;
-    }
-    if (status === ItemStatus.REJECTED) {
-        request.rejectedBy = 'Alice Johnson';
-        request.rejectionDate = new Date(new Date(requestDate).getTime() + 86400000).toISOString().split('T')[0];
-        request.rejectionReason = 'Stok tidak mencukupi untuk permintaan saat ini.';
-        request.rejectedByDivision = 'Divisi Inventori';
-    }
-
-    return request;
-});
-
-
-// FIX: Export getStatusClass to be used in other components.
 export const getStatusClass = (status: ItemStatus) => {
     switch (status) {
         case ItemStatus.APPROVED: return 'bg-success-light text-success-text';
+        case ItemStatus.PURCHASING: return 'bg-blue-200 text-blue-800';
+        case ItemStatus.IN_DELIVERY: return 'bg-purple-200 text-purple-800';
+        case ItemStatus.ARRIVED: return 'bg-green-300 text-green-900 font-semibold';
         case ItemStatus.COMPLETED: return 'bg-gray-200 text-gray-800';
         case ItemStatus.LOGISTIC_APPROVED: return 'bg-info-light text-info-text';
         case ItemStatus.PENDING: return 'bg-warning-light text-warning-text';
@@ -173,6 +96,7 @@ interface RequestTableProps {
     requests: Request[];
     onDetailClick: (request: Request) => void;
     onDeleteClick: (id: string) => void;
+    onOpenStaging: (request: Request) => void;
     sortConfig: SortConfig<Request> | null;
     requestSort: (key: keyof Request) => void;
     selectedRequestIds: string[];
@@ -182,7 +106,27 @@ interface RequestTableProps {
     onEnterBulkMode: () => void;
 }
 
-const RequestTable: React.FC<RequestTableProps> = ({ requests, onDetailClick, onDeleteClick, sortConfig, requestSort, selectedRequestIds, onSelectOne, onSelectAll, isBulkSelectMode, onEnterBulkMode }) => {
+const OrderIndicator: React.FC<{ order: string }> = ({ order }) => {
+    const details = useMemo(() => {
+        switch (order) {
+            case 'Urgent':
+                return { color: 'bg-danger', ringColor: 'ring-danger/30', tooltip: 'Urgent' };
+            case 'Project Based':
+                return { color: 'bg-info', ringColor: 'ring-info/30', tooltip: 'Project Based' };
+            case 'Regular Stock':
+            default:
+                return { color: 'bg-gray-400', ringColor: 'ring-gray-400/30', tooltip: 'Regular Stock' };
+        }
+    }, [order]);
+
+    return (
+        <Tooltip text={details.tooltip} position="right">
+            <span className={`block w-2.5 h-2.5 rounded-full ${details.color} ring-2 ${details.ringColor}`}></span>
+        </Tooltip>
+    );
+};
+
+const RequestTable: React.FC<RequestTableProps> = ({ requests, onDetailClick, onDeleteClick, onOpenStaging, sortConfig, requestSort, selectedRequestIds, onSelectOne, onSelectAll, isBulkSelectMode, onEnterBulkMode }) => {
     const longPressHandlers = useLongPress(onEnterBulkMode, 500);
 
     const handleRowClick = (req: Request) => {
@@ -233,11 +177,16 @@ const RequestTable: React.FC<RequestTableProps> = ({ requests, onDetailClick, on
                                     />
                                 </td>
                             )}
-                            <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-semibold text-gray-900">{req.id}</div>
-                                <div className="text-xs text-gray-500">{req.requestDate}</div>
+                            <td className="px-6 py-4 lg:whitespace-nowrap">
+                                <div className="flex items-center gap-3">
+                                    <OrderIndicator order={req.order} />
+                                    <div>
+                                        <div id={`request-id-${req.id}`} className="text-sm font-semibold text-gray-900">{req.id}</div>
+                                        <div className="text-xs text-gray-500">{req.requestDate}</div>
+                                    </div>
+                                </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-6 py-4 lg:whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">{req.requester}</div>
                                 <div className="text-xs text-gray-500">{req.division}</div>
                             </td>
@@ -249,20 +198,31 @@ const RequestTable: React.FC<RequestTableProps> = ({ requests, onDetailClick, on
                                     {req.items[0]?.itemName}{req.items.length > 1 ? ', ...' : ''}
                                 </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-6 py-4 lg:whitespace-nowrap">
                                 <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(req.status)}`}>
                                     {req.status}
                                 </span>
                             </td>
-                            <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
+                            <td className="px-6 py-4 text-sm font-medium text-right lg:whitespace-nowrap">
                                 <div className="flex items-center justify-end space-x-2">
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); onDetailClick(req); }}
-                                        className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-info-light hover:text-info-text"
-                                        title="Lihat Detail"
-                                    >
-                                      <EyeIcon className="w-5 h-5"/>
-                                    </button>
+                                    {req.status === ItemStatus.ARRIVED && !req.isRegistered ? (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onOpenStaging(req); }}
+                                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
+                                            title="Catat sebagai Aset"
+                                        >
+                                          <RegisterIcon className="w-4 h-4"/>
+                                          <span>Catat Aset</span>
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onDetailClick(req); }}
+                                            className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-info-light hover:text-info-text"
+                                            title="Lihat Detail"
+                                        >
+                                          <EyeIcon className="w-5 h-5"/>
+                                        </button>
+                                    )}
                                     <button onClick={(e) => { e.stopPropagation(); onDeleteClick(req.id); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-danger-light hover:text-danger-text" title="Hapus">
                                       <TrashIcon className="w-5 h-5"/>
                                     </button>
@@ -286,37 +246,67 @@ const RequestTable: React.FC<RequestTableProps> = ({ requests, onDetailClick, on
     );
 };
 
-type RequestItemForm = Omit<RequestItem, 'id'> & { id: number };
+type RequestItemForm = Omit<RequestItem, 'id'> & { 
+    id: number;
+    categoryId: string;
+    typeId: string;
+};
 
 const RequestForm: React.FC<{ 
     currentUser: User; 
     assets: Asset[];
+    assetCategories: AssetCategory[];
+    divisions: Division[];
     onCreateRequest: (data: Omit<Request, 'id' | 'status' | 'logisticApprover' | 'logisticApprovalDate' | 'finalApprover' | 'finalApprovalDate' | 'rejectionReason' | 'rejectedBy' | 'rejectionDate' | 'rejectedByDivision'>) => void;
     prefillItem: { name: string; brand: string } | null;
-}> = ({ currentUser, assets, onCreateRequest, prefillItem }) => {
+    openModelModal: (category: AssetCategory, type: AssetType, onModelAdded: (model: StandardItem) => void) => void;
+    openTypeModal: (category: AssetCategory, typeToEdit: AssetType | null, onTypeAdded: (type: AssetType) => void) => void;
+    setActivePage: (page: Page, initialState?: any) => void;
+}> = ({ currentUser, assets, assetCategories, divisions, onCreateRequest, prefillItem, openModelModal, openTypeModal, setActivePage }) => {
     const [requestDate, setRequestDate] = useState<Date | null>(new Date());
     const [requesterName, setRequesterName] = useState(currentUser.name);
     const [requesterDivision, setRequesterDivision] = useState('');
-    const [order, setOrder] = useState('');
+    const [order, setOrder] = useState('Regular Stock');
     const [lembar, setLembar] = useState<'1. Logistic' | '2. Divisi' | '3. Purchase'>('1. Logistic');
     const [items, setItems] = useState<RequestItemForm[]>([
-        { id: Date.now(), itemName: '', itemTypeBrand: '', stock: 0, quantity: 1, keterangan: '' }
+        { id: Date.now(), categoryId: '', typeId: '', itemName: '', itemTypeBrand: '', stock: 0, quantity: 1, keterangan: '' }
     ]);
     const [isFooterVisible, setIsFooterVisible] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const footerRef = useRef<HTMLDivElement>(null);
     
+    const orderOptions = [
+        { value: 'Regular Stock', label: 'Regular Stock', indicator: <OrderIndicator order="Regular Stock" /> },
+        { value: 'Urgent', label: 'Urgent', indicator: <OrderIndicator order="Urgent" /> },
+        { value: 'Project Based', label: 'Project Based', indicator: <OrderIndicator order="Project Based" /> },
+    ];
+    
+    const lembarOptions = [
+        { value: '1. Logistic', label: '1. Logistic' },
+        { value: '2. Divisi', label: '2. Divisi' },
+        { value: '3. Purchase', label: '3. Purchase' },
+    ];
+
     const formId = "item-request-form";
 
-    const availableAssets = useMemo(() => assets.filter(asset => asset.status === AssetStatus.IN_STORAGE), [assets]);
-    const uniqueAvailableAssetNames = useMemo(() => [...new Set(availableAssets.map(asset => asset.name))], [availableAssets]);
+    useEffect(() => {
+        const userDivision = divisions.find(d => d.id === currentUser.divisionId);
+        if (userDivision) {
+            setRequesterDivision(userDivision.name);
+        }
+    }, [currentUser, divisions]);
 
     useEffect(() => {
         if (prefillItem) {
             const stock = assets.filter(asset => asset.name === prefillItem.name && asset.status === AssetStatus.IN_STORAGE).length;
+            const category = assetCategories.find(c => c.types.some(t => t.standardItems?.some(si => si.name === prefillItem?.name)));
+            const type = category?.types.find(t => t.standardItems?.some(si => si.name === prefillItem?.name));
+            
             setItems([
                 {
                     id: Date.now(),
+                    categoryId: category?.id.toString() || '',
+                    typeId: type?.id.toString() || '',
                     itemName: prefillItem.name,
                     itemTypeBrand: prefillItem.brand,
                     stock: stock,
@@ -325,7 +315,7 @@ const RequestForm: React.FC<{
                 }
             ]);
         }
-    }, [prefillItem, assets]);
+    }, [prefillItem, assets, assetCategories]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -348,7 +338,7 @@ const RequestForm: React.FC<{
     }, []);
 
     const handleAddItem = () => {
-        setItems([...items, { id: Date.now(), itemName: '', itemTypeBrand: '', stock: 0, quantity: 1, keterangan: '' }]);
+        setItems([...items, { id: Date.now(), categoryId: '', typeId: '', itemName: '', itemTypeBrand: '', stock: 0, quantity: 1, keterangan: '' }]);
     };
 
     const handleRemoveItem = (id: number) => {
@@ -357,40 +347,35 @@ const RequestForm: React.FC<{
         }
     };
 
-    const handleItemChange = (id: number, field: keyof RequestItem, value: string | number) => {
+    const handleItemChange = (id: number, field: keyof RequestItemForm, value: string | number) => {
         setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
     };
 
-    const handleAssetSelection = (id: number, selectedAssetName: string) => {
-        const selectedAsset = availableAssets.find(asset => asset.name === selectedAssetName);
-        
-        let newName = selectedAssetName;
-        let newBrand = '';
-        let newStock = 0;
+    const handleCategoryChange = (id: number, categoryId: string) => {
+        setItems(items.map(item => item.id === id ? { ...item, categoryId, typeId: '', itemName: '', itemTypeBrand: '', stock: 0 } : item));
+    };
 
-        if (selectedAsset) {
-            newBrand = selectedAsset.brand;
-            newStock = assets.filter(asset => asset.name === selectedAssetName && asset.status === AssetStatus.IN_STORAGE).length;
-        }
+    const handleTypeChange = (id: number, typeId: string) => {
+         setItems(items.map(item => item.id === id ? { ...item, typeId, itemName: '', itemTypeBrand: '', stock: 0 } : item));
+    };
 
-        setItems(items.map(item => 
-            item.id === id 
-            ? { ...item, itemName: newName, itemTypeBrand: newBrand, stock: newStock } 
-            : item
-        ));
+    const handleModelChange = (id: number, model: StandardItem) => {
+        const stock = assets.filter(asset => asset.name === model.name && asset.status === AssetStatus.IN_STORAGE).length;
+        setItems(items.map(item => item.id === id ? { ...item, itemName: model.name, itemTypeBrand: model.brand, stock } : item));
     };
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         setTimeout(() => { // Simulate API call
+            const finalItems = items.map(({ categoryId, typeId, ...rest }) => rest);
             onCreateRequest({
                 requester: requesterName,
                 division: requesterDivision,
                 requestDate: requestDate ? requestDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                 order,
                 lembar,
-                items: items,
+                items: finalItems,
             });
             setIsSubmitting(false);
         }, 1000);
@@ -436,9 +421,8 @@ const RequestForm: React.FC<{
                             type="text" 
                             id="requesterName" 
                             value={requesterName}
-                            onChange={(e) => setRequesterName(e.target.value)}
-                            className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-500 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" 
-                            placeholder="Nama lengkap Anda" 
+                            readOnly
+                            className="block w-full px-3 py-2 mt-1 text-gray-700 placeholder:text-gray-500 bg-gray-100 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" 
                         />
                     </div>
                     <div>
@@ -448,41 +432,38 @@ const RequestForm: React.FC<{
                             id="division" 
                             value={requesterDivision}
                             onChange={(e) => setRequesterDivision(e.target.value)}
-                            className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-500 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" 
+                            readOnly={!!currentUser.divisionId}
+                            className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-500 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm read-only:bg-gray-100 read-only:text-gray-700" 
                             placeholder="Contoh: IT, Marketing" 
                         />
                     </div>
                      <div>
                         <label htmlFor="docNumber" className="block text-sm font-medium text-gray-700">No Dokumen</label>
-                        <input type="text" id="docNumber" readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm" value="[Otomatis]" />
+                        <input type="text" id="docNumber" readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" value="[Otomatis]" />
                     </div>
                     <div>
                         <label htmlFor="requestNumber" className="block text-sm font-medium text-gray-700">No Request</label>
-                        <input type="text" id="requestNumber" readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm" value="[Otomatis]" />
+                        <input type="text" id="requestNumber" readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" value="[Otomatis]" />
                     </div>
                      <div>
                         <label htmlFor="order" className="block text-sm font-medium text-gray-700">Order</label>
-                        <input 
-                            type="text" 
-                            id="order" 
-                            value={order}
-                            onChange={(e) => setOrder(e.target.value)}
-                            className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-500 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" 
-                            placeholder="Jenis pesanan" 
-                        />
+                        <div className="mt-1">
+                           <CustomSelect
+                                options={orderOptions}
+                                value={order}
+                                onChange={setOrder}
+                            />
+                        </div>
                     </div>
                      <div>
                         <label htmlFor="lembar" className="block text-sm font-medium text-gray-700">Lembar</label>
-                        <select 
-                            id="lembar"
-                            value={lembar}
-                            onChange={(e) => setLembar(e.target.value as any)}
-                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm"
-                        >
-                            <option value="1. Logistic">1. Logistic</option>
-                            <option value="2. Divisi">2. Divisi</option>
-                            <option value="3. Purchase">3. Purchase</option>
-                        </select>
+                        <div className="mt-1">
+                            <CustomSelect
+                                options={lembarOptions}
+                                value={lembar}
+                                onChange={(newValue) => setLembar(newValue as any)}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -490,62 +471,109 @@ const RequestForm: React.FC<{
             {/* Item Details */}
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-tm-dark">Detail Permintaan Barang</h3>
-                <button type="button" onClick={handleAddItem} className="px-3 py-1 text-sm font-semibold text-white transition-colors duration-200 rounded-md shadow-sm bg-tm-accent hover:bg-tm-primary">+ Tambah Item</button>
+                <button type="button" onClick={handleAddItem} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-accent hover:bg-tm-primary">
+                    Tambah Item
+                </button>
             </div>
 
-            <div className="space-y-4">
-                {items.map((item, index) => (
-                    <div key={item.id} className="relative grid grid-cols-1 gap-4 p-4 border border-gray-200 rounded-lg md:grid-cols-8 lg:grid-cols-12">
-                        <div className="md:col-span-4 lg:col-span-3">
-                            <label htmlFor={`itemName-${item.id}`} className="block text-sm font-medium text-gray-700">Nama Barang</label>
-                            <select 
-                            id={`itemName-${item.id}`} 
-                            value={item.itemName} 
-                            onChange={(e) => handleAssetSelection(item.id, e.target.value)} 
-                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm"
-                            >
-                                <option value="">-- Pilih Barang dari Stok --</option>
-                                {uniqueAvailableAssetNames.map(name => <option key={name} value={name}>{name}</option>)}
-                            </select>
-                        </div>
-                        <div className="md:col-span-4 lg:col-span-3">
-                            <label htmlFor={`itemTypeBrand-${item.id}`} className="block text-sm font-medium text-gray-700">Type / Brand</label>
-                            <input 
-                            type="text" 
-                            id={`itemTypeBrand-${item.id}`} 
-                            value={item.itemTypeBrand} 
-                            readOnly 
-                            className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm" 
-                            placeholder="Otomatis" 
-                            />
-                        </div>
-                        <div className="md:col-span-2 lg:col-span-1">
-                            <label htmlFor={`stock-${item.id}`} className="block text-sm font-medium text-gray-700">Stok</label>
-                            <input 
-                                type="number" 
-                                id={`stock-${item.id}`} 
-                                value={item.stock} 
-                                readOnly 
-                                className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-md shadow-sm sm:text-sm" 
-                            />
-                        </div>
-                        <div className="md:col-span-2 lg:col-span-1">
-                            <label htmlFor={`quantity-${item.id}`} className="block text-sm font-medium text-gray-700">Req</label>
-                            <input type="number" id={`quantity-${item.id}`} value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', parseInt(e.target.value))} min="1" className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-500 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" />
-                        </div>
-                        <div className="md:col-span-4 lg:col-span-4">
-                            <label htmlFor={`keterangan-${item.id}`} className="block text-sm font-medium text-gray-700">Keterangan</label>
-                            <input type="text" id={`keterangan-${item.id}`} value={item.keterangan} onChange={(e) => handleItemChange(item.id, 'keterangan', e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-500 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Jelaskan kebutuhan" />
-                        </div>
-                        {items.length > 1 && (
-                            <div className="absolute top-2 right-2">
-                                <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-500">
-                                    <CloseIcon className="w-5 h-5"/>
-                                </button>
+            <div className="space-y-6">
+                {items.map((item, index) => {
+                    const categoryOptions = assetCategories.map(c => ({ value: c.id.toString(), label: c.name }));
+                    const selectedCategory = assetCategories.find(c => c.id.toString() === item.categoryId);
+                    const availableTypes = selectedCategory?.types || [];
+                    const typeOptions = availableTypes.map(t => ({ value: t.id.toString(), label: t.name }));
+                    const selectedType = availableTypes.find(t => t.id.toString() === item.typeId);
+                    const availableModels = selectedType?.standardItems || [];
+                    const modelOptions = availableModels.map(m => ({ value: m.name, label: m.name }));
+                    const unitOfMeasure = selectedType?.unitOfMeasure || 'unit';
+
+                    return (
+                        <div key={item.id} className="relative p-5 pt-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                             <div className="absolute flex items-center justify-center w-8 h-8 font-bold text-white rounded-full -top-4 -left-4 bg-tm-primary">
+                                {index + 1}
                             </div>
-                        )}
-                    </div>
-                ))}
+                            {items.length > 1 && (
+                                <div className="absolute top-2 right-2">
+                                    <button type="button" onClick={() => handleRemoveItem(item.id)} className="flex items-center justify-center w-8 h-8 text-gray-400 transition-colors rounded-full hover:bg-red-100 hover:text-red-500">
+                                        <TrashIcon className="w-5 h-5"/>
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-12">
+                                <div className="md:col-span-4">
+                                    <label className="block text-sm font-medium text-gray-600">Kategori</label>
+                                    <CustomSelect 
+                                        options={categoryOptions} 
+                                        value={item.categoryId} 
+                                        onChange={(value) => handleCategoryChange(item.id, value)} 
+                                        placeholder="-- Pilih Kategori --"
+                                        emptyStateMessage="Belum ada kategori."
+                                        emptyStateButtonLabel="Buka Pengaturan Kategori"
+                                        onEmptyStateClick={() => setActivePage('kategori')}
+                                    />
+                                </div>
+                                <div className="md:col-span-4">
+                                    <label className="block text-sm font-medium text-gray-600">Tipe Aset</label>
+                                    <CustomSelect 
+                                        options={typeOptions} 
+                                        value={item.typeId} 
+                                        onChange={(value) => handleTypeChange(item.id, value)} 
+                                        placeholder="-- Pilih Tipe --" 
+                                        disabled={!item.categoryId}
+                                        emptyStateMessage="Tidak ada tipe untuk kategori ini."
+                                        emptyStateButtonLabel="Tambah Tipe Aset"
+                                        onEmptyStateClick={() => {
+                                            if (selectedCategory) {
+                                                openTypeModal(selectedCategory, null, (newType) => {
+                                                    handleTypeChange(item.id, newType.id.toString());
+                                                });
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="md:col-span-4">
+                                    <label className="block text-sm font-medium text-gray-600">Model Barang Standar</label>
+                                    <CustomSelect
+                                        options={modelOptions}
+                                        value={item.itemName}
+                                        onChange={(value) => {
+                                            const model = availableModels.find(m => m.name === value);
+                                            if (model) handleModelChange(item.id, model);
+                                        }}
+                                        placeholder="-- Pilih Model --"
+                                        disabled={!item.typeId}
+                                        emptyStateMessage="Tidak ada model untuk tipe ini."
+                                        emptyStateButtonLabel="Tambah Model Barang"
+                                        onEmptyStateClick={() => {
+                                            if (selectedCategory && selectedType) {
+                                                openModelModal(selectedCategory, selectedType, (newModel) => {
+                                                    handleModelChange(item.id, newModel);
+                                                });
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="md:col-span-4">
+                                    <label className="block text-sm font-medium text-gray-600">Brand</label>
+                                    <input type="text" value={item.itemTypeBrand} readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" placeholder="Otomatis" />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-600">Stok Gudang</label>
+                                    <input type="number" value={item.stock} readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-600">Jumlah Req ({unitOfMeasure})</label>
+                                    <input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', parseInt(e.target.value))} min="1" className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm" />
+                                </div>
+                                <div className="md:col-span-4">
+                                    <label className="block text-sm font-medium text-gray-600">Keterangan</label>
+                                    <input type="text" value={item.keterangan} onChange={(e) => handleItemChange(item.id, 'keterangan', e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm" placeholder="Jelaskan kebutuhan" />
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Signature Section */}
@@ -591,11 +619,14 @@ const RequestForm: React.FC<{
     </>
 )};
 
-const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setRequests, assets, onInitiateRegistration, initialFilters, onClearInitialFilters, onShowPreview }) => {
+const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setRequests, assets, assetCategories, divisions, onInitiateRegistration, initialFilters, onClearInitialFilters, onShowPreview, openModelModal, openTypeModal, setActivePage }) => {
     const [view, setView] = useState<'list' | 'form'>('list');
     const [itemToPrefill, setItemToPrefill] = useState<{ name: string; brand: string } | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
+    const [isProcurementModalOpen, setIsProcurementModalOpen] = useState(false);
+    const [stagingRequest, setStagingRequest] = useState<Request | null>(null);
+    const [estimatedDelivery, setEstimatedDelivery] = useState<Date | null>(new Date());
     const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
     const [rejectionReason, setRejectionReason] = useState('');
     const [requestToDeleteId, setRequestToDeleteId] = useState<string | null>(null);
@@ -610,17 +641,36 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
     const [bulkRejectionReason, setBulkRejectionReason] = useState('');
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
+    const initialFilterState = { status: '' };
+    const [filters, setFilters] = useState(initialFilterState);
+    const [tempFilters, setTempFilters] = useState(filters);
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+    const filterPanelRef = useRef<HTMLDivElement>(null);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const addNotification = useNotification();
+    
+    const statusOptions = [
+        { value: 'awaiting-approval', label: 'Perlu Persetujuan' },
+        ...Object.values(ItemStatus).map(s => ({ value: s, label: s }))
+    ];
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (filterPanelRef.current && !filterPanelRef.current.contains(event.target as Node)) {
+                setIsFilterPanelOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => { document.removeEventListener("mousedown", handleClickOutside); };
+    }, [filterPanelRef]);
 
     useEffect(() => {
         if (initialFilters) {
             if (initialFilters.status) {
-                setFilterStatus(initialFilters.status);
+                setFilters({ status: initialFilters.status });
             }
             if (initialFilters.prefillItem) {
                 setItemToPrefill(initialFilters.prefillItem);
@@ -630,14 +680,31 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
         }
     }, [initialFilters, onClearInitialFilters]);
 
+    useEffect(() => {
+        if (initialFilters?.reopenStagingModalFor) {
+            const requestId = initialFilters.reopenStagingModalFor;
+            const requestToReopen = requests.find(r => r.id === requestId);
+            // Hanya buka kembali jika requestnya belum selesai
+            if (requestToReopen && requestToReopen.status !== ItemStatus.COMPLETED) {
+                setStagingRequest(requestToReopen);
+            }
+            onClearInitialFilters();
+        }
+    }, [initialFilters, requests, onClearInitialFilters]);
 
-    const isFiltering = useMemo(() => {
-        return searchQuery.trim() !== '' || filterStatus !== '';
-    }, [searchQuery, filterStatus]);
+    const activeFilterCount = useMemo(() => {
+        return Object.values(filters).filter(Boolean).length;
+    }, [filters]);
 
     const handleResetFilters = () => {
-        setSearchQuery('');
-        setFilterStatus('');
+        setFilters(initialFilterState);
+        setTempFilters(initialFilterState);
+        setIsFilterPanelOpen(false);
+    };
+
+    const handleApplyFilters = () => {
+        setFilters(tempFilters);
+        setIsFilterPanelOpen(false);
     };
 
     const filteredRequests = useMemo(() => {
@@ -651,13 +718,13 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                 );
             })
             .filter(req => {
-                if (!filterStatus) return true;
-                if (filterStatus === 'awaiting-approval') {
+                if (!filters.status) return true;
+                if (filters.status === 'awaiting-approval') {
                     return [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(req.status);
                 }
-                return req.status === filterStatus;
+                return req.status === filters.status;
             });
-    }, [requests, searchQuery, filterStatus]);
+    }, [requests, searchQuery, filters]);
 
     const { items: sortedRequests, requestSort, sortConfig } = useSortableData(filteredRequests, { key: 'requestDate', direction: 'descending' });
 
@@ -669,7 +736,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, filterStatus, itemsPerPage]);
+    }, [searchQuery, filters, itemsPerPage]);
 
     const handleItemsPerPageChange = (newSize: number) => {
         setItemsPerPage(newSize);
@@ -739,14 +806,14 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
     };
 
     const handleOpenRejectionModal = () => {
-        setIsDetailModalOpen(false); // Close detail modal before opening rejection modal
+        setIsDetailModalOpen(false);
         setIsRejectionModalOpen(true);
     };
 
     const handleCloseRejectionModal = () => {
         setIsRejectionModalOpen(false);
         setRejectionReason('');
-        setSelectedRequest(null); // Clear selected request
+        setSelectedRequest(null);
     };
 
     const handleCreateRequest = (data: Omit<Request, 'id' | 'status' | 'logisticApprover' | 'logisticApprovalDate' | 'finalApprover' | 'finalApprovalDate' | 'rejectionReason' | 'rejectedBy' | 'rejectionDate' | 'rejectedByDivision'>) => {
@@ -772,28 +839,82 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
     const handleApproval = (requestId: string) => {
         setIsLoading(true);
         setTimeout(() => { // Simulate API Call
-            const today = new Date().toISOString();
+            const today = new Date().toISOString().split('T')[0];
             let approved = false;
+            let finalStatus: ItemStatus | null = null;
             setRequests(prevRequests =>
                 prevRequests.map(req => {
                     if (req.id === requestId) {
                         if (req.status === ItemStatus.PENDING && (currentUser.role === 'Admin' || currentUser.role === 'Super Admin')) {
                             approved = true;
+                            finalStatus = ItemStatus.LOGISTIC_APPROVED;
                             return { ...req, status: ItemStatus.LOGISTIC_APPROVED, logisticApprover: currentUser.name, logisticApprovalDate: today };
                         }
                         if (req.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Super Admin') {
                             approved = true;
+                            finalStatus = ItemStatus.APPROVED;
                             return { ...req, status: ItemStatus.APPROVED, finalApprover: currentUser.name, finalApprovalDate: today };
                         }
                     }
                     return req;
                 })
             );
-            if (approved) {
+            if (approved && finalStatus) {
                 addNotification('Request berhasil disetujui.', 'success');
+                // Update selectedRequest state for modal UI to react
+                setSelectedRequest(prev => {
+                    if (!prev || prev.id !== requestId) return prev;
+                    if (finalStatus === ItemStatus.LOGISTIC_APPROVED) {
+                        return {...prev, status: finalStatus, logisticApprover: currentUser.name, logisticApprovalDate: today};
+                    }
+                    if (finalStatus === ItemStatus.APPROVED) {
+                        return {...prev, status: finalStatus, finalApprover: currentUser.name, finalApprovalDate: today};
+                    }
+                    return prev;
+                });
             }
             setIsLoading(false);
-            handleCloseDetailModal();
+        }, 1000);
+    };
+
+    const handleStartProcurement = () => {
+        setIsDetailModalOpen(false);
+        setIsProcurementModalOpen(true);
+    };
+    
+    const handleConfirmProcurement = () => {
+        if (!selectedRequest || !estimatedDelivery) return;
+        setIsLoading(true);
+        setTimeout(() => {
+            const updatedRequest: Request = { 
+                ...selectedRequest, 
+                status: ItemStatus.PURCHASING,
+                estimatedDeliveryDate: estimatedDelivery.toISOString().split('T')[0]
+            };
+            setRequests(prev => prev.map(r => r.id === selectedRequest.id ? updatedRequest : r));
+            addNotification(`Proses pengadaan untuk ${selectedRequest.id} dimulai.`, 'success');
+            setIsProcurementModalOpen(false);
+            setSelectedRequest(null);
+            setIsLoading(false);
+        }, 1000);
+    };
+
+    const handleUpdateRequestStatus = (newStatus: ItemStatus) => {
+        if (!selectedRequest) return;
+        setIsLoading(true);
+        setTimeout(() => {
+            let updatedRequest: Request = { ...selectedRequest, status: newStatus };
+            if (newStatus === ItemStatus.ARRIVED) {
+                updatedRequest = {
+                    ...updatedRequest,
+                    arrivalDate: new Date().toISOString().split('T')[0],
+                    receivedBy: currentUser.name,
+                };
+            }
+            setRequests(prev => prev.map(r => r.id === selectedRequest.id ? updatedRequest : r));
+            addNotification(`Status request ${selectedRequest.id} diubah menjadi "${newStatus}".`, 'success');
+            setSelectedRequest(updatedRequest); // Update state in modal
+            setIsLoading(false);
         }, 1000);
     };
     
@@ -804,7 +925,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
         }
         setIsLoading(true);
         setTimeout(() => { // Simulate API Call
-            const today = new Date().toISOString();
+            const today = new Date().toISOString().split('T')[0];
             const rejectorDivision = currentUser.role === 'Super Admin' ? 'CEO / Super Admin' : 'Divisi Inventori';
 
             setRequests(prevRequests =>
@@ -845,7 +966,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
     const handleBulkApprove = () => {
         setIsLoading(true);
         setTimeout(() => {
-            const today = new Date().toISOString();
+            const today = new Date().toISOString().split('T')[0];
             let approvedCount = 0;
 
             setRequests(prevRequests => {
@@ -883,7 +1004,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
         }
         setIsLoading(true);
         setTimeout(() => {
-            const today = new Date().toISOString();
+            const today = new Date().toISOString().split('T')[0];
             const rejectorDivision = currentUser.role === 'Super Admin' ? 'CEO / Super Admin' : 'Divisi Inventori';
             let rejectedCount = 0;
 
@@ -920,52 +1041,36 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
     const renderApprovalActions = () => {
         if (!selectedRequest) return null;
         
-        const canAdminApprove = selectedRequest.status === ItemStatus.PENDING && currentUser.role === 'Admin';
+        const canAdminApprove = selectedRequest.status === ItemStatus.PENDING && (currentUser.role === 'Admin' || currentUser.role === 'Super Admin');
         const canSuperAdminApprove = selectedRequest.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Super Admin';
-        const canSuperAdminFirstApprove = selectedRequest.status === ItemStatus.PENDING && currentUser.role === 'Super Admin';
         
         const canReject = (selectedRequest.status === ItemStatus.PENDING || selectedRequest.status === ItemStatus.LOGISTIC_APPROVED) && 
                           (currentUser.role === 'Admin' || currentUser.role === 'Super Admin');
 
-        const canRegister = selectedRequest.status === ItemStatus.APPROVED && !selectedRequest.isRegistered;
+        const canStartProcurement = selectedRequest.status === ItemStatus.APPROVED;
+        const canConfirmShipment = selectedRequest.status === ItemStatus.PURCHASING;
+        const canConfirmArrival = selectedRequest.status === ItemStatus.IN_DELIVERY;
+        const canRegister = selectedRequest.status === ItemStatus.ARRIVED && !selectedRequest.isRegistered;
 
         return (
             <div className="flex items-center justify-end flex-1 space-x-3">
-                {canRegister && (
-                    <Tooltip text="Membuka formulir pencatatan aset baru dengan data dari permintaan ini.">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                onInitiateRegistration(selectedRequest);
-                                handleCloseDetailModal();
-                            }}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700"
-                        >
-                            <RegisterIcon className="w-4 h-4" />
-                            Catat sebagai Aset
-                        </button>
-                    </Tooltip>
+                 {canRegister && (
+                    <button type="button" onClick={() => { setStagingRequest(selectedRequest); handleCloseDetailModal(); }} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"><RegisterIcon className="w-4 h-4" />Catat sebagai Aset</button>
+                )}
+                {canConfirmArrival && (
+                    <button type="button" onClick={() => handleUpdateRequestStatus(ItemStatus.ARRIVED)} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-lg shadow-sm hover:bg-green-700">{isLoading ? <SpinnerIcon /> : <ArchiveBoxIcon className="w-4 h-4" />}Konfirmasi Tiba</button>
+                )}
+                {canConfirmShipment && (
+                    <button type="button" onClick={() => handleUpdateRequestStatus(ItemStatus.IN_DELIVERY)} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-purple-600 rounded-lg shadow-sm hover:bg-purple-700">{isLoading ? <SpinnerIcon /> : <TruckIcon className="w-4 h-4" />}Konfirmasi Kirim</button>
+                )}
+                 {canStartProcurement && (
+                    <button type="button" onClick={handleStartProcurement} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700">{isLoading ? <SpinnerIcon /> : <ShoppingCartIcon className="w-4 h-4" />}Mulai Pengadaan</button>
                 )}
                 {canReject && (
-                    <button
-                        type="button"
-                        onClick={handleOpenRejectionModal}
-                        disabled={isLoading}
-                        className="px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-red-600 rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400"
-                    >
-                        Tolak
-                    </button>
+                    <button type="button" onClick={handleOpenRejectionModal} disabled={isLoading} className="px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">Tolak</button>
                 )}
-                {(canAdminApprove || canSuperAdminApprove || canSuperAdminFirstApprove) && (
-                    <button
-                        type="button"
-                        onClick={() => handleApproval(selectedRequest.id)}
-                        disabled={isLoading}
-                        className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-green-600 rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400"
-                    >
-                        {isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}
-                        {isLoading ? 'Memproses...' : 'Setujui'}
-                    </button>
+                {(canAdminApprove || canSuperAdminApprove) && (
+                    <button type="button" onClick={() => handleApproval(selectedRequest.id)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Setujui'}</button>
                 )}
             </div>
         );
@@ -988,7 +1093,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                         </button>
                     </div>
                     <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
-                        <RequestForm currentUser={currentUser} assets={assets} onCreateRequest={handleCreateRequest} prefillItem={itemToPrefill} />
+                        <RequestForm currentUser={currentUser} assets={assets} assetCategories={assetCategories} divisions={divisions} onCreateRequest={handleCreateRequest} prefillItem={itemToPrefill} openModelModal={openModelModal} openTypeModal={openTypeModal} setActivePage={setActivePage} />
                     </div>
                 </div>
             );
@@ -1017,7 +1122,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
 
                 {/* Toolbar */}
                 <div className="p-4 mb-4 bg-white border border-gray-200/80 rounded-xl shadow-md">
-                    <div className="flex flex-col w-full gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div className="flex flex-wrap items-center gap-4">
                         <div className="relative flex-grow">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <SearchIcon className="w-5 h-5 text-gray-400" />
@@ -1043,24 +1148,52 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                             )}
                         </div>
                         
-                        <select onChange={e => setFilterStatus(e.target.value)} value={filterStatus} className="w-full h-10 px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-300 rounded-lg sm:w-auto focus:ring-tm-accent focus:border-tm-accent">
-                            <option value="">Semua Status</option>
-                            <option value="awaiting-approval" className="font-semibold">Perlu Persetujuan</option>
-                            {Object.values(ItemStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        
-                        {isFiltering && (
+                        <div className="relative" ref={filterPanelRef}>
                             <button
-                                type="button"
-                                onClick={handleResetFilters}
-                                className="inline-flex items-center justify-center w-full h-10 px-4 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border border-gray-300 rounded-lg shadow-sm sm:w-auto sm:ml-auto hover:bg-red-50 hover:border-red-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-400"
+                                onClick={() => {
+                                    setTempFilters(filters);
+                                    setIsFilterPanelOpen(p => !p);
+                                }}
+                                className="inline-flex items-center justify-center gap-2 w-full h-10 px-4 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border border-gray-300 rounded-lg shadow-sm sm:w-auto hover:bg-gray-50"
                             >
-                                Reset
+                                <FilterIcon className="w-4 h-4" />
+                                <span>Filter</span>
+                                {activeFilterCount > 0 && (
+                                    <span className="px-2 py-0.5 text-xs font-bold text-white rounded-full bg-tm-primary">{activeFilterCount}</span>
+                                )}
                             </button>
-                        )}
+                            {isFilterPanelOpen && (
+                                <>
+                                    <div onClick={() => setIsFilterPanelOpen(false)} className="fixed inset-0 z-20 bg-black/25 sm:hidden" />
+                                    <div className="fixed top-32 inset-x-4 z-30 origin-top rounded-xl border border-gray-200 bg-white shadow-lg sm:absolute sm:top-full sm:inset-x-auto sm:right-0 sm:mt-2 sm:w-72">
+                                        <div className="flex items-center justify-between p-4 border-b">
+                                            <h3 className="text-lg font-semibold text-gray-800">Filter Request</h3>
+                                            <button onClick={() => setIsFilterPanelOpen(false)} className="p-1 text-gray-400 rounded-full hover:bg-gray-100"><CloseIcon className="w-5 h-5"/></button>
+                                        </div>
+                                        <div className="p-4 space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                                                <div className="space-y-2">
+                                                    {statusOptions.map(opt => (
+                                                        <button key={opt.value} type="button" onClick={() => setTempFilters(f => ({ ...f, status: f.status === opt.value ? '' : opt.value }))}
+                                                            className={`w-full px-3 py-2 text-sm rounded-md border text-left transition-colors ${ tempFilters.status === opt.value ? 'bg-tm-primary border-tm-primary text-white font-semibold' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50' }`}>
+                                                            {opt.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-gray-50 border-t">
+                                            <button onClick={handleResetFilters} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Reset</button>
+                                            <button onClick={handleApplyFilters} className="px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">Terapkan</button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                     
-                    {isFiltering && (
+                    {activeFilterCount > 0 && (
                         <div className="pt-4 mt-4 border-t border-gray-200">
                            <p className="text-sm text-gray-600">
                                Menampilkan <span className="font-semibold text-tm-dark">{sortedRequests.length}</span> dari <span className="font-semibold text-tm-dark">{requests.length}</span> total request yang cocok.
@@ -1108,12 +1241,13 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                      </div>
                 )}
                 
-                <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
+                <div className="overflow-hidden bg-white border border-gray-200/80 rounded-xl shadow-md">
                     <div className="overflow-x-auto custom-scrollbar">
                        <RequestTable 
                             requests={paginatedRequests} 
                             onDetailClick={handleShowDetails} 
                             onDeleteClick={setRequestToDeleteId} 
+                            onOpenStaging={setStagingRequest}
                             sortConfig={sortConfig} 
                             requestSort={requestSort}
                             selectedRequestIds={selectedRequestIds}
@@ -1138,136 +1272,163 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
         );
     };
 
+    const showProcurement = selectedRequest && [ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(selectedRequest.status);
+
     return (
         <>
             {renderContent()}
+
+            {stagingRequest && (
+                <RegistrationStagingModal
+                    isOpen={!!stagingRequest}
+                    onClose={() => setStagingRequest(null)}
+                    request={stagingRequest}
+                    onInitiateRegistration={(item) => {
+                        onInitiateRegistration(stagingRequest, item);
+                        setStagingRequest(null);
+                    }}
+                />
+            )}
             
             {selectedRequest && (
                 <Modal
                     isOpen={isDetailModalOpen}
                     onClose={handleCloseDetailModal}
-                    title={`Detail Request`}
+                    title=""
                     size="3xl"
                     footerContent={renderApprovalActions()}
+                    disableContentPadding
                 >
-                    {/* Document Header */}
-                    <div className="mb-4 space-y-2 text-center">
-                        <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                        <p className="font-semibold text-tm-secondary">SURAT PERMINTAAN PEMBELIAN BARANG (PURCHASE REQUISITION)</p>
-                    </div>
+                    <div className="p-6">
+                        <Letterhead />
 
-                    {/* Document Info */}
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 py-4 my-4 text-sm border-t border-b border-gray-200 lg:grid-cols-3">
-                        <div><span className="font-semibold text-gray-600">No Dokumen:</span><span className="pl-2 text-gray-800">TMI/PR/{selectedRequest.id}</span></div>
-                        <div><span className="font-semibold text-gray-600">No Request:</span><span className="pl-2 text-gray-800">{selectedRequest.id}</span></div>
-                        <div><span className="font-semibold text-gray-600">Tanggal:</span><span className="pl-2 text-gray-800">{selectedRequest.requestDate}</span></div>
-                        <div><span className="font-semibold text-gray-600">Nama:</span><span className="pl-2 text-gray-800">{selectedRequest.requester}</span></div>
-                        <div><span className="font-semibold text-gray-600">Divisi:</span><span className="pl-2 text-gray-800">{selectedRequest.division}</span></div>
-                        <div><span className="font-semibold text-gray-600">Order:</span><span className="pl-2 text-gray-800">{selectedRequest.order}</span></div>
-                        <div><span className="font-semibold text-gray-600">Lembar:</span><span className="pl-2 text-gray-800">{selectedRequest.lembar}</span></div>
-                    </div>
-                    
-                    {/* Item Details Section */}
-                    <div className="overflow-auto custom-scrollbar max-h-[40vh]">
-                        <table className="min-w-full text-sm divide-y divide-gray-200">
-                            <thead className="bg-gray-50/50">
-                                <tr>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">No</th>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Nama Barang</th>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Type/Brand</th>
-                                    <th className="px-4 py-2 font-semibold text-center text-gray-600">Stok</th>
-                                    <th className="px-4 py-2 font-semibold text-center text-gray-600">Req</th>
-                                    <th className="px-4 py-2 font-semibold text-left text-gray-600">Keterangan</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {selectedRequest.items.map((item, index) => (
-                                    <tr key={item.id}>
-                                        <td className="px-4 py-2 text-gray-700">{index + 1}</td>
-                                        <td className="px-4 py-2 font-medium text-gray-800">{item.itemName}</td>
-                                        <td className="px-4 py-2 text-gray-700">{item.itemTypeBrand}</td>
-                                        <td className="px-4 py-2 text-center text-gray-700">{item.stock}</td>
-                                        <td className="px-4 py-2 font-bold text-center text-tm-primary">{item.quantity}</td>
-                                        <td className="px-4 py-2 text-gray-700">{item.keterangan}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                     <div className="pt-4 mt-4 text-sm border-t border-gray-200">
-                        <span className="font-semibold text-gray-600">Status: </span>
-                        <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(selectedRequest.status)}`}>
-                            {selectedRequest.status}
-                        </span>
-                     </div>
-                     {selectedRequest.isRegistered && (
-                        <div className="pt-2 text-sm">
-                            <span className="font-semibold text-gray-600">Aset Terkait: </span>
-                            {assets.filter(a => a.woRoIntNumber === selectedRequest.id).map(asset => (
-                                <ClickableLink key={asset.id} onClick={() => onShowPreview({ type: 'asset', id: asset.id })}>
-                                    {asset.id}
-                                </ClickableLink>
-                            ))}
+                        <div className="text-center mb-6">
+                            <h3 className="text-xl font-bold uppercase text-tm-dark">Surat Permintaan Pembelian Barang</h3>
+                            <p className="text-sm text-tm-secondary">Nomor: {selectedRequest.id}</p>
                         </div>
-                    )}
 
+                        <div className="space-y-6 text-sm">
+                            {/* Section I: Detail Dokumen & Pemohon */}
+                            <section>
+                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">I. Detail Dokumen</h4>
+                                <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
+                                    <PreviewItem label="Tanggal Request" value={selectedRequest.requestDate} />
+                                    <PreviewItem label="Pemohon" value={selectedRequest.requester} />
+                                    <PreviewItem label="Divisi" value={selectedRequest.division} />
+                                    <PreviewItem label="Tipe Order">
+                                        <div className="flex items-center gap-2">
+                                            <OrderIndicator order={selectedRequest.order} />
+                                            <span>{selectedRequest.order}</span>
+                                        </div>
+                                    </PreviewItem>
+                                    <PreviewItem label="Lembar" value={selectedRequest.lembar} />
+                                    <PreviewItem label="Status Saat Ini">
+                                    <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(selectedRequest.status)}`}>
+                                            {selectedRequest.status}
+                                        </span>
+                                    </PreviewItem>
+                                </dl>
+                            </section>
 
-                    {/* Signature Section */}
-                    <div className="pt-6 mt-6 border-t border-gray-200">
-                        {selectedRequest.status === ItemStatus.REJECTED ? (
-                            <div className="p-4 text-center bg-danger-light rounded-lg">
-                                <h4 className="text-lg font-bold text-danger-text">Permintaan Ditolak</h4>
-                                 <div className="flex justify-center my-4">
-                                     {selectedRequest.rejectedBy && selectedRequest.rejectionDate && (
-                                        <RejectionStamp 
-                                            rejectorName={selectedRequest.rejectedBy} 
-                                            rejectionDate={selectedRequest.rejectionDate}
-                                            rejectorDivision={selectedRequest.rejectedByDivision || ''}
-                                        />
-                                     )}
-                                 </div>
-                                <p className="text-sm font-semibold text-gray-700">Alasan Penolakan:</p>
-                                <p className="text-sm text-gray-600 italic">"{selectedRequest.rejectionReason}"</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-3 sm:gap-x-4">
-                                <div>
-                                    <p className="font-semibold text-gray-600">Request</p>
-                                    <div className="flex items-center justify-center mt-2 h-28">
-                                        <SignatureStamp signerName={selectedRequest.requester} signatureDate={selectedRequest.requestDate} signerDivision={`Divisi ${selectedRequest.division}`} />
-                                    </div>
-                                    <div className="pt-1 border-t border-gray-400">
-                                        <p className="text-gray-800">({selectedRequest.requester})</p>
-                                    </div>
+                            {/* Section II: Rincian Barang */}
+                            <section>
+                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">II. Rincian Barang yang Diminta</h4>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-100 text-xs uppercase text-gray-700">
+                                            <tr>
+                                                <th className="p-2 w-10">No.</th>
+                                                <th className="p-2">Nama Barang</th>
+                                                <th className="p-2">Tipe/Brand</th>
+                                                <th className="p-2 text-center w-20">Jumlah</th>
+                                                <th className="p-2">Keterangan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedRequest.items.map((item, index) => (
+                                                <tr key={item.id} className="border-b">
+                                                    <td className="p-2 text-center text-gray-800">{index + 1}.</td>
+                                                    <td className="p-2 font-semibold text-gray-800">{item.itemName}</td>
+                                                    <td className="p-2 text-gray-600">{item.itemTypeBrand}</td>
+                                                    <td className="p-2 text-center font-medium text-gray-800">{item.quantity} unit</td>
+                                                    <td className="p-2 text-xs italic text-gray-600">"{item.keterangan}"</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-gray-600">Logistic</p>
-                                    <div className="flex items-center justify-center mt-2 h-28">
-                                        {selectedRequest.logisticApprover && selectedRequest.logisticApprovalDate ? (
-                                            <ApprovalStamp approverName={selectedRequest.logisticApprover} approvalDate={selectedRequest.logisticApprovalDate} approverDivision="Divisi Inventori" />
-                                        ) : (
-                                            <span className="italic text-gray-300">Menunggu...</span>
-                                        )}
+                            </section>
+
+                            {/* Section III: Progres Pengadaan (if applicable) */}
+                            {showProcurement && (
+                                <section>
+                                    <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">III. Progres Pengadaan</h4>
+                                    <ProcurementTimeline request={selectedRequest} />
+                                </section>
+                            )}
+                            
+                            {selectedRequest.isRegistered && (
+                                <section className="pt-4 text-sm border-t">
+                                    <span className="font-semibold text-gray-600">Aset Terkait: </span>
+                                    {assets.filter(a => a.woRoIntNumber === selectedRequest.id).map(asset => (
+                                        <ClickableLink key={asset.id} onClick={() => onShowPreview({ type: 'asset', id: asset.id })}>
+                                            {asset.id}
+                                        </ClickableLink>
+                                    ))}
+                                </section>
+                            )}
+                            
+                            {/* Section IV: Progres Persetujuan */}
+                            <section className="pt-6">
+                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">{selectedRequest.status === ItemStatus.REJECTED ? 'Status Penolakan' : `${showProcurement ? 'IV.' : 'III.'} Progres Persetujuan`}</h4>
+                                {selectedRequest.status === ItemStatus.REJECTED ? (
+                                    <div className="p-4 text-center bg-danger-light rounded-lg">
+                                        <h4 className="text-lg font-bold text-danger-text">Permintaan Ditolak</h4>
+                                        <div className="flex justify-center my-4">
+                                            {selectedRequest.rejectedBy && selectedRequest.rejectionDate && (
+                                                <RejectionStamp 
+                                                    rejectorName={selectedRequest.rejectedBy} 
+                                                    rejectionDate={selectedRequest.rejectionDate}
+                                                    rejectorDivision={selectedRequest.rejectedByDivision || ''}
+                                                />
+                                            )}
+                                        </div>
+                                        <p className="text-sm font-semibold text-gray-700">Alasan Penolakan:</p>
+                                        <p className="text-sm text-gray-600 italic">"{selectedRequest.rejectionReason}"</p>
                                     </div>
-                                    <div className="pt-1 border-t border-gray-400">
-                                        <p className="text-gray-500">({selectedRequest.logisticApprover || '_________________________'})</p>
+                                ) : (
+                                    <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-3 sm:gap-x-4">
+                                        <ApprovalBox title="Request" signer={selectedRequest.requester} date={selectedRequest.requestDate} division={selectedRequest.division} isSigned={true} />
+                                        <ApprovalBox title="Logistic" signer={selectedRequest.logisticApprover} date={selectedRequest.logisticApprovalDate} division="Inventori" isSigned={!!selectedRequest.logisticApprover} />
+                                        <ApprovalBox title="CEO / Approval" signer={selectedRequest.finalApprover} date={selectedRequest.finalApprovalDate} division="Manajemen" isSigned={!!selectedRequest.finalApprover} />
                                     </div>
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-gray-600">Approval</p>
-                                    <div className="flex items-center justify-center mt-2 h-28">
-                                         {selectedRequest.finalApprover && selectedRequest.finalApprovalDate ? (
-                                            <ApprovalStamp approverName={selectedRequest.finalApprover} approvalDate={selectedRequest.finalApprovalDate} approverDivision="CEO / Super Admin" />
-                                         ) : (
-                                            <span className="italic text-gray-300">Menunggu...</span>
-                                         )}
-                                    </div>
-                                    <div className="pt-1 border-t border-gray-400">
-                                        <p className="text-gray-500">({selectedRequest.finalApprover || '_________________________'})</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                                )}
+                            </section>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+             {isProcurementModalOpen && (
+                <Modal
+                    isOpen={isProcurementModalOpen}
+                    onClose={() => { setIsProcurementModalOpen(false); setSelectedRequest(null); }}
+                    title={`Mulai Pengadaan untuk ${selectedRequest?.id}`}
+                    size="md"
+                    hideDefaultCloseButton
+                    footerContent={
+                        <>
+                            <button onClick={() => { setIsProcurementModalOpen(false); setSelectedRequest(null); }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                            <button onClick={handleConfirmProcurement} disabled={!estimatedDelivery || isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}Konfirmasi</button>
+                        </>
+                    }
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-gray-600">Silakan masukkan estimasi tanggal barang akan tiba di gudang.</p>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Estimasi Tanggal Tiba</label>
+                            <DatePicker id="est-delivery" selectedDate={estimatedDelivery} onDateChange={setEstimatedDelivery} disablePastDates />
+                        </div>
                     </div>
                 </Modal>
             )}
@@ -1311,7 +1472,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                                 rows={4}
                                 value={rejectionReason}
                                 onChange={(e) => setRejectionReason(e.target.value)}
-                                className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
+                                className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
                                 placeholder="Contoh: Stok tidak tersedia, permintaan tidak sesuai budget, dll."
                             ></textarea>
                         </div>
@@ -1441,7 +1602,7 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
                                 rows={3}
                                 value={bulkRejectionReason}
                                 onChange={(e) => setBulkRejectionReason(e.target.value)}
-                                className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
+                                className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
                                 placeholder="Alasan penolakan massal..."
                             ></textarea>
                         </div>
@@ -1469,5 +1630,153 @@ const ItemRequest: React.FC<ItemRequestProps> = ({ currentUser, requests, setReq
         </>
     );
 };
+
+const ProcurementTimeline: React.FC<{ request: Request }> = ({ request }) => {
+    const statuses = [ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED];
+    const currentStatusIndex = statuses.indexOf(request.status);
+
+    const getStepDetails = (status: ItemStatus) => {
+        switch (status) {
+            case ItemStatus.APPROVED:
+                return { label: 'Disetujui', icon: CheckIcon, date: request.finalApprovalDate };
+            case ItemStatus.PURCHASING:
+                return { label: 'Pengadaan', icon: ShoppingCartIcon, date: request.estimatedDeliveryDate ? `Estimasi: ${request.estimatedDeliveryDate}` : null };
+            case ItemStatus.IN_DELIVERY:
+                return { label: 'Dikirim', icon: TruckIcon, date: null };
+            case ItemStatus.ARRIVED:
+                return { label: 'Tiba', icon: ArchiveBoxIcon, date: request.arrivalDate ? `Pada: ${request.arrivalDate}`: null };
+            case ItemStatus.COMPLETED:
+                return { label: 'Selesai', icon: RegisterIcon, date: request.isRegistered ? 'Aset Dicatat' : null };
+            default:
+                return { label: 'Unknown', icon: CheckIcon, date: null };
+        }
+    };
+
+    return (
+        <div className="p-4 bg-gray-50 rounded-lg">
+            <ol className="flex items-start">
+                {statuses.map((status, index) => {
+                    const stepDetails = getStepDetails(status);
+                    const isCompleted = currentStatusIndex > index || (request.status === ItemStatus.COMPLETED && request.isRegistered);
+                    const isCurrent = currentStatusIndex === index && request.status !== ItemStatus.COMPLETED;
+                    
+                    const iconColor = isCompleted || isCurrent ? 'text-white' : 'text-gray-500';
+                    const bgColor = isCompleted ? 'bg-success' : isCurrent ? 'bg-tm-primary' : 'bg-gray-200';
+                    const textColor = isCompleted || isCurrent ? 'text-gray-800' : 'text-gray-500';
+                    const lineColor = isCompleted ? 'border-success' : 'border-gray-300';
+
+                    return (
+                        <li key={status} className="relative flex-1 flex flex-col items-center text-center">
+                            <div className="flex items-center w-full">
+                                <div className={`flex-1 h-0.5 ${index === 0 ? 'bg-transparent' : isCompleted ? 'bg-success' : 'bg-gray-300'}`}></div>
+                                <div className={`relative flex items-center justify-center w-10 h-10 rounded-full shrink-0 z-10 ${bgColor} transition-colors`}>
+                                   {isCompleted ? <CheckIcon className="w-5 h-5 text-white" /> : <stepDetails.icon className={`w-5 h-5 ${iconColor} transition-colors`} />}
+                                </div>
+                                <div className={`flex-1 h-0.5 ${index === statuses.length - 1 ? 'bg-transparent' : isCompleted ? 'bg-success' : 'bg-gray-300'}`}></div>
+                            </div>
+                            <div className="mt-2 w-full">
+                                <h3 className={`text-xs font-semibold ${textColor} transition-colors`}>{stepDetails.label}</h3>
+                                {stepDetails.date && <p className="text-[10px] text-gray-500">{stepDetails.date}</p>}
+                            </div>
+                        </li>
+                    );
+                })}
+            </ol>
+        </div>
+    );
+};
+
+const ApprovalBox: React.FC<{title: string; signer: string | null; date: string | null; division: string; isSigned: boolean}> = ({ title, signer, date, division, isSigned }) => {
+    const isApprovalStep = title === 'Logistic' || title === 'CEO / Approval';
+    
+    return (
+        <div>
+            <p className="font-semibold text-gray-600">{title}</p>
+            <div className="flex items-center justify-center mt-2 border border-gray-200 rounded-md h-32 bg-gray-50/50">
+                {isSigned ? (
+                    isApprovalStep ? (
+                        <ApprovalStamp approverName={signer!} approvalDate={date!} approverDivision={`Divisi ${division}`} />
+                    ) : (
+                        <SignatureStamp signerName={signer!} signatureDate={date!} signerDivision={`Divisi ${division}`} />
+                    )
+                ) : (
+                    <span className="text-sm italic text-gray-400">Menunggu Persetujuan</span>
+                )}
+            </div>
+            <div className="pt-1 mt-2 text-center">
+                <p className="text-sm text-gray-800 font-medium">({signer || '.........................'})</p>
+            </div>
+        </div>
+    );
+};
+
+const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?: React.ReactNode; }> = ({ label, value, children }) => (
+    <div>
+        <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</dt>
+        <dd className="mt-1 text-gray-800">{value || children || '-'}</dd>
+    </div>
+);
+
+const RegistrationStagingModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    request: Request;
+    onInitiateRegistration: (item: RequestItem) => void;
+}> = ({ isOpen, onClose, request, onInitiateRegistration }) => {
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={`Pencatatan Aset untuk Request #${request.id}`}
+            size="xl"
+            hideDefaultCloseButton
+        >
+            <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                    Barang untuk request ini telah tiba. Silakan catat setiap item di bawah ini untuk dimasukkan ke dalam daftar aset.
+                </p>
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar -mx-2 px-2">
+                    {request.items.map(item => {
+                        const registeredCount = request.partiallyRegisteredItems?.[item.id] || 0;
+                        const isCompleted = registeredCount >= item.quantity;
+                        const progress = (registeredCount / item.quantity) * 100;
+
+                        return (
+                            <div key={item.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div className="flex-1">
+                                    <p className="font-semibold text-gray-800">{item.itemName}</p>
+                                    <p className="text-xs text-gray-500">{item.itemTypeBrand}</p>
+                                    <div className="mt-2">
+                                        <div className="flex justify-between mb-1 text-xs">
+                                            <span className="font-medium text-gray-700">Progres Pencatatan</span>
+                                            <span className="text-gray-500">{registeredCount} / {item.quantity} Aset</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                            <div 
+                                                className={`h-2.5 rounded-full transition-all duration-500 ${isCompleted ? 'bg-success' : 'bg-tm-primary'}`} 
+                                                style={{ width: `${progress}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex-shrink-0">
+                                    <button 
+                                        onClick={() => onInitiateRegistration(item)}
+                                        disabled={isCompleted}
+                                        className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-tm-accent rounded-lg shadow-sm hover:bg-tm-primary disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    >
+                                        <RegisterIcon className="w-4 h-4"/>
+                                        {isCompleted ? 'Selesai' : `Catat (${item.quantity - registeredCount})`}
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </Modal>
+    );
+}
+
 
 export default ItemRequest;

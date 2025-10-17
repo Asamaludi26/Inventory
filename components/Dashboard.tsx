@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Asset, Request, Handover, Dismantle, Customer, AssetStatus, ItemStatus, Page, PreviewData } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Asset, Request, Handover, Dismantle, Customer, AssetStatus, ItemStatus, Page, PreviewData, AssetCategory } from '../types';
 import { WrenchIcon } from './icons/WrenchIcon';
 import { RequestIcon } from './icons/RequestIcon';
 import { HandoverIcon } from './icons/HandoverIcon';
@@ -10,88 +10,14 @@ import { CloseIcon } from './icons/CloseIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import Modal from './shared/Modal';
 import { ArchiveBoxIcon } from './icons/ArchiveBoxIcon';
-import { ArrowTrendingUpIcon } from './icons/ArrowTrendingUpIcon';
-import { ArrowTrendingDownIcon } from './icons/ArrowTrendingDownIcon';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
-import { CustomerIcon } from './icons/CustomerIcon';
-
-
-interface DashboardProps {
-    assets: Asset[];
-    requests: Request[];
-    handovers: Handover[];
-    dismantles: Dismantle[];
-    customers: Customer[];
-    setActivePage: (page: Page, filters?: any) => void;
-    onShowPreview: (data: PreviewData) => void;
-}
-
-type CardVariant = 'info' | 'neutral' | 'warning' | 'danger';
-
-const cardConfig: Record<CardVariant, { bg: string; text: string; icon: React.FC<any> }> = {
-    info: { bg: 'bg-info-light', text: 'text-info-text', icon: WrenchIcon },
-    neutral: { bg: 'bg-gray-100', text: 'text-gray-600', icon: ArchiveBoxIcon },
-    warning: { bg: 'bg-warning-light', text: 'text-warning-text', icon: RequestIcon },
-    danger: { bg: 'bg-danger-light', text: 'text-danger-text', icon: ExclamationTriangleIcon },
-};
-
-const SummaryCard: React.FC<{ 
-    title: string; 
-    value: string | number; 
-    variant: CardVariant;
-    trend: number; 
-    trendPeriod: string; 
-    onClick?: () => void; 
-}> = ({ title, value, variant, trend, trendPeriod, onClick }) => {
-    const isPositive = trend >= 0;
-    const TrendIcon = isPositive ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
-    const trendColor = isPositive ? 'text-success' : 'text-danger';
-    const config = cardConfig[variant];
-    const Icon = config.icon;
-
-    return (
-        <div 
-            onClick={onClick}
-            className={`p-6 bg-white border border-gray-200/80 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:border-tm-accent/50 hover:-translate-y-1 ${onClick ? 'cursor-pointer' : ''}`}
-        >
-            <div className="flex items-start justify-between">
-                <div className="flex-1">
-                    <h3 className="text-sm font-medium tracking-wide text-gray-500">{title}</h3>
-                    <p className="mt-2 text-3xl font-bold text-tm-dark" title={value.toString()}>{value}</p>
-                </div>
-                <div className={`flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-lg ${config.bg}`}>
-                    <Icon className={`w-6 h-6 ${config.text}`} />
-                </div>
-            </div>
-            <div className="flex items-center mt-4 text-xs text-gray-500">
-                <span className={`flex items-center gap-1 font-semibold ${trendColor}`}>
-                    <TrendIcon className="w-4 h-4" />
-                    <span>{isPositive ? '+' : ''}{trend}</span>
-                </span>
-                <span className="ml-2">vs {trendPeriod}</span>
-            </div>
-        </div>
-    );
-};
-
-
-const TaskItem: React.FC<{ icon: React.ReactNode; text: React.ReactNode; priority: 'Tinggi' | 'Sedang'; onClick?: () => void }> = ({ icon, text, priority, onClick }) => {
-    const priorityClasses = priority === 'Tinggi' 
-        ? 'border-danger-light bg-danger-light text-danger-text' 
-        : 'border-warning-light bg-warning-light text-warning-text';
-    return (
-        <li
-            onClick={onClick}
-            className={`flex items-center p-3 space-x-3 transition-colors border-l-4 rounded-r-md ${priorityClasses} ${onClick ? 'cursor-pointer hover:bg-opacity-60' : ''}`}
-        >
-            <div className="flex-shrink-0">{icon}</div>
-            <div className="flex-1 text-sm">{text}</div>
-            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                priority === 'Tinggi' ? 'bg-danger-light text-danger-text' : 'bg-warning-light text-warning-text'
-            }`}>{priority}</span>
-        </li>
-    );
-};
+import { ShoppingCartIcon } from './icons/ShoppingCartIcon';
+import { AssetIcon } from './icons/AssetIcon';
+import { DollarIcon } from './icons/DollarIcon';
+import { UsersIcon } from './icons/UsersIcon';
+import { Tooltip } from './shared/Tooltip';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { useNotification } from './shared/Notification';
 
 const ActivityItem: React.FC<{ icon: React.ReactNode; action: React.ReactNode; user: string; timestamp: string; onClick: () => void; }> = ({ icon, action, user, timestamp, onClick }) => (
     <li 
@@ -111,157 +37,220 @@ const ActivityItem: React.FC<{ icon: React.ReactNode; action: React.ReactNode; u
     </li>
 );
 
-const AssetStatusBar: React.FC<{ status: AssetStatus; count: number; total: number; color: string; onClick?: () => void }> = ({ status, count, total, color, onClick }) => {
-    const percentage = total > 0 ? (count / total) * 100 : 0;
-    return (
-        <div
-            onClick={onClick}
-            className={`p-2 -m-2 rounded-lg transition-colors ${onClick ? 'cursor-pointer hover:bg-gray-100' : ''}`}
-            role={onClick ? 'button' : undefined}
-            tabIndex={onClick ? 0 : -1}
-            onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
-            aria-label={`Lihat aset dengan status ${status}`}
-        >
-            <div className="flex justify-between mb-1 text-sm">
-                <span className="font-medium text-gray-700">{status}</span>
-                <span className="text-gray-500">{count} Aset</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5" aria-hidden="true">
-                <div className={`${color} h-2.5 rounded-full`} style={{ width: `${percentage}%` }}></div>
-            </div>
-        </div>
-    );
-};
+// Define DashboardProps interface
+interface DashboardProps {
+    assets: Asset[];
+    requests: Request[];
+    handovers: Handover[];
+    dismantles: Dismantle[];
+    customers: Customer[];
+    assetCategories: AssetCategory[];
+    setActivePage: (page: Page, filters?: any) => void;
+    onShowPreview: (data: PreviewData) => void;
+}
 
-const CategoryDistributionChart: React.FC<{ assets: Asset[]; setActivePage: (page: Page, filters?: any) => void; }> = ({ assets, setActivePage }) => {
-    const categoryData = useMemo(() => {
-        const counts: Record<string, number> = {};
-        assets.forEach(asset => {
-            counts[asset.category] = (counts[asset.category] || 0) + 1;
+const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dismantles, customers, assetCategories, setActivePage, onShowPreview }) => {
+    const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+    const [isActionItemsExpanded, setIsActionItemsExpanded] = useState(false);
+    const addNotification = useNotification();
+
+    useEffect(() => {
+        const stockMap = new Map<string, { inStorage: number }>();
+        const activeAssets = assets.filter(asset => asset.status !== AssetStatus.DECOMMISSIONED);
+
+        activeAssets.forEach(asset => {
+            const key = `${asset.name}|${asset.brand}`;
+            if (!stockMap.has(key)) {
+                stockMap.set(key, { inStorage: 0 });
+            }
+            if (asset.status === AssetStatus.IN_STORAGE) {
+                stockMap.get(key)!.inStorage++;
+            }
         });
         
-        const sorted = Object.entries(counts)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 7); // Show top 7 categories
+        const LOW_STOCK_DEFAULT = 5; // In a real app, this might be configurable from settings
+        const lowStockItemsCount = Array.from(stockMap.values()).filter(item => 
+            item.inStorage > 0 && item.inStorage <= LOW_STOCK_DEFAULT
+        ).length;
 
-        const maxCount = sorted.length > 0 ? sorted[0].count : 0;
-        
-        return { sorted, maxCount };
-    }, [assets]);
+        const notificationShown = sessionStorage.getItem('lowStockNotificationShown');
 
-    const { sorted, maxCount } = categoryData;
-    const barColors = ['bg-tm-primary', 'bg-blue-500', 'bg-blue-400', 'bg-sky-400', 'bg-cyan-400', 'bg-teal-400', 'bg-gray-400'];
+        if (lowStockItemsCount > 0 && !notificationShown) {
+            addNotification(
+                `Terdapat ${lowStockItemsCount} item dengan stok menipis.`,
+                'warning',
+                {
+                    actions: [
+                        { 
+                            label: 'Lihat Stok', 
+                            onClick: () => setActivePage('stock', { lowStockOnly: true }),
+                            variant: 'primary'
+                        },
+                        {
+                            label: 'Tutup',
+                            onClick: () => {}, // The notification will be dismissed automatically
+                            variant: 'secondary'
+                        }
+                    ],
+                    duration: 15000, // Keep notification for 15 seconds
+                }
+            );
+            sessionStorage.setItem('lowStockNotificationShown', 'true');
+        }
+    }, [assets, addNotification, setActivePage]);
 
-    return (
-        <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
-            <h2 className="p-6 text-lg font-semibold border-b border-gray-200 text-tm-dark">Distribusi Aset by Kategori</h2>
-            <div className="p-6 space-y-2">
-                {sorted.length > 0 ? sorted.map((item, index) => {
-                    const percentage = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
-                    return (
-                        <div
-                            key={item.name}
-                            onClick={() => setActivePage('registration', { category: item.name })}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActivePage('registration', { category: item.name }); } }}
-                            aria-label={`Lihat aset kategori ${item.name}`}
-                            className="flex items-center text-sm p-2 -m-2 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                        >
-                            <span className="w-1/3 font-medium text-gray-600 truncate" title={item.name}>{item.name}</span>
-                            <div className="flex-1 w-2/3 mx-2 bg-gray-200 rounded-full h-3.5">
-                                <div 
-                                    className={`${barColors[index % barColors.length]} h-3.5 rounded-full`}
-                                    style={{ width: `${percentage}%` }}
-                                    title={`${item.count} aset`}
-                                />
-                            </div>
-                            <span className="w-10 text-right font-semibold text-gray-800">{item.count}</span>
-                        </div>
-                    );
-                }) : <p className="text-sm text-center text-gray-500">Belum ada data aset untuk ditampilkan.</p>}
-            </div>
-        </div>
-    );
-};
-
-
-const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dismantles, customers, setActivePage, onShowPreview }) => {
-    const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
-
-    const summaryData = useMemo(() => {
-        const inUseCount = assets.filter(a => a.status === AssetStatus.IN_USE).length;
-        const pendingRequestCount = requests.filter(r => [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(r.status)).length;
-        const damagedAssetCount = assets.filter(a => a.status === AssetStatus.DAMAGED).length;
-
-        return [
-            { title: 'Aset Digunakan', value: inUseCount, variant: 'info' as CardVariant, trend: 5, trendPeriod: 'minggu lalu', action: () => setActivePage('registration', { status: AssetStatus.IN_USE }) },
-            { title: 'Aset di Gudang', value: assets.filter(a => a.status === AssetStatus.IN_STORAGE).length, variant: 'neutral' as CardVariant, trend: -2, trendPeriod: 'minggu lalu', action: () => setActivePage('registration', { status: AssetStatus.IN_STORAGE }) },
-            { title: 'Perlu Persetujuan', value: pendingRequestCount, variant: 'warning' as CardVariant, trend: 1, trendPeriod: 'kemarin', action: () => setActivePage('request', { status: 'awaiting-approval' }) },
-            { title: 'Aset Rusak', value: damagedAssetCount, variant: 'danger' as CardVariant, trend: 0, trendPeriod: 'kemarin', action: () => setActivePage('registration', { status: AssetStatus.DAMAGED }) },
-        ];
-    }, [assets, requests, setActivePage]);
-    
-    const assetStatusDistribution = useMemo(() => {
-        const distribution = {
+    const summary = useMemo(() => {
+        const statusCounts = {
             [AssetStatus.IN_USE]: 0,
             [AssetStatus.IN_STORAGE]: 0,
             [AssetStatus.DAMAGED]: 0,
-            [AssetStatus.DECOMMISSIONED]: 0
+            [AssetStatus.DECOMMISSIONED]: 0,
         };
-        assets.forEach(asset => {
-            if (distribution[asset.status] !== undefined) {
-                distribution[asset.status]++;
+        const categoryCounts: Record<string, number> = {};
+        let totalValueInStorage = 0;
+
+        for (const asset of assets) {
+            if (statusCounts[asset.status] !== undefined) {
+                statusCounts[asset.status]++;
             }
-        });
-        return distribution;
-    }, [assets]);
-    
-    const urgentTasks = useMemo(() => {
-        const tasks = [];
-        const pendingRequests = requests.filter(r => [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(r.status));
-        if (pendingRequests.length > 0) {
-            tasks.push({
-                id: 'task-req',
-                icon: <RequestIcon className="w-6 h-6 text-danger-text"/>,
-                text: <p>Ada <span className="font-bold">{pendingRequests.length} request</span> menunggu persetujuan.</p>,
-                priority: 'Tinggi' as const,
-                onClick: () => setActivePage('request', { status: 'awaiting-approval' }),
-            });
+             if (asset.status === AssetStatus.IN_STORAGE && asset.purchasePrice) {
+                totalValueInStorage += asset.purchasePrice;
+            }
+            categoryCounts[asset.category] = (categoryCounts[asset.category] || 0) + 1;
         }
+
+        const topCategories = Object.entries(categoryCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
         
-        const damagedAssets = assets.filter(a => a.status === AssetStatus.DAMAGED);
-        if (damagedAssets.length > 0) {
-             tasks.push({
-                id: 'task-dmg',
-                icon: <WrenchIcon className="w-6 h-6 text-danger-text"/>,
-                text: <p><span className="font-bold">{damagedAssets.length} aset</span> dilaporkan rusak dan perlu diperiksa.</p>,
-                priority: 'Tinggi' as const,
-                onClick: () => setActivePage('registration', { status: AssetStatus.DAMAGED }),
-            });
-        }
+        const pendingRequestCount = requests.filter(r => [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(r.status)).length;
+        const arrivedToRegisterCount = requests.filter(r => r.status === ItemStatus.ARRIVED && !r.isRegistered).length;
+        const approvedAwaitingProcurementCount = requests.filter(r => r.status === ItemStatus.APPROVED).length;
         
         const now = new Date();
-        const expiringAssets = assets.filter(a => {
+        const expiringAssetsCount = assets.filter(a => {
             if (!a.warrantyEndDate) return false;
             const warrantyEnd = new Date(a.warrantyEndDate);
-            return warrantyEnd.getMonth() === now.getMonth() && warrantyEnd.getFullYear() === now.getFullYear();
-        });
+            const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+            return warrantyEnd > now && warrantyEnd <= nextMonth;
+        }).length;
+        
+        const totalActionableItems = pendingRequestCount + arrivedToRegisterCount + approvedAwaitingProcurementCount + statusCounts[AssetStatus.DAMAGED] + expiringAssetsCount;
 
-        if (expiringAssets.length > 0) {
-            tasks.push({
-                id: 'task-warr',
-                icon: <CustomerIcon className="w-6 h-6 text-warning-text"/>,
-                text: <p><span className="font-bold">{expiringAssets.length} Aset</span> akan habis masa garansinya bulan ini.</p>,
-                priority: 'Sedang' as const,
-                onClick: () => setActivePage('registration', { warranty: 'expiring' }),
-            });
+        return {
+            totalAssets: assets.length,
+            statusCounts,
+            topCategories,
+            pendingRequestCount,
+            arrivedToRegisterCount,
+            approvedAwaitingProcurementCount,
+            expiringAssetsCount,
+            totalValueInStorage,
+            totalActionableItems,
+        };
+    }, [assets, requests]);
+
+    const formatCurrencyShort = (value: number): string => {
+        if (value >= 1_000_000_000) {
+            return `${(value / 1_000_000_000).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Miliar`;
         }
+        if (value >= 1_000_000) {
+            return `${(value / 1_000_000).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Juta`;
+        }
+        if (value >= 1000) {
+            return `${(value / 1000).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ribu`;
+        }
+        return value.toLocaleString('id-ID');
+    };
 
-        return tasks;
+    const fullStockValue = `Rp ${summary.totalValueInStorage.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const shortStockValue = `Rp ${formatCurrencyShort(summary.totalValueInStorage)}`;
 
-    }, [requests, assets, setActivePage]);
+    const displayTotalAssets = summary.totalAssets - summary.statusCounts[AssetStatus.DAMAGED];
+
+    const statusData = [
+        { label: AssetStatus.IN_USE, value: summary.statusCounts[AssetStatus.IN_USE], color: 'info', onClick: () => setActivePage('registration', { status: AssetStatus.IN_USE }) },
+        { label: AssetStatus.IN_STORAGE, value: summary.statusCounts[AssetStatus.IN_STORAGE], color: 'neutral', onClick: () => setActivePage('registration', { status: AssetStatus.IN_STORAGE }) },
+        { label: AssetStatus.DECOMMISSIONED, value: summary.statusCounts[AssetStatus.DECOMMISSIONED], color: 'danger', onClick: () => setActivePage('registration', { status: AssetStatus.DECOMMISSIONED }) },
+    ];
+    
+    const statusColorClasses: Record<string, { dot: string; progress: string }> = {
+        info: { dot: 'bg-info', progress: 'bg-info' },
+        neutral: { dot: 'bg-gray-400', progress: 'bg-gray-400' },
+        danger: { dot: 'bg-danger', progress: 'bg-danger' },
+    };
+
+    const ActionCard: React.FC<{ 
+        title: string; 
+        value: number; 
+        icon: React.FC<{className?: string}>; 
+        onClick: () => void;
+        color: 'info' | 'success' | 'warning' | 'danger';
+    }> = ({ title, value, icon: Icon, onClick, color }) => {
+        const colorClasses = {
+            info: { border: 'border-l-info', iconText: 'text-info-text', iconBg: 'bg-info-light' },
+            success: { border: 'border-l-success', iconText: 'text-success-text', iconBg: 'bg-success-light' },
+            warning: { border: 'border-l-warning', iconText: 'text-warning-text', iconBg: 'bg-warning-light' },
+            danger: { border: 'border-l-danger', iconText: 'text-danger-text', iconBg: 'bg-danger-light' },
+        };
+        const currentColors = colorClasses[color];
+        return (
+            <div 
+                onClick={onClick} 
+                className={`p-4 bg-white rounded-lg cursor-pointer hover:bg-gray-50 transition-all duration-200 border border-gray-200/80 border-l-4 hover:shadow-md hover:border-l-tm-primary ${currentColors.border}`}
+            >
+                <div className="flex items-center gap-4">
+                    <div className={`flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full ${currentColors.iconBg}`}>
+                        <Icon className={`w-5 h-5 ${currentColors.iconText}`}/>
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-2xl font-bold text-tm-dark">{value}</p>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+    
+    interface StatCardProps {
+        icon: React.FC<{ className?: string }>;
+        title: string;
+        value: string | number;
+        className?: string;
+        tooltipText?: string;
+        color: 'primary' | 'success' | 'warning' | 'info';
+        onClick?: () => void;
+    }
+    
+    const StatCard: React.FC<StatCardProps> = ({ icon: Icon, title, value, className, tooltipText, color, onClick }) => {
+        const colorClasses = {
+            primary: { text: 'text-tm-primary', bg: 'bg-blue-100' },
+            info: { text: 'text-info-text', bg: 'bg-info-light' },
+            success: { text: 'text-success-text', bg: 'bg-success-light' },
+            warning: { text: 'text-warning-text', bg: 'bg-warning-light' },
+        };
+        const currentColors = colorClasses[color];
+        const valueElement = <p className="text-2xl font-bold text-tm-dark truncate">{value}</p>;
+    
+        return (
+             <div className={`flex items-center p-4 ${className} ${onClick ? 'cursor-pointer rounded-lg hover:bg-gray-50' : ''}`} onClick={onClick}>
+                <div className={`flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-lg ${currentColors.bg} ${currentColors.text}`}>
+                    <Icon className="h-6 w-6" />
+                </div>
+                <div className="ml-4 min-w-0">
+                    <p className="text-sm font-medium text-gray-500">{title}</p>
+                    {tooltipText ? (
+                        <Tooltip text={tooltipText}>
+                            {valueElement}
+                        </Tooltip>
+                    ) : (
+                        valueElement
+                    )}
+                </div>
+            </div>
+        );
+    };
     
     const allActivities = useMemo(() => {
         const activities: { 
@@ -323,90 +312,146 @@ const Dashboard: React.FC<DashboardProps> = ({ assets, requests, handovers, dism
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-8">
             <h1 className="text-3xl font-bold text-tm-dark">Dashboard</h1>
-
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {summaryData.map(item => <SummaryCard key={item.title} {...item} onClick={item.action} />)}
+            
+            {/* Card 1: Ringkasan Statistik */}
+            <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
+                <h2 className="p-6 text-lg font-semibold border-b border-gray-200 text-tm-dark">Ringkasan Statistik</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3">
+                    <StatCard 
+                        icon={AssetIcon} 
+                        title="Total Aset Operasional" 
+                        value={displayTotalAssets}
+                        className="border-b md:border-b-0 md:border-r border-gray-200/80"
+                        color="primary"
+                        onClick={() => setActivePage('registration')}
+                    />
+                    <StatCard 
+                        icon={DollarIcon} 
+                        title="Total Nilai Stok" 
+                        value={shortStockValue}
+                        tooltipText={fullStockValue}
+                        className="border-b md:border-b-0 md:border-r border-gray-200/80"
+                        color="success"
+                        onClick={() => setActivePage('stock')}
+                    />
+                    <StatCard 
+                        icon={UsersIcon} 
+                        title="Aset Digunakan" 
+                        value={summary.statusCounts[AssetStatus.IN_USE]}
+                        className=""
+                        color="info"
+                        onClick={() => setActivePage('registration', { status: AssetStatus.IN_USE })}
+                    />
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-                <div className="lg:col-span-2 space-y-8">
-                    {/* Tasks Card */}
-                    <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
-                        <h2 className="p-6 text-lg font-semibold border-b border-gray-200 text-tm-dark">Tugas & Peringatan Mendesak</h2>
-                        <div className="p-4 space-y-3">
-                            {urgentTasks.length > 0 ? (
-                                urgentTasks.map(task => <TaskItem key={task.id} {...task} />)
-                            ) : (
-                                <p className="p-4 text-sm text-center text-gray-500">Tidak ada tugas mendesak saat ini. Kerja bagus!</p>
-                            )}
+             {/* Card 2: Item Perlu Tindakan (Clickable) */}
+            <div className="bg-white border border-gray-200/80 rounded-xl shadow-md overflow-hidden">
+                <button 
+                    onClick={() => setIsActionItemsExpanded(prev => !prev)}
+                    className="flex items-center justify-between w-full p-6 text-left transition-colors hover:bg-gray-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-tm-accent"
+                    aria-expanded={isActionItemsExpanded}
+                    aria-controls="actionable-items-panel"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-lg bg-warning-light text-warning-text">
+                            <WrenchIcon className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-tm-dark">Item Perlu Tindakan</h2>
+                            <p className="text-sm text-gray-500">{summary.totalActionableItems} item menunggu aksi Anda</p>
                         </div>
                     </div>
-                    
-                    {/* Activity History */}
-                     <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
-                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                           <h2 className="text-lg font-semibold text-tm-dark">Riwayat Aktivitas Terbaru</h2>
-                           {allActivities.length > 7 && (
-                                <button 
-                                    onClick={() => setIsActivityModalOpen(true)}
-                                    className="px-3 py-1 text-sm font-semibold text-center text-tm-primary transition-colors rounded-lg hover:bg-tm-light"
-                                >
-                                    Lihat Semua
-                                </button>
-                            )}
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold text-tm-dark">{summary.totalActionableItems}</span>
+                        <ChevronDownIcon className={`w-6 h-6 text-gray-400 transition-transform duration-300 ${isActionItemsExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                </button>
+                <div 
+                    id="actionable-items-panel"
+                    className={`transition-all duration-500 ease-in-out overflow-hidden ${isActionItemsExpanded ? 'max-h-[500px]' : 'max-h-0'}`}
+                >
+                    <div className="p-6 pt-0 border-t border-gray-200/80">
+                        <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                           <ActionCard title="Perlu Persetujuan" value={summary.pendingRequestCount} onClick={() => setActivePage('request', { status: 'awaiting-approval' })} icon={RequestIcon} color="warning" />
+                            <ActionCard title="Menunggu Pengadaan" value={summary.approvedAwaitingProcurementCount} onClick={() => setActivePage('request', { status: ItemStatus.APPROVED })} icon={ShoppingCartIcon} color="info" />
+                            <ActionCard title="Siap Dicatat" value={summary.arrivedToRegisterCount} onClick={() => setActivePage('request', { status: ItemStatus.ARRIVED })} icon={ArchiveBoxIcon} color="success" />
+                            <ActionCard title="Aset Rusak" value={summary.statusCounts[AssetStatus.DAMAGED]} onClick={() => setActivePage('registration', { status: AssetStatus.DAMAGED })} icon={WrenchIcon} color="danger" />
+                            <ActionCard title="Garansi Segera Habis" value={summary.expiringAssetsCount} onClick={() => setActivePage('registration', { warranty: 'expiring' })} icon={ExclamationTriangleIcon} color="warning" />
                         </div>
-                        <ul className="divide-y divide-gray-200">
-                            {recentActivities.length > 0 ? (
-                                recentActivities.map(log => <ActivityItem key={log.id} {...log} onClick={() => onShowPreview(log.previewData)} />)
-                            ) : (
-                                <li className="p-4 text-sm text-center text-gray-500">Belum ada aktivitas.</li>
-                            )}
-                        </ul>
                     </div>
                 </div>
-
-                <div className="space-y-8">
-                    {/* Asset Status */}
-                     <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
-                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                            <h2 className="text-lg font-semibold text-tm-dark">Status Aset</h2>
-                            <span className="px-2.5 py-1 text-xs font-semibold text-gray-700 bg-gray-100 rounded-full">
-                                Total: {assets.length}
-                            </span>
-                        </div>
-                        <div className="p-4 space-y-2">
-                            <AssetStatusBar 
-                                status={AssetStatus.IN_USE} 
-                                count={assetStatusDistribution[AssetStatus.IN_USE]} 
-                                total={assets.length} 
-                                color="bg-info" 
-                                onClick={() => setActivePage('registration', { status: AssetStatus.IN_USE })}
-                            />
-                            <AssetStatusBar 
-                                status={AssetStatus.IN_STORAGE} 
-                                count={assetStatusDistribution[AssetStatus.IN_STORAGE]} 
-                                total={assets.length} 
-                                color="bg-tm-secondary"
-                                onClick={() => setActivePage('registration', { status: AssetStatus.IN_STORAGE })}
-                            />
-                            <AssetStatusBar 
-                                status={AssetStatus.DAMAGED} 
-                                count={assetStatusDistribution[AssetStatus.DAMAGED]} 
-                                total={assets.length} 
-                                color="bg-warning"
-                                onClick={() => setActivePage('registration', { status: AssetStatus.DAMAGED })}
-                            />
-                            <AssetStatusBar 
-                                status={AssetStatus.DECOMMISSIONED} 
-                                count={assetStatusDistribution[AssetStatus.DECOMMISSIONED]} 
-                                total={assets.length} 
-                                color="bg-danger"
-                                onClick={() => setActivePage('registration', { status: AssetStatus.DECOMMISSIONED })}
-                            />
+            </div>
+            
+            {/* Card 3: Rincian Aset */}
+            <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
+                <div className="grid grid-cols-1 lg:grid-cols-2">
+                    <div className="p-6 lg:border-r border-gray-200/80">
+                         <h3 className="text-base font-semibold text-gray-800 mb-4">Status Aset (Operasional)</h3>
+                        <div className="space-y-4">
+                            {statusData.map(item => {
+                                const percentage = displayTotalAssets > 0 ? (item.value / displayTotalAssets) * 100 : 0;
+                                const colors = statusColorClasses[item.color];
+                                return (
+                                    <div key={item.label} onClick={item.onClick} className="cursor-pointer group">
+                                        <div className="flex justify-between items-center text-sm mb-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`w-2.5 h-2.5 rounded-full ${colors.dot}`}></span>
+                                                <span className="font-medium text-gray-600 group-hover:text-tm-primary">{item.label}</span>
+                                            </div>
+                                            <span className="font-semibold text-gray-800">{item.value}</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className={`h-2 rounded-full ${colors.progress}`} style={{ width: `${percentage}%` }}></div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
-                    {/* Category Distribution Chart */}
-                    <CategoryDistributionChart assets={assets} setActivePage={setActivePage} />
+                    <div className="p-6 border-t lg:border-t-0 border-gray-200/80">
+                         <h3 className="text-base font-semibold text-gray-800 mb-4">Distribusi per Kategori</h3>
+                         <div className="space-y-4">
+                            {summary.topCategories.map(cat => {
+                                const percentage = summary.totalAssets > 0 ? (cat.count / summary.totalAssets) * 100 : 0;
+                                return (
+                                    <div key={cat.name} onClick={() => setActivePage('registration', { category: cat.name })} className="text-sm cursor-pointer group">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="font-medium text-gray-600 group-hover:text-tm-primary truncate pr-2">{cat.name}</span>
+                                            <span className="font-semibold text-gray-800">{cat.count}</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className="bg-blue-400 group-hover:bg-tm-primary h-2 rounded-full transition-colors" style={{ width: `${percentage}%` }}></div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-8">
+                {/* Activity History */}
+                 <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
+                    <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                       <h2 className="text-lg font-semibold text-tm-dark">Riwayat Aktivitas Terbaru</h2>
+                       {allActivities.length > 7 && (
+                            <button 
+                                onClick={() => setIsActivityModalOpen(true)}
+                                className="px-3 py-1 text-sm font-semibold text-center text-tm-primary transition-colors rounded-lg hover:bg-tm-light"
+                            >
+                                Lihat Semua
+                            </button>
+                        )}
+                    </div>
+                    <ul className="divide-y divide-gray-200">
+                        {recentActivities.length > 0 ? (
+                            recentActivities.map(log => <ActivityItem key={log.id} {...log} onClick={() => onShowPreview(log.previewData)} />)
+                        ) : (
+                            <li className="p-4 text-sm text-center text-gray-500">Belum ada aktivitas.</li>
+                        )}
+                    </ul>
                 </div>
             </div>
 

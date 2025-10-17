@@ -1,17 +1,31 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { SuccessIcon } from '../icons/SuccessIcon';
 import { ErrorIcon } from '../icons/ErrorIcon';
 import { CloseIcon } from '../icons/CloseIcon';
+import { InfoIcon } from '../icons/InfoIcon';
+import { ExclamationTriangleIcon } from '../icons/ExclamationTriangleIcon';
 
-export type NotificationType = 'success' | 'error';
+export type NotificationType = 'success' | 'error' | 'info' | 'warning';
+
+export interface NotificationAction {
+  label: string;
+  onClick: () => void;
+  variant?: 'primary' | 'secondary';
+}
 
 interface Notification {
   id: number;
   message: string;
   type: NotificationType;
+  actions?: NotificationAction[];
+  duration?: number;
 }
 
-type NotificationContextType = (message: string, type: NotificationType) => void;
+type NotificationContextType = (
+    message: string, 
+    type?: NotificationType, 
+    options?: { actions?: NotificationAction[]; duration?: number }
+) => void;
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -23,84 +37,111 @@ export const useNotification = () => {
   return context;
 };
 
-const typeClasses = {
-  success: {
-    bg: 'bg-success-light',
-    border: 'border-success',
-    text: 'text-success-text',
-    Icon: SuccessIcon,
-  },
-  error: {
-    bg: 'bg-danger-light',
-    border: 'border-danger',
-    text: 'text-danger-text',
-    Icon: ErrorIcon,
-  },
+const typeDetails = {
+  success: { Icon: SuccessIcon, barClass: 'bg-success' },
+  error: { Icon: ErrorIcon, barClass: 'bg-danger' },
+  info: { Icon: InfoIcon, barClass: 'bg-info' },
+  warning: { Icon: ExclamationTriangleIcon, barClass: 'bg-warning' },
 };
 
-const NotificationItem: React.FC<{ notification: Notification; onDismiss: (id: number) => void }> = ({ notification, onDismiss }) => {
-    const [isExiting, setIsExiting] = useState(false);
-    const classes = typeClasses[notification.type];
-
+const Toast: React.FC<{ notification: Notification; onRemove: (id: number) => void }> = ({ notification, onRemove }) => {
     useEffect(() => {
         const timer = setTimeout(() => {
-            setIsExiting(true);
-            setTimeout(() => onDismiss(notification.id), 300); // Match animation duration
-        }, 4000); // 4 seconds before starting to exit
+            onRemove(notification.id);
+        }, notification.duration || 5000);
 
         return () => clearTimeout(timer);
-    }, [notification.id, onDismiss]);
+    }, [notification, onRemove]);
 
-    const handleDismiss = () => {
-        setIsExiting(true);
-        setTimeout(() => onDismiss(notification.id), 300);
+    const details = typeDetails[notification.type];
+    const { Icon } = details;
+
+    const getIconColorClass = () => {
+        switch (notification.type) {
+            case 'success': return 'text-success';
+            case 'error': return 'text-danger';
+            case 'warning': return 'text-warning-text';
+            case 'info': return 'text-info';
+            default: return 'text-gray-500';
+        }
     };
 
     return (
         <div 
-          className={`
-            flex items-start p-4 w-full max-w-sm rounded-lg shadow-lg border-l-4 transition-all duration-300 ease-in-out transform
-            ${classes.bg} ${classes.border} ${classes.text}
-            ${isExiting ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'}
-            animate-fade-in-down
-          `}
-          role="alert"
+            className="flex items-start w-full max-w-sm p-4 bg-white border border-gray-200 rounded-xl shadow-lg pointer-events-auto animate-fade-in-up"
+            role="alert"
         >
-            <div className="flex-shrink-0">
-                <classes.Icon className="w-6 h-6" />
+            <div className="flex-shrink-0 pt-0.5">
+                <Icon className={`w-6 h-6 ${getIconColorClass()}`} />
             </div>
-            <div className="ml-3 w-0 flex-1 pt-0.5">
-                <p className="text-sm font-medium">{notification.message}</p>
+            <div className="flex-1 w-0 ml-3">
+                <p className="text-sm font-semibold text-gray-900">{notification.message}</p>
+                 {notification.actions && notification.actions.length > 0 && (
+                    <div className="flex items-center gap-2 mt-3">
+                        {notification.actions.map((action, index) => (
+                            <button
+                                key={index}
+                                onClick={(e) => {
+                                    e.stopPropagation(); // prevent any other click handlers
+                                    action.onClick();
+                                    onRemove(notification.id);
+                                }}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors shadow-sm ${
+                                    action.variant === 'secondary'
+                                        ? 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                        : 'text-white bg-tm-primary hover:bg-tm-primary-hover'
+                                }`}
+                            >
+                                {action.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
-            <div className="ml-4 flex-shrink-0 flex">
-                <button onClick={handleDismiss} className="inline-flex rounded-md p-1.5 text-current hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-current focus:ring-white">
-                    <span className="sr-only">Tutup</span>
-                    <CloseIcon className="h-5 w-5" />
+            <div className="flex-shrink-0 ml-4">
+                <button
+                    onClick={() => onRemove(notification.id)}
+                    className="inline-flex text-gray-400 rounded-md hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent"
+                >
+                    <span className="sr-only">Close</span>
+                    <CloseIcon className="w-5 h-5" />
                 </button>
             </div>
         </div>
     );
 };
 
+
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const addNotification = (message: string, type: NotificationType = 'success') => {
+  const addNotification = useCallback((
+      message: string, 
+      type: NotificationType = 'success',
+      options: { actions?: NotificationAction[]; duration?: number } = {}
+    ) => {
     const id = Date.now();
-    setNotifications(prev => [...prev, { id, message, type }]);
-  };
+    const newNotification: Notification = { id, message, type, ...options };
+    setNotifications(prev => [newNotification, ...prev]);
+  }, []);
 
-  const removeNotification = (id: number) => {
+  const removeNotification = useCallback((id: number) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
-  };
+  }, []);
 
   return (
     <NotificationContext.Provider value={addNotification}>
       {children}
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] w-full max-w-sm px-4 flex flex-col items-center gap-2">
-        {notifications.map(notification => (
-          <NotificationItem key={notification.id} notification={notification} onDismiss={removeNotification} />
-        ))}
+      
+      <div
+        aria-live="assertive"
+        className="fixed inset-0 z-[100] flex items-end px-4 py-6 pointer-events-none sm:p-6"
+      >
+        <div className="flex flex-col items-end w-full space-y-4">
+          {notifications.map((notification) => (
+            <Toast key={notification.id} notification={notification} onRemove={removeNotification} />
+          ))}
+        </div>
       </div>
     </NotificationContext.Provider>
   );
