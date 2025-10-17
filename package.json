@@ -11,8 +11,7 @@
   "dependencies": {
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-icons/bs": "latest",
-    "react-icons": "^5.5.0"
+    "react-icons": "latest"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
