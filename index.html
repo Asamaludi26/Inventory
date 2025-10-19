@@ -110,6 +110,19 @@
       .animate-zoom-in {
         animation: zoom-in 0.2s ease-out forwards;
       }
+      
+      @keyframes pulse-slow {
+        50% {
+          background-color: #fef3c7; /* amber-100 */
+        }
+      }
+      .animate-pulse-slow {
+        animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      
+      .bar-chart-bar {
+        transition: height 0.5s ease-out;
+      }
 
       /* General styles for printing */
       @media print {
