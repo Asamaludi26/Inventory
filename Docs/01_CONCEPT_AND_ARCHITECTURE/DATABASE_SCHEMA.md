@@ -29,11 +29,10 @@ erDiagram
         String status
         String condition
         String location
-        String currentUser "Nullable"
+        String currentUser "Nullable (nama user atau ID customer)"
         Int categoryId FK
         Int typeId FK
         Int modelId FK
-        String customerId FK "Nullable"
     }
     
     Customer {
@@ -42,20 +41,22 @@ erDiagram
         String address
         String phone
         String email
+        String status
     }
 
     Request {
         String id PK
         String status
         DateTime requestDate
+        Json items
         Int requesterId FK
     }
     
     Handover {
         String id PK
         DateTime handoverDate
-        Int menyerahkanId FK
-        Int penerimaId FK
+        String menyerahkan "Nama User"
+        String penerima "Nama User"
     }
     
     Dismantle {
@@ -85,10 +86,8 @@ erDiagram
     
     User ||--o{ Division : "belongs to"
     Request ||--o{ User : "requested by"
-    Asset }o--|| User : "assigned to"
-    Asset }o--|| Customer : "installed at"
-    Handover ||--o{ User : "from"
-    Handover ||--o{ User : "to"
+    Asset }o--o| User : "assigned to"
+    Asset }o--o| Customer : "installed at"
     Dismantle ||--o{ Asset : "of"
     Dismantle ||--o{ Customer : "from"
     
@@ -98,7 +97,7 @@ erDiagram
     AssetType ||--o{ AssetCategory : "belongs to"
     StandardItem ||--o{ AssetType : "belongs to"
 ```
-_Catatan: Diagram ini disederhanakan untuk menunjukkan relasi utama. Beberapa kolom dan tabel perantara (misal: untuk item request) tidak ditampilkan._
+_Catatan: Diagram ini disederhanakan untuk menunjukkan relasi utama. Beberapa kolom dan tabel perantara (misal: untuk item handover) tidak ditampilkan._
 
 ## 2. Data Dictionary
 
@@ -113,8 +112,8 @@ Menyimpan informasi akun pengguna yang dapat login ke sistem.
 | `name`       | VARCHAR(255)      | Nama lengkap pengguna.                           |
 | `email`      | VARCHAR(255) `(UK)`| Alamat email unik untuk login.                   |
 | `password`   | VARCHAR(255)      | Hash kata sandi pengguna (menggunakan bcrypt).   |
-| `role`       | VARCHAR(50)       | Peran pengguna: `Staff`, `Admin`, `Super Admin`. |
-| `divisionId` | INTEGER `(FK)`    | ID divisi tempat pengguna bernaung.              |
+| `role`       | VARCHAR(50)       | Peran pengguna: `Staff`, `Manager`, `Admin`, `Super Admin`. |
+| `divisionId` | INTEGER `(FK)`    | ID divisi tempat pengguna bernaung. Relasi ke tabel `Division`. |
 
 ### Tabel: `Asset`
 Tabel inti yang menyimpan data setiap unit aset yang dimiliki perusahaan.
@@ -131,6 +130,7 @@ Tabel inti yang menyimpan data setiap unit aset yang dimiliki perusahaan.
 | `purchaseDate`   | DATE              | Tanggal pembelian aset.                                                        |
 | `purchasePrice`  | DECIMAL(12, 2)    | Harga beli aset.                                                               |
 | `warrantyEndDate`| DATE              | Tanggal berakhirnya masa garansi.                                              |
+| `isDismantled`   | BOOLEAN           | Menandakan apakah aset pernah ditarik dari pelanggan.                          |
 
 ### Tabel: `Request`
 Mencatat setiap permintaan pengadaan barang/aset dari pengguna.
@@ -140,9 +140,10 @@ Mencatat setiap permintaan pengadaan barang/aset dari pengguna.
 | `id`            | VARCHAR(20) `(PK)`  | ID unik permintaan, biasanya dengan format `REQ-XXX`.                                     |
 | `status`        | VARCHAR(50)         | Status alur kerja permintaan: `PENDING`, `APPROVED`, `REJECTED`, `COMPLETED`, dll.        |
 | `requestDate`   | TIMESTAMP           | Tanggal dan waktu permintaan dibuat.                                                      |
-| `requesterId`   | INTEGER `(FK)`      | ID pengguna yang membuat permintaan.                                                      |
+| `requesterId`   | INTEGER `(FK)`      | ID pengguna yang membuat permintaan. Relasi ke tabel `User`.                              |
 | `finalApproverId`| INTEGER `(FK)`    | ID pengguna (Admin/Super Admin) yang memberikan persetujuan final.                        |
 | `items`         | JSONB               | Array JSON yang berisi detail item yang diminta (nama, jumlah, keterangan).             |
+| `order`         | JSONB               | Objek JSON yang berisi tipe order (`Regular`, `Urgent`, `Project Based`) dan detailnya.   |
 
 ### Tabel: `Customer`
 Menyimpan data pelanggan PT. Triniti Media Indonesia.
@@ -154,3 +155,9 @@ Menyimpan data pelanggan PT. Triniti Media Indonesia.
 | `address`  | TEXT             | Alamat lengkap pelanggan.                        |
 | `phone`    | VARCHAR(20)      | Nomor telepon pelanggan.                         |
 | `status`   | VARCHAR(50)      | Status pelanggan: `Aktif`, `Tidak Aktif`, `Suspend`. |
+
+### Tabel: `Handover` & `Dismantle`
+Mencatat transaksi perpindahan aset.
+-   **`Handover`**: Mencatat serah terima internal antar karyawan.
+-   **`Dismantle`**: Mencatat penarikan aset dari lokasi pelanggan.
+Kedua tabel ini memiliki struktur serupa untuk mencatat tanggal, pihak yang terlibat, dan aset yang ditransaksikan, yang kemudian menjadi bagian dari riwayat/log aktivitas sebuah aset.

@@ -38,7 +38,7 @@ Metode yang direkomendasikan adalah menggunakan **Docker** untuk konsistensi dan
 
 3.  **Deploy di Platform Hosting**:
     -   Pilih platform hosting yang mendukung kontainer, misalnya:
-        -   **Layanan PaaS**: [Google Cloud Run](https://cloud.google.com/run), [AWS App Runner](https://aws.amazon.com/apprunner/), [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform).
+        -   **Layanan PaaS (Rekomendasi)**: [Google Cloud Run](https://cloud.google.com/run), [AWS App Runner](https://aws.amazon.com/apprunner/), [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform).
         -   **Orkestrasi Kontainer**: [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine), [Amazon EKS](https://aws.amazon.com/eks/).
     -   **Konfigurasi**:
         -   Gunakan image yang telah di-push ke registry.

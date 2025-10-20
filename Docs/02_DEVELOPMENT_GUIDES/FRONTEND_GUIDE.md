@@ -83,7 +83,7 @@ src/
 
 ## 4. Alur Data & Manajemen State
 
-Diagram berikut mengilustrasikan alur data yang direkomendasikan saat menggunakan Zustand sebagai state manager global.
+State global (seperti daftar aset, request, pengguna) dikelola menggunakan Zustand untuk menghindari _prop-drilling_ dan menyederhanakan logika.
 
 ```mermaid
 graph TD
@@ -92,7 +92,7 @@ graph TD
         B[Modal Detail Aset]
     end
 
-    subgraph "Zustand Store"
+    subgraph "Zustand Store (Contoh)"
         C(useAssetStore)
     end
 
@@ -104,12 +104,12 @@ graph TD
         E[API Server]
     end
 
-    A -- "1. Panggil fetchAssets()" --> C
-    B -- "6. Baca state 'assets' dari store" --> C
-    C -- "2. Jalankan aksi fetchAssets" --> D
-    C -- "5. Update state 'assets' & 'isLoading'" --> A & B
-    D -- "3. Kirim request HTTP" --> E
-    E -- "4. Kirim response data" --> D
+    A -- "1. Panggil aksi `fetchAssets()`" --> C
+    B -- "6. Membaca state 'assets' dari store" --> C
+    C -- "2. Menjalankan fungsi `fetchAllAssets()`" --> D
+    C -- "5. Memperbarui state 'assets' & 'isLoading'" --> A & B
+    D -- "3. Mengirim request HTTP" --> E
+    E -- "4. Mengirim response data" --> D
 
     style A fill:#bde4ff
     style B fill:#bde4ff
@@ -127,7 +127,7 @@ graph TD
 ## 5. Filosofi Komponen
 
 -   **Komponen UI (`src/components/ui`)**:
-    -   Komponen ini bersifat **presentasional**.
+    -   Komponen ini bersifat **presentasional** (bodoh/dumb).
     -   Mereka tidak tahu tentang logika bisnis atau dari mana data berasal.
     -   Mereka menerima data dan fungsi callback melalui `props`.
     -   Contoh: `Button.tsx`, `Modal.tsx`, `CustomSelect.tsx`.

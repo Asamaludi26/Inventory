@@ -59,12 +59,13 @@ sequenceDiagram
     participant JwtStrategy
     participant RolesGuard
 
-    Pengguna ->> Controller: 1. POST /auth/login (email, pass)
+    Pengguna ->> Controller: 1. POST /api/auth/login (email, pass)
     Controller ->> AuthService: 2. Panggil login(user)
     activate AuthService
     AuthService ->> AuthService: 3. Validasi user & generate JWT
     AuthService -->> Controller: 4. Kembalikan access_token
     Controller -->> Pengguna: 5. Response { access_token }
+    deactivate AuthService
 
     Note over Pengguna, RolesGuard: Beberapa saat kemudian...
 
@@ -75,7 +76,7 @@ sequenceDiagram
     JwtStrategy -->> Controller: 9. Attach user ke request
     deactivate JwtStrategy
     
-    Controller ->> RolesGuard: 10. NestJS memicu RolesGuard
+    Controller ->> RolesGuard: 10. NestJS memicu RolesGuard (jika ada @Roles)
     activate RolesGuard
     RolesGuard ->> RolesGuard: 11. Cek role user vs role endpoint
     RolesGuard -->> Controller: 12. Akses diizinkan

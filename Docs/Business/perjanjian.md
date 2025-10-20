@@ -87,7 +87,6 @@
             <h2>PENGEMBANGAN PERANGKAT LUNAK INVENTORI ASET</h2>
             <div style="font-size: 12pt; margin-top: 0.5rem;">
                <p style="margin:0; text-align: center;">Nomor: 001/SPK-DEV/TMI-AS/X/2025</p>
-               <p style="margin:0; text-align: center;">Nomor: .........................................</p>
             </div>
         </header>
         
@@ -143,6 +142,8 @@
                 </tr>
             </tbody>
         </table>
+        <p>Dalam hal ini bertindak untuk dan atas nama pribadi, selanjutnya dalam perjanjian ini disebut sebagai <strong>PIHAK KEDUA</strong>.</p>
+        
         <p>PIHAK PERTAMA dan PIHAK KEDUA, secara bersama-sama disebut "Para Pihak", dengan ini menyatakan setuju dan sepakat untuk mengikatkan diri dalam suatu Perjanjian Pelaksanaan Pekerjaan Pengembangan Perangkat Lunak ("Perjanjian") dengan syarat dan ketentuan sebagai berikut:</p>
 
         <section>
@@ -154,7 +155,7 @@
             </div>
             <div class="ayat">
                 <span>(2)</span>
-                <div>Tujuan dari Perjanjian ini adalah untuk menetapkan hak dan kewajiban Para Pihak serta memastikan bahwa pekerjaan dilaksanakan sesuai dengan ruang lingkup, jadwal, dan biaya yang telah disepakati berdasarkan proposal penawaran nomor Q-INV/AS/VIII/2024/001 ("Proposal") yang merupakan bagian tidak terpisahkan dari Perjanjian ini.</div>
+                <div>Tujuan dari Perjanjian ini adalah untuk menetapkan hak dan kewajiban Para Pihak serta memastikan bahwa pekerjaan dilaksanakan sesuai dengan ruang lingkup, jadwal, dan biaya yang telah disepakati berdasarkan proposal penawaran nomor Q-INV/AS/VIII/2024/002 ("Proposal") yang merupakan bagian tidak terpisahkan dari Perjanjian ini.</div>
             </div>
         </section>
 
@@ -194,7 +195,7 @@
                 <div>Adapun rincian alokasi waktu untuk setiap fase pekerjaan adalah sebagai berikut:
                     <div class="subpoin"><span>a.</span><div>Fase 1 - Analisis &amp; Desain Sistem : 1 Minggu</div></div>
                     <div class="subpoin"><span>b.</span><div>Fase 2 - Pengembangan Backend : 4 Minggu</div></div>
-                    <div class="subpoin"><span>c.</span><div>Fase 3 - Integrasi Frontend : 3 Minggu</div></div>
+                    <div class="subpoin"><span>c.</span><div>Fase 3 - Pengembangan Frontend : 3 Minggu</div></div>
                     <div class="subpoin"><span>d.</span><div>Fase 4 - Pengujian Sistem (QA) &amp; Keamanan : 1 Minggu</div></div>
                     <div class="subpoin"><span>e.</span><div>Fase 5 - Deployment, Pelatihan &amp; Dokumentasi : 1 Minggu</div></div>
                 </div>
@@ -241,7 +242,7 @@
                     <div class="subpoin"><span>b.</span><div>Berhak mendapatkan dukungan garansi dari PIHAK KEDUA sesuai dengan Pasal 7 Perjanjian ini.</div></div>
                     <div class="subpoin"><span>c.</span><div>Berhak mendapatkan informasi terkait perkembangan pekerjaan dari PIHAK KEDUA selama proses pekerjaan berlangsung.</div></div>
                     <div class="subpoin"><span>d.</span><div>Wajib melakukan pembayaran kepada PIHAK KEDUA sesuai dengan jadwal dan jumlah yang telah disepakati dalam Pasal 4.</div></div>
-                    <div class="subpoin"><span>e.</span><div>Wajib menyediakan data, informasi, dan akses yang diperlukan oleh PIHAK KEDUA untuk kelancaran pelaksanaan pekerjaan.</div></div>
+                    <div class="subpoin"><span>e.</span><div>Wajib menyediakan data, informasi, dan akses yang diperlukan oleh PIHAK KEDUA untuk kelancaran pelaksanaan pekerjaan, termasuk namun tidak terbatas pada penyediaan infrastruktur server dan domain.</div></div>
                 </div>
             </div>
             <div class="ayat">

@@ -23,25 +23,20 @@ Diagram berikut menggunakan notasi C4 untuk memvisualisasikan arsitektur dalam b
 
 ### Level 1: Diagram Konteks Sistem
 
-Diagram ini menunjukkan gambaran besar: bagaimana sistem aplikasi inventori berinteraksi dengan pengguna dan sistem lain.
+Diagram ini menunjukkan gambaran besar: bagaimana sistem aplikasi inventori berinteraksi dengan pengguna dan sistem lain (potensial).
 
 ```mermaid
 graph TD
-    subgraph "PT. Triniti Media Indonesia"
-        A[Staff]
+    subgraph "Pengguna Internal"
+        A[Staff / Manajer]
         B[Admin / Super Admin]
     end
 
     C(Aplikasi Inventori Aset)
 
-    D[Email Service]
-    E["File Storage <br> (e.g., AWS S3)"]
-
     A -- "Menggunakan (Web Browser)" --> C
     B -- "Mengelola (Web Browser)" --> C
-    C -- "Mengirim Notifikasi via" --> D
-    C -- "Menyimpan & Mengambil File via" --> E
-
+    
     style A fill:#9f7aea,stroke:#333,stroke-width:2px
     style B fill:#9f7aea,stroke:#333,stroke-width:2px
     style C fill:#4299e1,stroke:#333,stroke-width:2px
@@ -53,17 +48,20 @@ Diagram ini memperbesar "Aplikasi Inventori Aset" untuk menunjukkan komponen-kom
 
 ```mermaid
 graph TD
-    subgraph "Aplikasi Inventori Aset"
-        F["Frontend App <br> (React SPA)"]
-        G["Backend API <br> (NestJS Server)"]
-        H["Database <br> (PostgreSQL)"]
-    end
-
     A["Pengguna <br> (Staff/Admin)"]
 
-    A -- "HTTPS" --> F
-    F -- "REST API (JSON/HTTPS)" --> G
-    G -- "TCP/IP" --> H
+    subgraph "Infrastruktur Server"
+        subgraph "Aplikasi Inventori Aset"
+            F["<b>Aplikasi Frontend</b><br>[React SPA]<br><br>Menyajikan antarmuka pengguna<br>dan logika sisi klien."]
+            G["<b>API Backend</b><br>[Server NestJS]<br><br>Menangani logika bisnis, otentikasi,<br>dan akses data."]
+        end
+        
+        H["<b>Database</b><br>[PostgreSQL]<br><br>Menyimpan semua data<br>aset, pengguna, request, dll."]
+    end
+
+    A -- "Mengakses via HTTPS" --> F
+    F -- "Memanggil API via HTTPS<br>[JSON]" --> G
+    G -- "Membaca/Menulis Data via TCP/IP" --> H
 
     style F fill:#63b3ed,stroke:#333,stroke-width:2px
     style G fill:#4299e1,stroke:#333,stroke-width:2px
@@ -113,7 +111,7 @@ sequenceDiagram
     Frontend ->> Backend: POST /api/requests/:id/approve
     activate Backend
     Backend ->> Backend: Cek Otorisasi (Admin Role)
-    Backend ->> Database: Update status request menjadi APPROVED
+    Backend ->> Database: Update status request menjadi LOGISTIC_APPROVED
     activate Database
     Database -->> Backend: Data request terupdate
     deactivate Database

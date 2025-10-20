@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Aplikasi Inventori Aset
 
-- **Versi**: 1.0
-- **Tanggal**: 08 Agustus 2024
+- **Versi**: 1.1
+- **Tanggal**: 17 Oktober 2025
 - **Pemilik Dokumen**: Angga Samuludi Septiawan
 
 ## 1. Pendahuluan
@@ -28,7 +28,7 @@ Aplikasi ini akan mencakup fungsionalitas _end-to-end_ untuk manajemen aset, ter
 
 ## 2. Target Pengguna & Peran (User Persona & Roles)
 
-Aplikasi akan memiliki tiga tingkat hak akses utama:
+Aplikasi akan memiliki empat tingkat hak akses utama untuk merefleksikan struktur operasional yang realistis.
 
 | Peran         | Deskripsi                                                                                                                                                      | Hak Akses Utama                                                                                                                                                                                                                            |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -36,6 +36,7 @@ Aplikasi akan memiliki tiga tingkat hak akses utama:
 | **Manager**   | Peran ini secara spesifik ditujukan untuk Manajer atau Supervisor (SPV) di setiap divisi. Mereka bertanggung jawab atas kebutuhan proyek atau situasi darurat. | - Semua hak akses Staff.<br>- Membuat request aset tipe **Urgent** dan **Project Based** untuk meminimalisir penyalahgunaan tipe order.                                                           |
 | **Admin**     | Staf dari Divisi Inventori yang bertanggung jawab atas operasional harian manajemen aset.                                                                        | - Semua hak akses Staff & Manager.<br>- Mengelola (menyetujui/menolak) request aset.<br>- Mencatat aset baru.<br>- Mengelola handover dan dismantle.<br>- Mengelola data pelanggan dan kategori aset. |
 | **Super Admin** | Pimpinan atau manajer senior yang memiliki otoritas penuh atas sistem.                                                                                           | - Semua hak akses Admin.<br>- Mengelola akun pengguna dan divisi.<br>- Memberikan persetujuan final untuk request bernilai tinggi.<br>- Mengakses semua laporan dan analitik.                       |
+
 
 ---
 

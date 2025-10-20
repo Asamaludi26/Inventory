@@ -24,6 +24,7 @@ Otorisasi adalah proses menentukan apakah pengguna yang sudah terautentikasi mem
 
 **Peran yang Didefinisikan:**
 -   **`Staff`**: Hak akses paling terbatas. Hanya bisa membuat dan melihat request pribadi.
+-   **`Manager`**: Dapat membuat request tipe `Urgent` dan `Project Based`.
 -   **`Admin`**: Hak akses operasional. Bisa mengelola aset, request, handover, dll.
 -   **`Super Admin`**: Hak akses penuh, termasuk mengelola pengguna dan divisi.
 

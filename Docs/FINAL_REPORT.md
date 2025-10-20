@@ -14,7 +14,7 @@
   <h3 style="font-family: sans-serif; font-size: 22px; color: #111827;">PT. TRINITI MEDIA INDONESIA</h3>
   <br/><br/><br/><br/><br/><br/><br/>
   <p style="font-family: sans-serif; font-size: 14px; color: #6B7280;">Versi Laporan: 1.0 (Final)</p>
-  <p style="font-family: sans-serif; font-size: 14px; color: #6B7280;">Tanggal: 08 Agustus 2024</p>
+  <p style="font-family: sans-serif; font-size: 14px; color: #6B7280;">Tanggal: 17 Oktober 2025</p>
   <p style="font-family: sans-serif; font-size: 14px; color: #6B7280;">Disusun oleh: Angga Samuludi Septiawan</p>
 </div>
 
@@ -512,7 +512,7 @@ Dengan selesainya laporan ini, item-item berikut secara resmi diserahterimakan k
 ### 7.2. Masa Garansi dan Dukungan Teknis
 Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.md) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
 
-Untuk dukungan teknis dan pemeliharaan berkelanjutan setelah masa garansi berakhir, tersedia paket layanan opsional seperti yang dijelaskan dalam proposal.
+Untuk dukungan teknis dan pemeliharaan berkelanjutan setelah masa garansi berakhir, dapat didiskusikan perjanjian layanan terpisah.
 
 ### 7.3. Rekomendasi Pengembangan Lanjutan
 Aplikasi ini memiliki fondasi yang kuat untuk dikembangkan lebih lanjut. Berikut adalah beberapa rekomendasi fitur untuk masa depan:
@@ -528,10 +528,10 @@ Berikut adalah contoh peta jalan pengembangan yang dapat diadopsi.
 
 | Kuartal      | Fokus Utama                 | Fitur Potensial                                                                   |
 | ------------ | --------------------------- | --------------------------------------------------------------------------------- |
-| **Q4 2024**  | **Stabilisasi & Adopsi**    | - Pelatihan pengguna intensif.<br>- Perbaikan bug minor pasca-produksi.<br>- Pengumpulan umpan balik. |
-| **Q1 2025**  | **Peningkatan Laporan**     | - Modul laporan kustom.<br>- Integrasi dasar ke Google Sheets/Excel.                |
-| **Q2 2025**  | **Efisiensi Lapangan**      | - Pengembangan prototipe aplikasi mobile.<br>- Fitur geo-tagging lokasi aset.      |
-| **Q3 2025**  | **Integrasi Keuangan**      | - Implementasi modul depresiasi aset.<br>- Eksplorasi integrasi API ke sistem akuntansi. |
+| **Q1 2026**  | **Stabilisasi & Adopsi**    | - Pelatihan pengguna intensif.<br>- Perbaikan bug minor pasca-produksi.<br>- Pengumpulan umpan balik. |
+| **Q2 2026**  | **Peningkatan Laporan**     | - Modul laporan kustom.<br>- Integrasi dasar ke Google Sheets/Excel.                |
+| **Q3 2026**  | **Efisiensi Lapangan**      | - Pengembangan prototipe aplikasi mobile.<br>- Fitur geo-tagging lokasi aset.      |
+| **Q4 2026**  | **Integrasi Keuangan**      | - Implementasi modul depresiasi aset.<br>- Eksplorasi integrasi API ke sistem akuntansi. |
 
 <div style="page-break-after: always;"></div>
 
