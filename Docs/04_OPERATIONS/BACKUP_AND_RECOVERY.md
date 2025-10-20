@@ -2,15 +2,20 @@
 
 Dokumen ini menjelaskan prosedur standar untuk mencadangkan (backup) data aplikasi dan langkah-langkah untuk memulihkan layanan jika terjadi kegagalan sistem atau kehilangan data.
 
-## 1. Strategi Backup
+## 1. Target Pemulihan
 
-### 1.1. Objek Backup
+-   **RTO (Recovery Time Objective)**: Waktu maksimal yang ditargetkan untuk memulihkan layanan setelah bencana. **Target: < 2 jam**.
+-   **RPO (Recovery Point Objective)**: Jumlah data maksimal yang bisa hilang (diukur dalam waktu). **Target: < 5 menit**.
+
+## 2. Strategi Backup
+
+### 2.1. Objek Backup
 -   **Target Utama**: Database **PostgreSQL** yang berisi semua data operasional (aset, pengguna, request, dll).
 -   **Target Sekunder**: File lampiran yang diunggah oleh pengguna (jika disimpan di file system server). Jika menggunakan layanan penyimpanan objek seperti AWS S3, backup diatur oleh kebijakan _versioning_ S3.
 
-### 1.2. Metode & Jadwal Backup
+### 2.2. Metode & Jadwal Backup
 
-Kami menerapkan strategi backup berlapis untuk menyeimbangkan antara RPO (Recovery Point Objective) dan biaya.
+Kami menerapkan strategi backup berlapis untuk mencapai RPO yang rendah.
 
 1.  **Backup Penuh Harian (Daily Full Backup)**
     -   **Metode**: Menggunakan `pg_dump` untuk membuat salinan logis lengkap dari seluruh database.
@@ -24,7 +29,7 @@ Kami menerapkan strategi backup berlapis untuk menyeimbangkan antara RPO (Recove
 
 _Catatan: Jika menggunakan layanan database terkelola (seperti AWS RDS atau Google Cloud SQL), fitur backup harian dan PITR biasanya sudah tersedia dan dapat diaktifkan dengan beberapa klik._
 
-## 2. Kebijakan Penyimpanan & Retensi
+## 3. Kebijakan Penyimpanan & Retensi
 
 Untuk melindungi dari kegagalan server atau bencana regional, backup harus disimpan di lokasi yang aman dan terpisah.
 
@@ -34,19 +39,19 @@ Untuk melindungi dari kegagalan server atau bencana regional, backup harus disim
     -   Backup **mingguan** (salah satu backup harian) disimpan selama **1 bulan**.
     -   Backup **bulanan** (backup hari pertama setiap bulan) disimpan selama **12 bulan**.
 
-## 3. Rencana Pemulihan Bencana (Disaster Recovery Plan)
+## 4. Rencana Pemulihan Bencana (Disaster Recovery Plan)
 
 Rencana ini diaktifkan jika terjadi skenario kegagalan kritis.
 
-### 3.1. Skenario Kegagalan
--   **Skenario A**: Korupsi data (misal: penghapusan tabel yang tidak disengaja).
--   **Skenario B**: Kegagalan total server database.
+### 4.1. Skenario Kegagalan
+-   **Skenario A**: Korupsi data (misal: penghapusan tabel yang tidak disengaja oleh admin).
+-   **Skenario B**: Kegagalan total server database (misal: kerusakan hardware).
 
-### 3.2. Prosedur Pemulihan (Langkah-demi-Langkah)
+### 4.2. Prosedur Pemulihan (Langkah-demi-Langkah)
 
 1.  **Komunikasi**: Tim DevOps/Infrastruktur segera memberitahu semua _stakeholder_ bahwa proses pemulihan sedang berlangsung dan memberikan estimasi waktu (ETA).
 
-2.  **Isolasi**: Matikan akses publik ke aplikasi untuk mencegah data baru yang tidak konsisten.
+2.  **Isolasi**: Matikan akses publik ke aplikasi untuk mencegah data baru yang tidak konsisten. Tampilkan halaman pemeliharaan.
 
 3.  **Provisioning Server Baru**: Siapkan server database baru (jika terjadi kegagalan hardware) dengan spesifikasi yang sama atau lebih baik.
 
@@ -70,7 +75,3 @@ Rencana ini diaktifkan jika terjadi skenario kegagalan kritis.
 8.  **Aktifkan Kembali Akses**: Buka kembali akses publik ke aplikasi.
 
 9.  **Post-Mortem**: Setelah layanan pulih sepenuhnya, lakukan analisis _post-mortem_ untuk mendokumentasikan penyebab kegagalan dan mengidentifikasi cara untuk mencegahnya di masa depan.
-
-### 3.3. Target Recovery
--   **RTO (Recovery Time Objective)**: Waktu maksimal yang dibutuhkan untuk memulihkan layanan setelah bencana. Target: **2 jam**.
--   **RPO (Recovery Point Objective)**: Jumlah data maksimal yang bisa hilang. Target: **5 menit**.

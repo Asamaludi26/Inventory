@@ -103,18 +103,140 @@ sequenceDiagram
     ```
 -   **Prisma Client**: Klien database yang di-generate secara otomatis dan sepenuhnya _type-safe_. Digunakan di dalam _services_ untuk semua operasi database (CRUD).
 
-## 5. Panduan Menambah Fitur Baru (Contoh: Modul "Suppliers")
+## 5. Contoh Lengkap: Menambah Fitur Baru (Modul "Suppliers")
 
-1.  **Gunakan NestJS CLI**: Buat kerangka modul, controller, dan service secara otomatis.
-    ```bash
-    nest g resource suppliers --no-spec
-    ```
-2.  **Update Skema Prisma**: Buka `prisma/schema.prisma` dan tambahkan model `Supplier`.
-3.  **Jalankan Migrasi**: `pnpm prisma migrate dev --name add-suppliers-table`
-4.  **Implementasikan Service (`suppliers.service.ts`)**: Tulis logika bisnis untuk CRUD suppliers menggunakan `PrismaService`.
-5.  **Implementasikan Controller (`suppliers.controller.ts`)**: Buat endpoint REST API (`@Get`, `@Post`, dll.) dan panggil metode dari `SuppliersService`. Gunakan DTOs untuk validasi.
-6.  **Lindungi Endpoint**: Tambahkan `@UseGuards(JwtAuthGuard)` dan, jika perlu, `@Roles(...)` pada endpoint yang memerlukan autentikasi/otorisasi.
-7.  **Daftarkan Modul**: Impor `SuppliersModule` ke dalam `app.module.ts`.
+Gunakan contoh ini sebagai **templat** untuk membuat modul fitur baru.
+
+### Langkah 1: Buat Kerangka Modul
+Gunakan NestJS CLI untuk membuat semua file boilerplate.
+```bash
+nest g resource suppliers --no-spec
+```
+
+### Langkah 2: Update Skema Database
+Buka `prisma/schema.prisma` dan tambahkan model `Supplier`.
+```prisma
+// prisma/schema.prisma
+
+model Supplier {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  contactPerson String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+```
+
+### Langkah 3: Jalankan Migrasi
+Buat file migrasi dan terapkan ke database.
+```bash
+pnpm prisma migrate dev --name add-suppliers-table
+```
+
+### Langkah 4: Buat DTO
+Buat file `src/suppliers/dto/create-supplier.dto.ts` untuk validasi.
+```typescript
+// src/suppliers/dto/create-supplier.dto.ts
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+
+export class CreateSupplierDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  contactPerson?: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+}
+```
+
+### Langkah 5: Implementasikan Service
+Tulis logika bisnis di `src/suppliers/suppliers.service.ts`.
+```typescript
+// src/suppliers/suppliers.service.ts
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../shared/prisma/prisma.service';
+import { CreateSupplierDto } from './dto/create-supplier.dto';
+
+@Injectable()
+export class SuppliersService {
+  constructor(private prisma: PrismaService) {}
+
+  create(createSupplierDto: CreateSupplierDto) {
+    return this.prisma.supplier.create({
+      data: createSupplierDto,
+    });
+  }
+
+  findAll() {
+    return this.prisma.supplier.findMany();
+  }
+
+  findOne(id: number) {
+    return this.prisma.supplier.findUnique({ where: { id } });
+  }
+}
+```
+
+### Langkah 6: Implementasikan Controller
+Buat endpoint di `src/suppliers/suppliers.controller.ts`.
+```typescript
+// src/suppliers/suppliers.controller.ts
+import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { SuppliersService } from './suppliers.service';
+import { CreateSupplierDto } from './dto/create-supplier.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+
+@Controller('suppliers')
+@UseGuards(JwtAuthGuard, RolesGuard) // Lindungi semua endpoint di controller ini
+export class SuppliersController {
+  constructor(private readonly suppliersService: SuppliersService) {}
+
+  @Post()
+  @Roles('Admin', 'Super Admin') // Hanya Admin & Super Admin yang bisa membuat
+  create(@Body() createSupplierDto: CreateSupplierDto) {
+    return this.suppliersService.create(createSupplierDto);
+  }
+
+  @Get()
+  @Roles('Admin', 'Super Admin', 'Manager') // Semua peran kecuali Staff bisa melihat
+  findAll() {
+    return this.suppliersService.findAll();
+  }
+
+  @Get(':id')
+  @Roles('Admin', 'Super Admin', 'Manager')
+  findOne(@Param('id') id: string) {
+    return this.suppliersService.findOne(+id);
+  }
+}
+```
+
+### Langkah 7: Daftarkan Modul
+Pastikan `SuppliersModule` diimpor ke dalam `src/app.module.ts`.
+```typescript
+// src/app.module.ts
+import { Module } from '@nestjs/common';
+// ... other imports
+import { SuppliersModule } from './suppliers/suppliers.module';
+
+@Module({
+  imports: [
+    // ... other modules
+    SuppliersModule,
+  ],
+  // ...
+})
+export class AppModule {}
+```
+Sekarang, modul "Suppliers" Anda sudah siap digunakan.
 
 ## 6. Pilar Profesional Backend
 

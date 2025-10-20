@@ -10,9 +10,9 @@ Monitoring proaktif bertujuan untuk mendeteksi masalah sebelum berdampak signifi
 
 -   **Metrik Utama**:
     -   **Web Vitals**: Metrik kinerja yang berfokus pada pengalaman pengguna.
-        -   **LCP (Largest Contentful Paint)**: Waktu muat halaman. Target: < 2.5 detik.
-        -   **FID (First Input Delay)**: Responsivitas interaksi. Target: < 100 ms.
-        -   **CLS (Cumulative Layout Shift)**: Stabilitas visual. Target: < 0.1.
+        -   **LCP (Largest Contentful Paint)**: Waktu muat halaman. Target: **< 2.5 detik**.
+        -   **FID (First Input Delay)**: Responsivitas interaksi. Target: **< 100 ms**.
+        -   **CLS (Cumulative Layout Shift)**: Stabilitas visual. Target: **< 0.1**.
     -   **Error Tracking**: Jumlah dan frekuensi error JavaScript yang terjadi di browser pengguna.
 -   **Tools yang Direkomendasikan**:
     -   [Vercel Analytics](https://vercel.com/analytics) (jika frontend di-host di Vercel).
@@ -22,8 +22,8 @@ Monitoring proaktif bertujuan untuk mendeteksi masalah sebelum berdampak signifi
 
 -   **Metrik Utama**:
     -   **Ketersediaan (Availability)**: Endpoint `GET /api/health` harus selalu mengembalikan status `200 OK`.
-    -   **Latensi API**: Waktu respons rata-rata dan persentil ke-95 (p95) untuk endpoint-endpoint krusial (misal: `GET /api/assets`). Target p95: < 500 ms.
-    -   **Tingkat Error (Error Rate)**: Persentase request yang menghasilkan status `5xx` (Server Error). Target: < 0.1%.
+    -   **Latensi API**: Waktu respons rata-rata dan persentil ke-95 (p95) untuk endpoint-endpoint krusial (misal: `GET /api/assets`). Target p95: **< 500 ms**.
+    -   **Tingkat Error (Error Rate)**: Persentase request yang menghasilkan status `5xx` (Server Error). Target: **< 0.1%**.
     -   **Utilisasi Sumber Daya**: Penggunaan CPU dan Memori (RAM) pada server atau kontainer.
 -   **Tools yang Direkomendasikan**:
     -   Layanan monitoring dari platform hosting (misal: Google Cloud Monitoring, AWS CloudWatch).
@@ -60,10 +60,11 @@ Semua log **harus** dalam format **JSON terstruktur**. Ini memudahkan mesin untu
   "timestamp": "2024-08-05T10:30:00.123Z",
   "level": "INFO",
   "message": "User successfully authenticated",
-  "context": {
+  "context": "AuthService",
+  "traceId": "abc-123-xyz-789",
+  "payload": {
     "userId": 123,
-    "email": "user@example.com",
-    "ipAddress": "192.168.1.10"
+    "email": "user@example.com"
   }
 }
 ```

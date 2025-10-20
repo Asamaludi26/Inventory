@@ -40,34 +40,41 @@ Aplikasi akan memiliki empat tingkat hak akses utama untuk merefleksikan struktu
 
 ---
 
-## 3. User Stories & Use Cases
+## 3. Persyaratan Fungsional (User Stories)
 
-### 3.1. Alur Kerja Permintaan Aset (Request)
--   **US-1**: **Sebagai seorang Staff**, saya ingin bisa mengisi formulir permintaan aset baru dengan memilih item dari daftar standar agar prosesnya cepat dan tidak ada kesalahan pengetikan.
--   **US-2**: **Sebagai seorang Staff**, saya ingin bisa melihat status semua permintaan yang pernah saya ajukan (menunggu, disetujui, ditolak) agar saya tahu progresnya.
--   **US-3**: **Sebagai seorang Manager**, saya ingin bisa membuat request 'Urgent' dengan menyertakan justifikasi agar kebutuhan mendesak dapat segera diproses.
--   **US-4**: **Sebagai seorang Admin**, saya ingin menerima notifikasi ketika ada request baru agar saya bisa segera memprosesnya.
--   **US-5**: **Sebagai seorang Admin**, saya ingin bisa menyetujui atau menolak sebuah request dengan memberikan catatan agar keputusan saya transparan.
--   **US-6**: **Sebagai seorang Super Admin**, saya harus memberikan persetujuan final untuk request dengan nilai total di atas ambang batas tertentu (misal: Rp 10.000.000) untuk menjaga kontrol anggaran.
-
-### 3.2. Alur Kerja Pencatatan Aset
--   **US-7**: **Sebagai seorang Admin**, setelah barang dari request tiba, saya ingin bisa mencatatnya sebagai aset baru dengan mudah, dengan data yang sebagian sudah terisi dari request aslinya.
--   **US-8**: **Sebagai seorang Admin**, saya ingin bisa mencetak label Kode QR untuk setiap aset yang baru dicatat agar mudah diidentifikasi dan dilacak di kemudian hari.
--   **US-9**: **Sebagai seorang Admin**, saya ingin bisa mencatat aset dalam jumlah banyak (bulk) untuk item yang tidak memerlukan pelacakan individual (misal: kabel, konektor).
-
-### 3.3. Alur Kerja Serah Terima & Penarikan
--   **US-10**: **Sebagai seorang Admin**, saya ingin membuat Berita Acara Serah Terima (BAST) digital saat menyerahkan aset (misal: laptop) kepada seorang Staff, yang mencatat siapa yang menyerahkan dan menerima.
--   **US-11**: **Sebagai seorang Teknisi (Staff)**, saat menarik kembali aset (misal: router) dari lokasi pelanggan, saya ingin bisa membuat Berita Acara Dismantle yang mencatat kondisi aset saat ditarik.
--   **US-12**: **Sebagai seorang Admin**, saya ingin status aset otomatis kembali menjadi "Disimpan" (In Storage) setelah proses dismantle diselesaikan.
-
-### 3.4. Pelaporan & Pencarian
--   **US-13**: **Sebagai seorang Super Admin**, saya ingin melihat dashboard yang menampilkan ringkasan jumlah aset, statusnya (digunakan, disimpan, rusak), dan nilai total inventori.
--   **US-14**: **Sebagai pengguna mana pun**, saya ingin bisa dengan cepat mencari aset berdasarkan ID, nama, atau nomor seri menggunakan fitur pencarian atau dengan memindai Kode QR-nya.
--   **US-15**: **Sebagai seorang Admin**, saya ingin bisa mengekspor daftar aset atau request ke dalam format CSV untuk keperluan pelaporan offline.
+| Alur Kerja                   | ID      | Sebagai... (Peran)    | Saya ingin...                                                                                                       | Agar...                                                                               | Prioritas |
+| ---------------------------- | ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | --------- |
+| **Permintaan Aset**          | US-1    | Staff                 | mengisi formulir request dengan memilih item dari daftar standar                                                    | prosesnya cepat dan tidak ada kesalahan pengetikan.                                   | **Tinggi**  |
+|                              | US-2    | Staff                 | melihat status semua permintaan yang pernah saya ajukan (menunggu, disetujui, ditolak)                              | saya tahu progresnya.                                                                 | **Tinggi**  |
+|                              | US-3    | Manager               | bisa membuat request 'Urgent' dengan menyertakan justifikasi                                                        | kebutuhan mendesak dapat segera diproses.                                             | **Tinggi**  |
+|                              | US-4    | Admin                 | menerima notifikasi ketika ada request baru                                                                         | saya bisa segera memprosesnya.                                                        | **Tinggi**  |
+|                              | US-5    | Admin                 | bisa menyetujui atau menolak sebuah request dengan memberikan catatan                                               | keputusan saya transparan.                                                            | **Tinggi**  |
+|                              | US-6    | Super Admin           | harus memberikan persetujuan final untuk request dengan nilai total di atas ambang batas (misal: Rp 10.000.000)      | dapat menjaga kontrol anggaran perusahaan.                                            | **Tinggi**  |
+| **Pencatatan Aset**          | US-7    | Admin                 | mencatat aset baru dari request yang telah tiba, dengan data yang sebagian sudah terisi                               | mempercepat proses pencatatan.                                                        | **Tinggi**  |
+|                              | US-8    | Admin                 | mencetak label Kode QR untuk setiap aset yang baru dicatat                                                          | mudah diidentifikasi dan dilacak di kemudian hari.                                    | **Tinggi**  |
+|                              | US-9    | Admin                 | mencatat aset dalam jumlah banyak (bulk) untuk item yang tidak memerlukan pelacakan individual (misal: kabel)       | efisiensi waktu saat mencatat barang habis pakai.                                     | **Medium**  |
+| **Serah Terima & Penarikan** | US-10   | Admin                 | membuat Berita Acara Serah Terima (BAST) digital saat menyerahkan aset kepada seorang Staff                         | ada jejak digital yang jelas mengenai siapa yang bertanggung jawab.                   | **Tinggi**  |
+|                              | US-11   | Staff (Teknisi)       | membuat Berita Acara Dismantle yang mencatat kondisi aset saat ditarik dari lokasi pelanggan                        | ada bukti kondisi barang saat diterima kembali.                                       | **Tinggi**  |
+|                              | US-12   | Admin                 | status aset otomatis kembali menjadi "Disimpan" (In Storage) setelah proses dismantle diselesaikan                  | stok gudang selalu akurat.                                                            | **Tinggi**  |
+| **Pelaporan & Pencarian**    | US-13   | Super Admin           | melihat dashboard yang menampilkan ringkasan jumlah aset, statusnya, dan nilai total inventori                      | bisa mendapatkan gambaran umum kondisi inventori dengan cepat.                        | **Tinggi**  |
+|                              | US-14   | Semua Pengguna        | bisa dengan cepat mencari aset berdasarkan ID, nama, atau SN, atau dengan memindai Kode QR-nya                      | menemukan informasi aset secara instan.                                               | **Tinggi**  |
+|                              | US-15   | Admin                 | bisa mengekspor daftar aset atau request ke dalam format CSV                                                        | dapat membuat laporan offline atau analisis lebih lanjut.                              | **Medium**  |
 
 ---
 
-## 4. Persyaratan Non-Fungsional
+## 4. Aturan Bisnis (Business Rules)
+
+| ID Aturan | Trigger                               | Kondisi                                         | Aksi                                | Aktor yang Diizinkan |
+| :-------- | :------------------------------------ | :---------------------------------------------- | :---------------------------------- | :------------------- |
+| **BR-001**| Persetujuan Request                   | `status == 'PENDING'`                           | Melakukan Persetujuan Logistik      | `Admin`, `Super Admin` |
+| **BR-002**| Persetujuan Request                   | `status == 'LOGISTIC_APPROVED'`                 | Melakukan Persetujuan Final         | `Super Admin`        |
+| **BR-003**| Persetujuan Request                   | `totalValue > 10000000`                         | Wajib melalui Persetujuan Final (BR-002) | `Super Admin`        |
+| **BR-004**| Membuat Request                       | `user.role == 'Staff'`                          | Hanya dapat memilih `order.type == 'Regular Stock'` | `Staff`            |
+| **BR-005**| Membuat Request                       | `order.type == 'Urgent'`                        | Wajib mengisi `justification`       | `Manager`, `Admin`, `Super Admin` |
+
+---
+
+## 5. Persyaratan Non-Fungsional
 
 -   **Keamanan**: Aplikasi harus memiliki sistem login yang aman dan hak akses berbasis peran.
 -   **Performa**: Waktu muat halaman tidak boleh lebih dari 3 detik. Operasi pencarian dan filter harus terasa instan.

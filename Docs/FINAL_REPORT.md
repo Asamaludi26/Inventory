@@ -1,5 +1,3 @@
-
-
 <div style="text-align: center; page-break-after: always;">
   <br/><br/><br/><br/><br/><br/>
   <svg width="120" height="120" fill="none" stroke="#1D4ED8" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -490,7 +488,7 @@ Bab ini adalah ringkasan dari [Panduan Pengguna](./05_USER_DOCUMENTATION/USER_GU
 ### 6.4. Panduan untuk Peran Super Admin
 -   **Semua Fitur Admin**: Memiliki akses ke semua fitur yang dimiliki Admin.
 -   **Persetujuan Final**: Memberikan persetujuan akhir untuk request dengan nilai tinggi yang sudah disetujui Admin.
--   **Manajemen Pengguna**: Buka `Pengaturan > Akun & Divisi` untuk menambah, mengedit, atau menghapus akun pengguna dan mengelola struktur divisi.
+-   **Manajemen Pengguna**: Buka `Pengaturan > Akun & Divisi` untuk menambah, mengedit, atau menghapus akun pengguna dan mengelola struktur divisi perusahaan.
 
 <div style="page-break-after: always;"></div>
 

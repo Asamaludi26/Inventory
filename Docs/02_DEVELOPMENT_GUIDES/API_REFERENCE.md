@@ -32,7 +32,7 @@ curl --location 'http://localhost:3001/api/auth/login' \
 }'
 ```
 
-**Contoh Response Sukses**:
+**Contoh Response Sukses (201)**:
 ```json
 {
     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -71,7 +71,37 @@ curl --location 'http://localhost:3001/api/assets' \
           "quantity": 2,
           "keterangan": "Untuk perbaikan di area Cengkareng."
         }
-      ]
+      ],
+      "totalValue": 500000
+    }
+    ```
+- **Response Sukses (201)**: Mengembalikan objek request yang baru dibuat, lengkap dengan ID yang digenerate oleh server.
+
+### Mengambil Daftar Aset
+-   **Endpoint**: `GET /api/assets`
+-   **Query Parameters (Opsional)**:
+    - `page`: Nomor halaman untuk paginasi.
+    - `limit`: Jumlah item per halaman.
+    - `search`: String untuk mencari berdasarkan nama, ID, atau SN.
+    - `status`: Filter berdasarkan status aset (misal: `IN_USE`).
+- **Response Sukses (200)**:
+    ```json
+    {
+        "data": [
+            {
+                "id": "AST-001",
+                "name": "Router WiFi Archer C6",
+                "status": "IN_USE",
+                "...": "..."
+            }
+        ],
+        "meta": {
+            "totalItems": 1,
+            "itemCount": 1,
+            "itemsPerPage": 10,
+            "totalPages": 1,
+            "currentPage": 1
+        }
     }
     ```
 
@@ -122,5 +152,15 @@ Terjadi jika mencoba mengakses sumber daya dengan ID yang tidak ada.
     "statusCode": 404,
     "message": "Asset with ID AST-999 not found",
     "error": "Not Found"
+}
+```
+
+### Error Internal Server (Status 500 - Internal Server Error)
+Terjadi jika ada kesalahan tak terduga di sisi server.
+
+```json
+{
+    "statusCode": 500,
+    "message": "Internal server error"
 }
 ```

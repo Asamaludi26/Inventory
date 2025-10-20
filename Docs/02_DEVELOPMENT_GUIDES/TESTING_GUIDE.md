@@ -39,35 +39,34 @@ pnpm run test:watch
 
 ### Contoh 1: Unit Test Komponen React (Frontend)
 
-Menggunakan React Testing Library untuk menguji komponen `Button`.
+Menggunakan React Testing Library untuk menguji komponen `Checkbox`.
 
-**File**: `src/components/ui/Button.test.tsx`
+**File**: `src/components/ui/Checkbox.test.tsx`
 ```tsx
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Button } from './Button';
+import { Checkbox } from './Checkbox';
 
-describe('Button Component', () => {
-  test('renders with correct text', () => {
-    render(<Button>Klik Saya</Button>);
-    // Cari elemen button dengan teks "Klik Saya"
-    const buttonElement = screen.getByText(/Klik Saya/i);
-    expect(buttonElement).toBeInTheDocument();
+describe('Checkbox Component', () => {
+  test('renders unchecked by default', () => {
+    render(<Checkbox data-testid="my-checkbox" />);
+    const checkbox = screen.getByTestId('my-checkbox');
+    expect(checkbox).not.toBeChecked();
   });
 
-  test('calls onClick prop when clicked', () => {
-    const handleClick = jest.fn(); // Buat mock function
-    render(<Button onClick={handleClick}>Klik</Button>);
-    
-    fireEvent.click(screen.getByText(/Klik/i));
-    
-    // Pastikan fungsi mock dipanggil tepat satu kali
-    expect(handleClick).toHaveBeenCalledTimes(1);
+  test('renders checked when checked prop is true', () => {
+    render(<Checkbox checked data-testid="my-checkbox" />);
+    const checkbox = screen.getByTestId('my-checkbox');
+    expect(checkbox).toBeChecked();
   });
 
-  test('is disabled when disabled prop is true', () => {
-    render(<Button disabled>Disabled</Button>);
-    const buttonElement = screen.getByText(/Disabled/i);
-    expect(buttonElement).toBeDisabled();
+  test('calls onChange when clicked', () => {
+    const handleChange = jest.fn();
+    render(<Checkbox onChange={handleChange} data-testid="my-checkbox" />);
+    
+    const checkbox = screen.getByTestId('my-checkbox');
+    fireEvent.click(checkbox);
+    
+    expect(handleChange).toHaveBeenCalledTimes(1);
   });
 });
 ```
@@ -81,12 +80,13 @@ Menggunakan `@nestjs/testing` dan `supertest` untuk menguji endpoint `GET /asset
 import { Test, TestingModule } from '@nestjs/testing';
 import * as request from 'supertest';
 import { AppModule } from '../app.module';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { PrismaService } from '../shared/prisma/prisma.service';
 
 describe('AssetsController (Integration)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let jwtToken: string; // Token untuk autentikasi
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -94,6 +94,7 @@ describe('AssetsController (Integration)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
     await app.init();
     
     prisma = app.get<PrismaService>(PrismaService);
@@ -103,6 +104,12 @@ describe('AssetsController (Integration)', () => {
     await prisma.asset.create({
       data: { /* ... data aset untuk tes ... */ },
     });
+
+    // Login sebagai user tes untuk mendapatkan token
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'test-admin@example.com', password: 'password' });
+    jwtToken = loginResponse.body.access_token;
   });
 
   afterAll(async () => {
@@ -112,14 +119,19 @@ describe('AssetsController (Integration)', () => {
   it('GET /api/assets - should return an array of assets', () => {
     return request(app.getHttpServer())
       .get('/api/assets')
-      // Asumsikan endpoint dilindungi, perlu token
-      // .set('Authorization', `Bearer ${jwtToken}`) 
+      .set('Authorization', `Bearer ${jwtToken}`) 
       .expect(200)
       .expect((res) => {
-        expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.length).toBeGreaterThan(0);
-        expect(res.body[0]).toHaveProperty('id');
+        expect(Array.isArray(res.body.data)).toBe(true);
+        expect(res.body.data.length).toBeGreaterThan(0);
+        expect(res.body.data[0]).toHaveProperty('id');
       });
+  });
+
+  it('GET /api/assets - should fail with 401 if no token is provided', () => {
+    return request(app.getHttpServer())
+      .get('/api/assets')
+      .expect(401);
   });
 });
 ```

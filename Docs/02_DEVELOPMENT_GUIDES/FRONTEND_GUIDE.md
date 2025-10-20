@@ -150,6 +150,17 @@ graph TD
 -   **Penanganan Asinkron**: Gunakan `async/await` dengan blok `try...catch` untuk menangani panggilan API.
 -   **State Loading dan Error**: Setiap komponen fitur yang mengambil data harus memiliki state untuk `isLoading` dan `error`. Tampilkan indikator loading (spinner) saat data diambil dan pesan error yang jelas jika terjadi kegagalan.
 
-## 8. Strategi Testing
+## 8. Pemetaan Tipe Data Frontend & Backend
+
+Untuk menjaga konsistensi dan memudahkan pengembangan full-stack, berikut adalah pemetaan antara tipe data utama di frontend dengan DTO (Data Transfer Object) di backend.
+
+| Tipe Frontend (`src/types/index.ts`) | DTO Backend (Terkait)    | Endpoint Utama         | Keterangan                                                              |
+| :----------------------------------- | :----------------------- | :--------------------- | :---------------------------------------------------------------------- |
+| `Asset`                              | `CreateAssetDto`         | `POST /api/assets`     | `CreateAssetDto` adalah subset dari `Asset` yang dibutuhkan saat pembuatan. |
+| `Request`                            | `CreateRequestDto`       | `POST /api/requests`   | `CreateRequestDto` berisi data yang dikirim dari form request.          |
+| `Handover`                           | `CreateHandoverDto`      | `POST /api/handovers`  | DTO untuk membuat Berita Acara Serah Terima baru.                       |
+| `Dismantle`                          | `CreateDismantleDto`     | `POST /api/dismantles` | DTO untuk membuat Berita Acara Penarikan Aset baru.                     |
+
+## 9. Strategi Testing
 
 Lihat [**Panduan Testing**](./TESTING_GUIDE.md) untuk detail lengkap mengenai strategi pengujian.
