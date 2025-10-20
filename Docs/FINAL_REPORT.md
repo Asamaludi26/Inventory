@@ -542,5 +542,5 @@ Dokumen proposal penawaran asli yang merinci lingkup, fitur, dan investasi proye
 -   [**Dokumen Proposal Penawaran**](./Business/quotation.md)
 
 ### Lampiran B: Salinan Perjanjian Kerja
-Dokumen legal yang mengikat perjanjian pelaksanaan pekerjaan antara pengembang dan PT. Triniti Media Indonesia dapat diakses pada file berikut:
+Dokumen legal yang mengikat perjanjian pelaksanaan pekerjaan antara pengembang dan klien dapat diakses pada file berikut:
 -   [**Dokumen Perjanjian Kerja**](./Business/perjanjian.md)

@@ -42,7 +42,18 @@ Setiap perubahan kode, baik itu fitur baru, perbaikan bug, atau dokumentasi, har
 
 9.  **Hapus Branch**: Setelah di-merge, hapus _branch_ fitur Anda baik di lokal maupun di remote.
 
-## 2. Template Pull Request
+## 2. Memperbarui Dokumentasi (Living Documentation)
+
+Dokumentasi hanya berharga jika akurat dan relevan. Menjaga dokumentasi agar tetap "hidup" adalah tanggung jawab setiap kontributor.
+
+-   **Kewajiban**: Setiap *Pull Request* yang memperkenalkan fitur baru, mengubah alur kerja yang ada, atau memodifikasi endpoint API **wajib** menyertakan pembaruan pada dokumentasi yang relevan (`/Docs`).
+-   **Contoh Pembaruan**:
+    -   Menambah endpoint baru? Perbarui [Referensi API](./../02_DEVELOPMENT_GUIDES/API_REFERENCE.md).
+    -   Mengubah struktur database? Perbarui [Skema Database](./../01_CONCEPT_AND_ARCHITECTURE/DATABASE_SCHEMA.md).
+    -   Menambah alur kerja baru di UI? Perbarui [Panduan Pengguna](./../05_USER_DOCUMENTATION/USER_GUIDE.md).
+-   **Tujuan**: Mencegah dokumentasi menjadi usang (*outdated*) dan memastikan semua anggota tim, baik yang sekarang maupun yang akan datang, memiliki sumber informasi yang dapat diandalkan.
+
+## 3. Template Pull Request
 
 Salin dan tempel template berikut ke dalam deskripsi PR Anda dan isi bagian-bagian yang relevan.
 
@@ -78,7 +89,7 @@ Salin dan tempel template berikut ke dalam deskripsi PR Anda dan isi bagian-bagi
 - [ ] Perubahan saya tidak menghasilkan warning baru.
 ```
 
-## 3. Ekspektasi Code Review
+## 4. Ekspektasi Code Review
 
 _Code review_ adalah proses kolaboratif untuk meningkatkan kualitas kode.
 

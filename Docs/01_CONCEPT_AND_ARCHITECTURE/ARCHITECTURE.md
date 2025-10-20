@@ -70,7 +70,9 @@ graph TD
 
 ---
 
-## 3. Alur Data Utama: Proses Request Aset
+## 3. Alur Data Utama
+
+### 3.1. Proses Request Aset
 
 Diagram berikut menggambarkan alur data dan interaksi antar komponen saat seorang staf membuat permintaan aset baru hingga disetujui.
 
@@ -120,11 +122,42 @@ sequenceDiagram
     Frontend ->> Admin: Tampilkan notifikasi "Request Disetujui"
 ```
 
+### 3.2. Alur Serah Terima Aset (Handover)
+
+Diagram ini mengilustrasikan proses serah terima aset internal dari Admin ke seorang Staff.
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Frontend
+    participant Backend
+    participant Database
+
+    Admin->>Frontend: Mengisi form Handover (pilih aset, penerima)
+    Frontend->>Backend: POST /api/handovers (data handover)
+    activate Backend
+
+    Backend->>Backend: Validasi data & otorisasi
+    Backend->>Database: 1. Buat record Handover baru
+    activate Database
+    Database-->>Backend: Record Handover tersimpan
+    deactivate Database
+
+    Backend->>Database: 2. Update status & currentUser pada record Asset
+    activate Database
+    Database-->>Backend: Record Asset terupdate
+    deactivate Database
+
+    Backend-->>Frontend: Response 201 Created (data handover)
+    deactivate Backend
+    Frontend->>Admin: Tampilkan notifikasi "Handover Berhasil"
+```
+
 ---
 
 ## 4. Referensi Lanjutan
 
 Untuk detail implementasi yang lebih spesifik, silakan merujuk ke dokumen berikut:
 
--   [**Panduan Pengembangan Frontend**](../../02_DEVELOPMENT_GUIDES/FRONTEND_GUIDE.md)
--   [**Panduan Pengembangan Backend**](../../02_DEVELOPMENT_GUIDES/BACKEND_GUIDE.md)
+-   [**Panduan Pengembangan Frontend**](../02_DEVELOPMENT_GUIDES/FRONTEND_GUIDE.md)
+-   [**Panduan Pengembangan Backend**](../02_DEVELOPMENT_GUIDES/BACKEND_GUIDE.md)

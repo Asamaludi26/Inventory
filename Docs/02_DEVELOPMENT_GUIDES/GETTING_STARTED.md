@@ -2,6 +2,34 @@
 
 Dokumen ini berisi panduan langkah demi langkah untuk menyiapkan lingkungan pengembangan lokal untuk proyek **Aplikasi Inventori Aset**.
 
+## Quick Start
+
+Untuk developer berpengalaman, ikuti perintah berikut untuk menjalankan aplikasi.
+
+**Terminal 1: Backend**
+```bash
+# Clone repositori (jika belum)
+git clone <url-repositori>
+cd <nama-proyek>/backend
+pnpm install
+docker-compose up -d
+cp .env.example .env
+# (Opsional) Edit JWT_SECRET di .env
+pnpm prisma migrate dev
+pnpm run start:dev
+```
+
+**Terminal 2: Frontend**
+```bash
+# Dari root proyek
+cd frontend
+pnpm install
+pnpm run dev
+```
+Aplikasi akan tersedia di `http://localhost:5173`.
+
+---
+
 ## 1. Prasyarat
 
 Pastikan perangkat lunak berikut telah terinstal di komputer Anda:
@@ -116,6 +144,6 @@ Setelah kedua server (backend dan frontend) berjalan, buka `http://localhost:517
 Setelah berhasil menjalankan aplikasi, Anda siap untuk mulai berkontribusi!
 1.  **Jelajahi Kode**: Lihat struktur folder di [Panduan Frontend](./FRONTEND_GUIDE.md) dan [Panduan Backend](./BACKEND_GUIDE.md).
 2.  **Buat Perubahan Kecil**: Coba ubah teks di salah satu komponen frontend dan lihat perubahan langsung di browser.
-3.  **Pelajari Alur Kerja Kontribusi**: Baca [Panduan Kontribusi](../../03_STANDARDS_AND_PROCEDURES/CONTRIBUTING.md) sebelum memulai pekerjaan pada fitur baru.
+3.  **Pelajari Alur Kerja Kontribusi**: Baca [Panduan Kontribusi](../03_STANDARDS_AND_PROCEDURES/CONTRIBUTING.md) sebelum memulai pekerjaan pada fitur baru.
 
 Selamat! Lingkungan pengembangan Anda telah siap.

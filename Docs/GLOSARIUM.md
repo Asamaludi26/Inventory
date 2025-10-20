@@ -1,0 +1,72 @@
+# Glosarium Istilah
+
+Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang sering digunakan dalam proyek Aplikasi Inventori Aset. Tujuannya adalah untuk menciptakan pemahaman yang seragam di antara semua anggota tim.
+
+---
+
+### A
+
+-   **ADR (Architectural Decision Record)**
+    Dokumen yang mencatat keputusan arsitektural penting yang dibuat selama pengembangan. Setiap ADR menjelaskan konteks, keputusan yang diambil, dan konsekuensinya. Lihat di [`/Docs/01_CONCEPT_AND_ARCHITECTURE/ADR/`](./01_CONCEPT_AND_ARCHITECTURE/ADR/).
+
+-   **Aset**
+    Barang fisik milik perusahaan yang dicatat dan dilacak oleh sistem, memiliki ID unik, dan siklus hidup yang dapat dipantau (misal: laptop, router, kabel).
+
+### B
+
+-   **BAST (Berita Acara Serah Terima)**
+    Dokumen formal yang mencatat proses serah terima aset. Di aplikasi ini, BAST direpresentasikan oleh modul **Handover** (untuk serah terima internal) dan **Dismantle** (untuk penarikan dari pelanggan).
+
+### C
+
+-   **CPE (Customer Premises Equipment)**
+    Perangkat jaringan yang dipasang di lokasi pelanggan untuk menyediakan layanan (misal: modem, router WiFi, ONT/ONU). Dalam aplikasi ini, CPE biasanya termasuk dalam kategori aset yang "dapat dipasang ke pelanggan".
+
+### D
+
+-   **Dismantle**
+    Proses penarikan kembali aset yang sebelumnya terpasang di lokasi pelanggan. Alur kerja ini menghasilkan Berita Acara Dismantle.
+
+-   **DTO (Data Transfer Object)**
+    Objek yang mendefinisikan bagaimana data dikirim melalui jaringan (misal: dari frontend ke backend). Di backend NestJS, DTO digunakan bersama `class-validator` untuk memastikan data yang masuk memiliki format yang benar.
+
+### H
+
+-   **Handover**
+    Proses serah terima aset dari satu pengguna internal ke pengguna lain (misal: dari admin gudang ke teknisi lapangan). Alur kerja ini menghasilkan Berita Acara Serah Terima Internal.
+
+### J
+
+-   **JWT (JSON Web Token)**
+    Standar token yang ringkas dan aman untuk autentikasi. Digunakan untuk memverifikasi identitas pengguna pada setiap permintaan API setelah mereka berhasil login.
+
+### M
+
+-   **Monorepo**
+    Strategi pengembangan perangkat lunak di mana kode untuk banyak proyek (dalam kasus ini, `frontend` dan `backend`) disimpan dalam satu repositori Git yang sama.
+
+### O
+
+-   **ORM (Object-Relational Mapper)**
+    Pustaka (dalam proyek ini: **Prisma**) yang memungkinkan developer berinteraksi dengan database relasional menggunakan objek dan metode dalam bahasa pemrograman (TypeScript), alih-alih menulis query SQL mentah.
+
+### P
+
+-   **PITR (Point-in-Time Recovery)**
+    Metode pencadangan database tingkat lanjut yang memungkinkan pemulihan data ke titik waktu yang sangat spesifik (misal: memulihkan database ke kondisi 5 menit sebelum terjadi error), bukan hanya ke backup harian terakhir.
+
+-   **PR (Pull Request)**
+    Mekanisme di Git untuk mengajukan perubahan kode dari satu *branch* ke *branch* lain (biasanya dari *branch* fitur ke `develop`). Ini memicu proses *code review* sebelum perubahan digabungkan.
+
+### R
+
+-   **RBAC (Role-Based Access Control)**
+    Model keamanan di mana hak akses pengguna ke sistem ditentukan oleh peran mereka (misal: `Staff`, `Admin`, `Super Admin`).
+
+-   **REST API (Representational State Transfer Application Programming Interface)**
+    Gaya arsitektur yang digunakan untuk komunikasi antara frontend dan backend. Frontend mengirim request (misal: `GET`, `POST`) ke URL tertentu di backend, dan backend merespons dengan data (biasanya dalam format JSON).
+
+### S
+
+-   **SPA (Single-Page Application)**
+    Aplikasi web (seperti yang dibuat dengan React) yang memuat satu halaman HTML tunggal dan secara dinamis memperbarui kontennya saat pengguna berinteraksi, tanpa perlu memuat ulang seluruh halaman.
