@@ -35,7 +35,7 @@ graph TD
     C(Aplikasi Inventori Aset)
 
     D[Email Service]
-    E[File Storage <br> (e.g., AWS S3)]
+    E["File Storage <br> (e.g., AWS S3)"]
 
     A -- "Menggunakan (Web Browser)" --> C
     B -- "Mengelola (Web Browser)" --> C
@@ -54,12 +54,12 @@ Diagram ini memperbesar "Aplikasi Inventori Aset" untuk menunjukkan komponen-kom
 ```mermaid
 graph TD
     subgraph "Aplikasi Inventori Aset"
-        F[Frontend App <br> (React SPA)]
-        G[Backend API <br> (NestJS Server)]
-        H[Database <br> (PostgreSQL)]
+        F["Frontend App <br> (React SPA)"]
+        G["Backend API <br> (NestJS Server)"]
+        H["Database <br> (PostgreSQL)"]
     end
 
-    A[Pengguna <br> (Staff/Admin)]
+    A["Pengguna <br> (Staff/Admin)"]
 
     A -- "HTTPS" --> F
     F -- "REST API (JSON/HTTPS)" --> G

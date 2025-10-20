@@ -22,6 +22,7 @@ import { CopyIcon } from '../../components/icons/CopyIcon';
 import { Tooltip } from '../../components/ui/Tooltip';
 
 interface PreviewModalProps {
+    currentUser: User;
     previewData: PreviewData | null;
     onClose: () => void;
     onShowPreview: (data: PreviewData) => void;
@@ -57,6 +58,7 @@ const getRoleClass = (role: User['role']) => {
 
 const PreviewModal: React.FC<PreviewModalProps> = (props) => {
     const { 
+        currentUser,
         previewData, onClose, onShowPreview, onEditItem, assets, customers, users, requests, handovers, dismantles, divisions, 
         assetCategories, onInitiateHandover, onInitiateDismantle, onInitiateInstallation
     } = props;
@@ -175,17 +177,19 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                                             </PreviewItem>
                                         </dl>
                                     </div>
-                                     <div>
-                                        <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Informasi Pembelian</h3>
-                                        <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-                                            <PreviewItem label="Tgl Pembelian" value={asset.purchaseDate} />
-                                            <PreviewItem label="Harga Beli" value={asset.purchasePrice ? `Rp ${asset.purchasePrice.toLocaleString('id-ID')}` : '-'} />
-                                            <PreviewItem label="Vendor" value={asset.vendor} />
-                                            <PreviewItem label="Akhir Garansi" value={asset.warrantyEndDate} />
-                                            <PreviewItem label="No. PO" value={<ClickableLink onClick={() => onShowPreview({type: 'request', id: asset.poNumber!})}>{asset.poNumber}</ClickableLink>} />
-                                            <PreviewItem label="No. Invoice" value={asset.invoiceNumber} />
-                                        </dl>
-                                    </div>
+                                    {currentUser.role !== 'Staff' && (
+                                        <div>
+                                            <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Informasi Pembelian</h3>
+                                            <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                                                <PreviewItem label="Tgl Pembelian" value={asset.purchaseDate} />
+                                                <PreviewItem label="Harga Beli" value={asset.purchasePrice ? `Rp ${asset.purchasePrice.toLocaleString('id-ID')}` : '-'} />
+                                                <PreviewItem label="Vendor" value={asset.vendor} />
+                                                <PreviewItem label="Akhir Garansi" value={asset.warrantyEndDate} />
+                                                <PreviewItem label="No. PO" value={<ClickableLink onClick={() => onShowPreview({type: 'request', id: asset.poNumber!})}>{asset.poNumber}</ClickableLink>} />
+                                                <PreviewItem label="No. Invoice" value={asset.invoiceNumber} />
+                                            </dl>
+                                        </div>
+                                    )}
                                     <div>
                                         <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Status & Lokasi</h3>
                                         <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
@@ -469,7 +473,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
         }
     };
     
-    const canEdit = currentData && ['asset', 'customer'].includes(currentData.type);
+    const canEdit = currentUser.role !== 'Staff' && currentData && ['asset', 'customer'].includes(currentData.type);
     
     const renderFooter = () => {
         if (!currentData) return null;
@@ -496,9 +500,11 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                 <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center w-full gap-3">
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         {baseButtons}
-                        <button type="button" onClick={() => onEditItem(currentData)} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50">
-                            <PencilIcon className="w-4 h-4" /> Edit
-                        </button>
+                        {canEdit && (
+                            <button type="button" onClick={() => onEditItem(currentData)} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50">
+                                <PencilIcon className="w-4 h-4" /> Edit
+                            </button>
+                        )}
                     </div>
                     <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 w-full sm:w-auto">
                         {asset.status === AssetStatus.IN_STORAGE && (

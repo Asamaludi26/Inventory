@@ -116,6 +116,6 @@ Setelah kedua server (backend dan frontend) berjalan, buka `http://localhost:517
 Setelah berhasil menjalankan aplikasi, Anda siap untuk mulai berkontribusi!
 1.  **Jelajahi Kode**: Lihat struktur folder di [Panduan Frontend](./FRONTEND_GUIDE.md) dan [Panduan Backend](./BACKEND_GUIDE.md).
 2.  **Buat Perubahan Kecil**: Coba ubah teks di salah satu komponen frontend dan lihat perubahan langsung di browser.
-3.  **Pelajari Alur Kerja Kontribusi**: Baca [Panduan Kontribusi](../../03_STANDARDS_AND_PROCESSES/CONTRIBUTING.md) sebelum memulai pekerjaan pada fitur baru.
+3.  **Pelajari Alur Kerja Kontribusi**: Baca [Panduan Kontribusi](../../03_STANDARDS_AND_PROCEDURES/CONTRIBUTING.md) sebelum memulai pekerjaan pada fitur baru.
 
 Selamat! Lingkungan pengembangan Anda telah siap.
