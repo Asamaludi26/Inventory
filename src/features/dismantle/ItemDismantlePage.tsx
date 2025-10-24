@@ -788,7 +788,8 @@ const ItemDismantlePage: React.FC<ItemDismantlePageProps> = (props) => {
                     size="3xl"
                     disableContentPadding
                     footerContent={
-                        selectedDismantle.status === ItemStatus.IN_PROGRESS && (currentUser.role === 'Admin' || currentUser.role === 'Super Admin') ? (
+                        // FIX: Use 'Inventory Admin' role for authorization check.
+                        selectedDismantle.status === ItemStatus.IN_PROGRESS && (currentUser.role === 'Inventory Admin' || currentUser.role === 'Super Admin') ? (
                             <button onClick={handleCompleteDismantle} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">
                                 {isLoading ? <SpinnerIcon className="w-4 h-4" /> : <CheckIcon className="w-4 h-4" />}
                                 {isLoading ? 'Memproses...' : 'Acknowledge & Complete'}
@@ -796,16 +797,15 @@ const ItemDismantlePage: React.FC<ItemDismantlePageProps> = (props) => {
                         ) : null
                     }
                 >
-                    <div className="p-6">
+                      <div className="p-6">
                         <Letterhead />
-
                         <div className="text-center mb-6">
                             <h3 className="text-xl font-bold uppercase text-tm-dark">Berita Acara Penarikan Aset</h3>
                             <p className="text-sm text-tm-secondary">Nomor: {selectedDismantle.id}</p>
                         </div>
                         
                         <div className="space-y-6 text-sm">
-                            <section>
+                           <section>
                                 <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">I. Informasi Umum</h4>
                                 <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
                                     <div><dt className="text-gray-500">Tanggal Penarikan</dt><dd className="font-medium text-gray-900">{selectedDismantle.dismantleDate}</dd></div>
@@ -933,7 +933,7 @@ const ItemDismantlePage: React.FC<ItemDismantlePageProps> = (props) => {
                     <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
                         <button onClick={() => setDismantleToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
                         <button onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">
-                           {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus
+                            {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus
                         </button>
                     </div>
                 </Modal>

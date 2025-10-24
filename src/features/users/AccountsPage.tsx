@@ -36,13 +36,16 @@ interface AccountsPageProps {
 const getRoleClass = (role: UserRole) => {
     switch (role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        case 'Admin': return 'bg-info-light text-info-text';
+        // FIX: Replaced 'Admin' with specific admin roles to align with UserRole type.
+        case 'Inventory Admin': return 'bg-info-light text-info-text';
+        case 'Procurement Admin': return 'bg-teal-100 text-teal-800';
         case 'Manager': return 'bg-sky-100 text-sky-800';
         default: return 'bg-gray-100 text-gray-800';
     }
 };
 
-const userRoles: UserRole[] = ['Staff', 'Manager', 'Admin', 'Super Admin'];
+// FIX: Replaced 'Admin' with specific admin roles to align with UserRole type.
+const userRoles: UserRole[] = ['Staff', 'Manager', 'Inventory Admin', 'Procurement Admin', 'Super Admin'];
 
 
 const UserForm: React.FC<{ 
@@ -75,13 +78,15 @@ const UserForm: React.FC<{
     }, [editingUser, divisions]);
 
     useEffect(() => {
-        if (selectedRole === 'Admin' && inventoryDivisionId) {
+        // FIX: This comparison appears to be unintentional because the types 'UserRole' and '"Admin"' have no overlap.
+        if (selectedRole === 'Inventory Admin' && inventoryDivisionId) {
             setSelectedDivisionId(inventoryDivisionId);
         }
     }, [selectedRole, inventoryDivisionId]);
 
     const handleDivisionChange = (divisionId: string) => {
-        if (divisionId !== inventoryDivisionId && selectedRole === 'Admin') {
+        // FIX: This comparison appears to be unintentional because the types 'UserRole' and '"Admin"' have no overlap.
+        if (divisionId !== inventoryDivisionId && selectedRole === 'Inventory Admin') {
             setSelectedRole('Staff');
         }
         setSelectedDivisionId(divisionId);
@@ -124,17 +129,19 @@ const UserForm: React.FC<{
                     <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
                     <div className="mt-1">
                         <CustomSelect
+                            // FIX: Replaced 'Admin' option with specific admin roles to align with UserRole type.
                              options={[
                                 { value: 'Staff', label: 'Staff' },
                                 { value: 'Manager', label: 'Manager' },
-                                { value: 'Admin', label: 'Admin' },
+                                { value: 'Inventory Admin', label: 'Inventory Admin' },
+                                { value: 'Procurement Admin', label: 'Procurement Admin' },
                                 { value: 'Super Admin', label: 'Super Admin' },
                             ]}
                              value={selectedRole}
                              onChange={(value) => setSelectedRole(value as UserRole)}
                         />
                     </div>
-                    {selectedRole === 'Admin' && <p className="mt-2 text-xs text-gray-500">Role Admin hanya berlaku untuk Divisi Inventori.</p>}
+                    {selectedRole === 'Inventory Admin' && <p className="mt-2 text-xs text-gray-500">Role Admin hanya berlaku untuk Divisi Inventori.</p>}
                 </div>
                 <div>
                     <label htmlFor="division" className="block text-sm font-medium text-gray-700">Divisi</label>
@@ -146,7 +153,8 @@ const UserForm: React.FC<{
                             }
                              value={selectedDivisionId}
                             onChange={handleDivisionChange}
-                            disabled={selectedRole === 'Super Admin' || selectedRole === 'Admin'}
+                            // FIX: This comparison appears to be unintentional because the types 'UserRole' and '"Admin"' have no overlap.
+                            disabled={selectedRole === 'Super Admin' || selectedRole === 'Inventory Admin'}
                             placeholder="Pilih Divisi"
                         />
                     </div>
@@ -505,7 +513,8 @@ const AccountsPage: React.FC<AccountsPageProps> = ({ currentUser, users, setUser
                     const updatedUser = { ...u, role: targetRole };
                     if (targetRole === 'Super Admin') {
                         updatedUser.divisionId = null;
-                    } else if (targetRole === 'Admin') {
+                    // FIX: This comparison appears to be unintentional because the types 'UserRole' and '"Admin"' have no overlap.
+                    } else if (targetRole === 'Inventory Admin') {
                         const inventoryDivision = divisions.find(d => d.name === 'Inventori');
                         if (inventoryDivision) {
                             updatedUser.divisionId = inventoryDivision.id;

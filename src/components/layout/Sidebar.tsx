@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Page, User } from '../../types';
+import { Page, User, UserRole } from '../../types';
 import { DashboardIcon } from '../icons/DashboardIcon';
 import { RequestIcon } from '../icons/RequestIcon';
 import { RegisterIcon } from '../icons/RegisterIcon';
@@ -28,7 +28,7 @@ type MenuItem = {
   id: string; // Unique identifier for the item itself
   label: string;
   icon: React.FC<{ className?: string }>;
-  roles?: User['role'][];
+  roles?: UserRole[];
   children?: MenuItem[];
   page?: Page; // The page ID it navigates to, if different from id
   filter?: Record<string, any>; // Filters to pass to the page
@@ -41,23 +41,23 @@ const allMenuItems: MenuItem[] = [
     label: 'Manajemen Aset',
     icon: AssetIcon,
     children: [
-      { id: 'registration', label: 'Catat Aset', icon: RegisterIcon, roles: ['Admin', 'Super Admin'] },
+      { id: 'registration', label: 'Catat Aset', icon: RegisterIcon, roles: ['Inventory Admin', 'Super Admin'] },
       { id: 'stock', label: 'Stok Aset', icon: BoxIcon },
       { id: 'request', label: 'Request Aset', icon: RequestIcon },
-      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon },
-      { id: 'dismantle', label: 'Dismantle Aset', icon: DismantleIcon },
-      { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Admin', 'Super Admin'] },
+      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon, roles: ['Inventory Admin', 'Super Admin'] },
+      { id: 'dismantle', label: 'Dismantle Aset', icon: DismantleIcon, roles: ['Inventory Admin', 'Super Admin'] },
+      { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Inventory Admin', 'Super Admin'] },
     ],
   },
-  { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Admin', 'Super Admin'] },
+  { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Inventory Admin', 'Procurement Admin', 'Super Admin'] },
   {
     id: 'settings',
     label: 'Pengaturan',
     icon: SettingsIcon,
-    roles: ['Admin', 'Super Admin'],
+    roles: ['Super Admin', 'Inventory Admin', 'Procurement Admin'],
     children: [
-        { id: 'settings-pengguna', page: 'pengaturan-pengguna', label: 'Akun & Divisi', icon: UsersIcon },
-        { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon },
+        { id: 'settings-pengguna', page: 'pengaturan-pengguna', label: 'Akun & Divisi', icon: UsersIcon, roles: ['Super Admin'] },
+        { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon, roles: ['Inventory Admin', 'Procurement Admin', 'Super Admin'] },
     ]
   },
 ];

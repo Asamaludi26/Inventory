@@ -39,7 +39,7 @@ const ISP_PACKAGES = ['Home 30Mbps', 'Home 50Mbps', 'Home 100Mbps', 'Business 20
 
 // 1. DIVISIONS
 export const mockDivisions: Division[] = [
-    { id: 1, name: 'Inventori' },
+    { id: 1, name: 'Logistik' },
     { id: 2, name: 'NOC' },
     { id: 3, name: 'Engineer Lapangan' },
     { id: 4, name: 'Sales & Marketing' },
@@ -50,11 +50,12 @@ export const mockDivisions: Division[] = [
 // 2. USERS
 const generateMockUsers = (): User[] => {
     const users: User[] = [
-        { id: 1, name: 'Alice Johnson', email: 'alice.johnson@triniti.com', divisionId: 1, role: 'Admin' },
-        { id: 99, name: 'John Doe', email: 'john.doe@triniti.com', divisionId: 6, role: 'Super Admin' },
+        { id: 1, name: 'Alice Johnson', email: 'inventory.admin@triniti.com', divisionId: 1, role: 'Inventory Admin' },
+        { id: 2, name: 'Brian Adams', email: 'procurement.admin@triniti.com', divisionId: 5, role: 'Procurement Admin' },
+        { id: 99, name: 'John Doe', email: 'super.admin@triniti.com', divisionId: 6, role: 'Super Admin' },
         { id: 101, name: 'Manager NOC', email: 'manager.noc@triniti.com', divisionId: 2, role: 'Manager' }
     ];
-    let userIdCounter = 2;
+    let userIdCounter = 3;
 
     while(users.length < USER_COUNT) {
         const division = mockDivisions[userIdCounter % mockDivisions.length];
@@ -64,7 +65,7 @@ const generateMockUsers = (): User[] => {
         const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${Math.floor(userIdCounter / 10)}@triniti.com`;
 
         // Prevent duplicate Admin in Inventory
-        if (division.id === 1 && users.some(u => u.divisionId === 1 && u.role === 'Admin')) {
+        if (division.id === 1 && users.some(u => u.divisionId === 1 && u.role === 'Inventory Admin')) {
              users.push({ id: userIdCounter, name, email, divisionId: division.id, role: 'Staff' });
         } else {
             // Assign Manager role to every 5th staff in non-special divisions
@@ -359,7 +360,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
 
     const approvalDate = new Date(new Date(requestDate).setDate(requestDate.getDate() + 1));
     if ([ItemStatus.LOGISTIC_APPROVED, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
-        request.logisticApprover = 'Alice Johnson';
+        request.logisticApprover = 'Brian Adams';
         request.logisticApprovalDate = approvalDate.toISOString().split('T')[0];
     }
     if ([ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
@@ -367,7 +368,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
         if (request.totalValue && request.totalValue > 10000000) {
              request.finalApprover = 'John Doe';
         } else {
-             request.finalApprover = i % 2 === 0 ? 'John Doe' : 'Alice Johnson';
+             request.finalApprover = 'John Doe';
         }
         request.finalApprovalDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 1)).toISOString().split('T')[0];
     }
@@ -382,10 +383,10 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
         request.isRegistered = true;
     }
     if (status === ItemStatus.REJECTED) {
-        request.rejectedBy = 'Alice Johnson';
+        request.rejectedBy = 'Brian Adams';
         request.rejectionDate = approvalDate.toISOString().split('T')[0];
         request.rejectionReason = 'Stok tidak mencukupi dan pengadaan tidak disetujui.';
-        request.rejectedByDivision = 'Divisi Inventori';
+        request.rejectedByDivision = 'Procurement';
     }
 
     // Add specific examples for new disposition features
@@ -395,7 +396,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
             requestedBy: 'John Doe',
             requestDate: new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 2)).toISOString(),
             isAcknowledged: true,
-            acknowledgedBy: 'Alice Johnson',
+            acknowledgedBy: 'Brian Adams',
             acknowledgedDate: new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 3)).toISOString()
         };
     }
@@ -421,7 +422,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
     
     if (request.id === 'REQ-119') { // Example for CEO Follow up
         request.status = ItemStatus.LOGISTIC_APPROVED;
-        request.logisticApprover = 'Alice Johnson';
+        request.logisticApprover = 'Brian Adams';
         request.logisticApprovalDate = new Date().toISOString();
         request.ceoFollowUpSent = true;
     }
@@ -434,7 +435,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
 export const mockNotifications: Notification[] = [
     {
         id: 'notif-1',
-        recipientId: 1, // Alice Johnson (Admin)
+        recipientId: 2, // Brian Adams (Procurement Admin)
         actorName: 'Citra Lestari',
         type: 'FOLLOW_UP',
         isRead: false,
@@ -443,7 +444,7 @@ export const mockNotifications: Notification[] = [
     },
     {
         id: 'notif-2',
-        recipientId: 1, // Alice Johnson (Admin)
+        recipientId: 2, // Brian Adams (Procurement Admin)
         actorName: 'John Doe',
         type: 'CEO_DISPOSITION',
         isRead: false,
@@ -453,7 +454,7 @@ export const mockNotifications: Notification[] = [
     {
         id: 'notif-3',
         recipientId: 99, // John Doe (Super Admin)
-        actorName: 'Alice Johnson',
+        actorName: 'Brian Adams',
         type: 'PROGRESS_FEEDBACK',
         isRead: true,
         timestamp: new Date(new Date().setDate(NOW.getDate() - 1)).toISOString(),
@@ -462,7 +463,7 @@ export const mockNotifications: Notification[] = [
     },
     {
         id: 'notif-4',
-        recipientId: 1, // Alice Johnson (Admin)
+        recipientId: 2, // Brian Adams (Procurement Admin)
         actorName: 'John Doe',
         type: 'PROGRESS_UPDATE_REQUEST',
         isRead: false,
@@ -472,7 +473,7 @@ export const mockNotifications: Notification[] = [
      {
         id: 'notif-5',
         recipientId: 3, // Find a staff member
-        actorName: 'Alice Johnson',
+        actorName: 'Brian Adams',
         type: 'REQUEST_REJECTED',
         isRead: false,
         timestamp: new Date(new Date().setHours(NOW.getHours() - 4)).toISOString(),

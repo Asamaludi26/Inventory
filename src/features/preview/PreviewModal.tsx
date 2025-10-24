@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus, PreviewData, ActivityLogEntry, AssetCategory } from '../../types';
+import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus, PreviewData, ActivityLogEntry, AssetCategory, UserRole } from '../../types';
 import Modal from '../../components/ui/Modal';
 import { ClickableLink } from '../../components/ui/ClickableLink';
 import { ChevronLeftIcon } from '../../components/icons/ChevronLeftIcon';
@@ -61,11 +62,16 @@ const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?:
     </div>
 );
 
+const canViewPrice = (role: UserRole) => ['Procurement Admin', 'Super Admin'].includes(role);
+
 // Local helper for role badge styling
 const getRoleClass = (role: User['role']) => {
     switch(role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        case 'Admin': return 'bg-info-light text-info-text';
+        // FIX: Replaced 'Admin' with specific admin roles and added 'Manager' to align with UserRole type.
+        case 'Inventory Admin': return 'bg-info-light text-info-text';
+        case 'Procurement Admin': return 'bg-teal-100 text-teal-800';
+        case 'Manager': return 'bg-sky-100 text-sky-800';
         default: return 'bg-gray-100 text-gray-800';
     }
 }
@@ -244,7 +250,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                                             </PreviewItem>
                                         </dl>
                                     </div>
-                                    {currentUser.role !== 'Staff' && (
+                                    {canViewPrice(currentUser.role) && (
                                         <div>
                                             <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Informasi Pembelian</h3>
                                             <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
@@ -562,7 +568,8 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
             if (!asset) return baseButtons;
             const category = assetCategories.find(c => c.name === asset.category);
             const canBeInstalled = category?.isCustomerInstallable;
-            const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'Super Admin';
+            // FIX: Use 'Inventory Admin' for authorization check to align with UserRole type.
+            const isAdmin = currentUser.role === 'Inventory Admin' || currentUser.role === 'Super Admin';
             const isOwner = currentUser.name === asset.currentUser;
             const canReportDamage = isOwner && ![AssetStatus.DAMAGED, AssetStatus.UNDER_REPAIR, AssetStatus.OUT_FOR_REPAIR].includes(asset.status);
 
@@ -594,7 +601,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                          )}
                          {isAdmin && asset.status === AssetStatus.OUT_FOR_REPAIR && (
                             <button onClick={() => { onReceiveFromRepair(asset); handleClose(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700">
-                                <CheckIcon className="w-4 h-4"/> Terima dari Perbaikan
+                                <CheckIcon className="w-4 h-4"/> Terima Aset
                             </button>
                          )}
                          {isAdmin && asset.status === AssetStatus.UNDER_REPAIR && (

@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory, Division, StandardItem, AssetType, RequestItem, ParsedScanResult, Notification, AssetCondition, Attachment } from './types';
 import { Sidebar } from './components/layout/Sidebar';
@@ -48,7 +49,9 @@ declare var Html5QrcodeSupportedFormats: any;
 const getRoleClass = (role: User['role']) => {
     switch(role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        case 'Admin': return 'bg-info-light text-info-text';
+        // FIX: Replaced 'Admin' with specific admin roles to align with UserRole type.
+        case 'Inventory Admin': return 'bg-info-light text-info-text';
+        case 'Procurement Admin': return 'bg-teal-100 text-teal-800';
         case 'Manager': return 'bg-sky-100 text-sky-800';
         default: return 'bg-gray-100 text-gray-800';
     }
@@ -858,7 +861,8 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                   referenceId: requestId,
               });
           }
-          const admins = users.filter(u => u.role === 'Admin' || u.role === 'Super Admin');
+          // FIX: Replace 'Admin' with 'Inventory Admin' to match UserRole type.
+          const admins = users.filter(u => u.role === 'Inventory Admin' || u.role === 'Super Admin');
           admins.forEach(admin => {
               addAppNotification({
                   recipientId: admin.id,
@@ -895,7 +899,8 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
             details: `Kerusakan dilaporkan dengan deskripsi: "${description}"`,
         });
 
-        users.filter(u => u.role === 'Admin').forEach(admin => {
+        // FIX: Replace 'Admin' with 'Inventory Admin' as they are responsible for asset management.
+        users.filter(u => u.role === 'Inventory Admin').forEach(admin => {
             addAppNotification({
                 recipientId: admin.id,
                 actorName: currentUser.name,

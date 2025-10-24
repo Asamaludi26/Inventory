@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Asset, Request, Handover, Dismantle, Customer, AssetStatus, ItemStatus, Page, PreviewData, AssetCategory, Division, OrderType, OrderDetails, User } from '../../types';
+import { Asset, Request, Handover, Dismantle, Customer, AssetStatus, ItemStatus, Page, PreviewData, AssetCategory, Division, OrderType, OrderDetails, User, UserRole } from '../../types';
 import { WrenchIcon } from '../../components/icons/WrenchIcon';
 import { RequestIcon } from '../../components/icons/RequestIcon';
 import { HandoverIcon } from '../../components/icons/HandoverIcon';
@@ -66,6 +66,8 @@ const formatCurrencyShort = (value: number): string => {
     }
     return value.toLocaleString('id-ID');
 };
+
+const canViewPrice = (role: UserRole) => ['Procurement Admin', 'Super Admin'].includes(role);
 
 // Define DashboardProps interface
 interface DashboardProps {
@@ -529,7 +531,6 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
             {/* Card 1: Ringkasan Statistik */}
             <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
                 <h2 className="p-6 text-lg font-semibold border-b border-gray-200 text-tm-dark">Ringkasan Statistik</h2>
-                {/* FIX: Removed redundant role checks as this code path is only for non-Staff roles. */}
                 <div className="grid grid-cols-1 md:grid-cols-3">
                     <StatCard 
                         icon={AssetIcon} 
@@ -539,20 +540,22 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
                         color="primary"
                         onClick={() => setActivePage('registration')}
                     />
-                    <StatCard 
-                        icon={DollarIcon} 
-                        title="Total Nilai Stok" 
-                        value={shortStockValue}
-                        tooltipText={fullStockValue}
-                        className="border-b md:border-b-0 md:border-r border-gray-200/80"
-                        color="success"
-                        onClick={() => setActivePage('stock')}
-                    />
+                    {canViewPrice(currentUser.role) && (
+                        <StatCard 
+                            icon={DollarIcon} 
+                            title="Total Nilai Stok" 
+                            value={shortStockValue}
+                            tooltipText={fullStockValue}
+                            className="border-b md:border-b-0 md:border-r border-gray-200/80"
+                            color="success"
+                            onClick={() => setActivePage('stock')}
+                        />
+                    )}
                     <StatCard 
                         icon={UsersIcon} 
                         title="Aset Digunakan" 
                         value={summary.statusCounts[AssetStatus.IN_USE]}
-                        className=""
+                        className={!canViewPrice(currentUser.role) ? "md:border-r border-gray-200/80" : ""}
                         color="info"
                         onClick={() => setActivePage('registration', { status: AssetStatus.IN_USE })}
                     />
@@ -598,7 +601,7 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
                 </div>
             </div>
 
-            <OrderAnalyticsCard requests={requests} divisions={divisions} onOpenUrgentReport={() => setIsUrgentReportModalOpen(true)} setActivePage={setActivePage} />
+            <OrderAnalyticsCard currentUser={currentUser} requests={requests} divisions={divisions} onOpenUrgentReport={() => setIsUrgentReportModalOpen(true)} setActivePage={setActivePage} />
             
             {/* Card 3: Rincian Aset */}
             <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
@@ -701,7 +704,7 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
     );
 }
 
-const OrderAnalyticsCard: React.FC<{ requests: Request[]; divisions: Division[]; onOpenUrgentReport: () => void, setActivePage: (page: Page, filters?: any) => void; }> = ({ requests, divisions, onOpenUrgentReport, setActivePage }) => {
+const OrderAnalyticsCard: React.FC<{ currentUser: User; requests: Request[]; divisions: Division[]; onOpenUrgentReport: () => void, setActivePage: (page: Page, filters?: any) => void; }> = ({ currentUser, requests, divisions, onOpenUrgentReport, setActivePage }) => {
     const [timeFilter, setTimeFilter] = useState('all');
 
     const analytics = useMemo(() => {
@@ -869,7 +872,9 @@ const OrderAnalyticsCard: React.FC<{ requests: Request[]; divisions: Division[];
                 <div className="lg:col-span-3">
                      <h3 className="text-base font-semibold text-gray-800 mb-6">Performa & Prioritas</h3>
                      <div className="grid grid-cols-2 gap-4 mb-8 bg-gray-50/70 p-4 rounded-xl border">
-                        <KpiCard icon={DollarIcon} title="Total Nilai Permintaan" value={`Rp ${formatCurrencyShort(analytics.totalValue)}`} color="#16A34A" onClick={() => setActivePage('request')} tooltip={`Rp ${analytics.totalValue.toLocaleString('id-ID')}`}/>
+                        {canViewPrice(currentUser.role) && (
+                            <KpiCard icon={DollarIcon} title="Total Nilai Permintaan" value={`Rp ${formatCurrencyShort(analytics.totalValue)}`} color="#16A34A" onClick={() => setActivePage('request')} tooltip={`Rp ${analytics.totalValue.toLocaleString('id-ID')}`}/>
+                        )}
                         <KpiCard icon={PercentIcon} title="Rasio Urgent" value={`${analytics.urgentRatio.toFixed(1)}%`} color="#DC2626" onClick={() => setActivePage('request', { orderType: 'Urgent' })} />
                         <KpiCard icon={HistoryIcon} title="Avg. Waktu Persetujuan" value={analytics.avgApprovalTime} color="#6B7280" />
                         <KpiCard icon={FireIcon} title="Avg. Persetujuan Urgent" value={analytics.avgUrgentApprovalTime} color="#F59E0B" onClick={() => setActivePage('request', { orderType: 'Urgent' })} />

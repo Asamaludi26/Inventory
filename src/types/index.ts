@@ -1,5 +1,3 @@
-
-
 // FIX: Removed circular dependency by deleting the import of 'Page' from the same file.
 export type Page =
   | 'dashboard'
@@ -258,7 +256,7 @@ export interface Notification {
   message?: string; // Optional custom message for complex notifications
 }
 
-export type UserRole = 'Admin' | 'Staff' | 'Super Admin' | 'Manager';
+export type UserRole = 'Super Admin' | 'Procurement Admin' | 'Inventory Admin' | 'Manager' | 'Staff';
 
 export interface User {
   id: number;

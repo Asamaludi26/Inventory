@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CopyIcon } from '../../../components/icons/CopyIcon';
 import { CheckIcon } from '../../../components/icons/CheckIcon';
 import { useNotification } from '../../../providers/NotificationProvider';
+import { UserRole } from '../../../types';
 
 export const DemoAccounts: React.FC = () => {
     const addNotification = useNotification();
@@ -17,9 +18,10 @@ export const DemoAccounts: React.FC = () => {
         });
     };
 
-    const demoUsers = [
-        { role: 'Super Admin', email: 'john.doe@triniti.com', password: 'password123' },
-        { role: 'Admin', email: 'alice.johnson@triniti.com', password: 'password123' },
+    const demoUsers: { role: UserRole, email: string, password: string }[] = [
+        { role: 'Super Admin', email: 'super.admin@triniti.com', password: 'password123' },
+        { role: 'Procurement Admin', email: 'procurement.admin@triniti.com', password: 'password123' },
+        { role: 'Inventory Admin', email: 'inventory.admin@triniti.com', password: 'password123' },
         { role: 'Manager', email: 'manager.noc@triniti.com', password: 'password123' },
         { role: 'Staff', email: 'citra.lestari0@triniti.com', password: 'password123' },
     ];
@@ -27,7 +29,8 @@ export const DemoAccounts: React.FC = () => {
     const getRoleClass = (role: string) => {
         switch(role) {
             case 'Super Admin': return 'bg-purple-100 text-purple-800';
-            case 'Admin': return 'bg-info-light text-info-text';
+            case 'Procurement Admin': return 'bg-teal-100 text-teal-800';
+            case 'Inventory Admin': return 'bg-info-light text-info-text';
             case 'Manager': return 'bg-sky-100 text-sky-800';
             default: return 'bg-gray-100 text-gray-800';
         }
