@@ -53,7 +53,8 @@ const generateMockUsers = (): User[] => {
         { id: 1, name: 'Alice Johnson', email: 'inventory.admin@triniti.com', divisionId: 1, role: 'Inventory Admin' },
         { id: 2, name: 'Brian Adams', email: 'procurement.admin@triniti.com', divisionId: 5, role: 'Procurement Admin' },
         { id: 99, name: 'John Doe', email: 'super.admin@triniti.com', divisionId: 6, role: 'Super Admin' },
-        { id: 101, name: 'Manager NOC', email: 'manager.noc@triniti.com', divisionId: 2, role: 'Manager' }
+        { id: 101, name: 'Manager NOC', email: 'manager.noc@triniti.com', divisionId: 2, role: 'Manager' },
+        { id: 102, name: 'Citra Lestari', email: 'citra.lestari0@triniti.com', divisionId: 3, role: 'Staff' }
     ];
     let userIdCounter = 3;
 

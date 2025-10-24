@@ -2469,7 +2469,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                     </div>
                 </Modal>
             )}
-        </>
+        </div>
     );
 };
 
