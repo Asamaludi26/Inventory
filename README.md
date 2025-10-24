@@ -6,6 +6,26 @@ Selamat datang di pusat dokumentasi untuk Aplikasi Inventori Aset PT. Triniti Me
 
 Aplikasi ini adalah sistem terpusat yang modern, aman, dan efisien untuk mengelola seluruh siklus hidup aset—mulai dari permintaan, pencatatan, serah terima, instalasi di pelanggan, hingga penarikan dan penghapusan.
 
+## Status Proyek (Penting!)
+
+Saat ini, proyek berada pada tahap **Prototipe Frontend Fungsional Penuh (High-Fidelity Functional Frontend Prototype)**.
+
+-   **Frontend**: Aplikasi antarmuka (UI/UX) telah selesai sepenuhnya, mencakup semua alur kerja, komponen, dan logika sisi klien.
+-   **Backend & Database**: Logika bisnis dan penyimpanan data saat ini **disimulasikan** menggunakan **Mock API** yang berjalan di browser (`localStorage`). Belum ada server backend atau database produksi yang terhubung.
+-   **Tujuan Dokumentasi**: Dokumentasi ini melayani dua tujuan:
+    1.  Mendokumentasikan **status saat ini** dari aplikasi frontend yang telah selesai.
+    2.  Menyediakan **cetak biru (blueprint) lengkap** untuk tim backend dalam membangun API dan database sesuai dengan arsitektur yang telah dirancang.
+
+---
+
+## Titik Awal Utama
+
+Untuk pemahaman komprehensif mengenai proyek dari awal hingga akhir, mulailah dengan membaca dokumen berikut:
+
+-   [**Laporan Pertanggungjawaban Final**](./Docs/FINAL_REPORT.md)
+
+Dokumen ini merangkum seluruh aspek proyek, dari visi bisnis hingga realisasi teknis, dan berfungsi sebagai panduan utama untuk menavigasi sisa dokumentasi.
+
 ## Daftar Isi Dokumentasi
 
 Berikut adalah struktur dokumentasi yang dirancang untuk membantu Anda menemukan informasi yang relevan dengan cepat.

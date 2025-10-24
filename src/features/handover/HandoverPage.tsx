@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry, PreviewData } from '../../types';
+import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry, PreviewData, Request, Division } from '../../types';
 import Modal from '../../components/ui/Modal';
 import { EyeIcon } from '../../components/icons/EyeIcon';
 import { TrashIcon } from '../../components/icons/TrashIcon';
@@ -33,7 +33,8 @@ interface ItemHandoverPageProps {
     setHandovers: React.Dispatch<React.SetStateAction<Handover[]>>;
     assets: Asset[];
     users: User[];
-    prefillData?: Asset | null;
+    divisions: Division[];
+    prefillData?: Asset | Request | null;
     onClearPrefill: () => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
     onShowPreview: (data: PreviewData) => void;
@@ -192,9 +193,11 @@ const HandoverForm: React.FC<{
     onSave: (data: Omit<Handover, 'id' | 'status'>) => void; 
     assets: Asset[]; 
     users: User[];
-    prefillData?: Asset | null;
+    divisions: Division[];
+    prefillData?: Asset | Request | null;
+    onClearPrefill: () => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
-}> = ({ currentUser, onSave, assets, users, prefillData, onUpdateAsset }) => {
+}> = ({ currentUser, onSave, assets, users, divisions, prefillData, onClearPrefill, onUpdateAsset }) => {
     const [handoverDate, setHandoverDate] = useState<Date | null>(new Date());
     const [menyerahkan, setMenyerahkan] = useState('');
     const [penerima, setPenerima] = useState('');
@@ -232,24 +235,47 @@ const HandoverForm: React.FC<{
         return [...inStorageOptions, ...inUseOptions];
     }, [availableAssets]);
 
+    const getDivisionForUser = (userName: string): string => {
+        if (!userName) return '';
+        const user = users.find(u => u.name === userName);
+        if (!user || !user.divisionId) return '';
+        const division = divisions.find(d => d.id === user.divisionId);
+        return division ? `Divisi ${division.name}` : '';
+    };
+
     useEffect(() => {
         setMenyerahkan(currentUser.name);
     }, [currentUser]);
 
     useEffect(() => {
         if (prefillData) {
-            setItems([{
-                id: Date.now(),
-                assetId: prefillData.id,
-                itemName: prefillData.name,
-                itemTypeBrand: prefillData.brand,
-                conditionNotes: prefillData.condition,
-                quantity: 1,
-                checked: true,
-            }]);
-            setMenyerahkan(prefillData.currentUser || currentUser.name);
+            if ('requester' in prefillData) { // It's a Request object
+                setPenerima(prefillData.requester);
+                setWoRoIntNumber(prefillData.id);
+                setItems(prefillData.items.map(item => ({
+                    id: Date.now() + Math.random(),
+                    assetId: '', // Admin must select this
+                    itemName: item.itemName,
+                    itemTypeBrand: item.itemTypeBrand,
+                    conditionNotes: 'Kondisi baik (dari stok)',
+                    quantity: item.quantity,
+                    checked: true
+                })));
+            } else { // It's an Asset object
+                setItems([{
+                    id: Date.now(),
+                    assetId: prefillData.id,
+                    itemName: prefillData.name,
+                    itemTypeBrand: prefillData.brand,
+                    conditionNotes: prefillData.condition,
+                    quantity: 1,
+                    checked: true,
+                }]);
+                setMenyerahkan(prefillData.currentUser || currentUser.name);
+            }
+            onClearPrefill();
         }
-    }, [prefillData, currentUser.name]);
+    }, [prefillData, currentUser.name, onClearPrefill]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(([entry]) => setIsFooterVisible(entry.isIntersecting), { threshold: 0.1 });
@@ -394,7 +420,7 @@ const HandoverForm: React.FC<{
                         <div>
                             <label htmlFor="menyerahkan" className="font-medium text-gray-700">Yang Menyerahkan</label>
                             <div className="flex items-center justify-center mt-2 h-28">
-                                {menyerahkan && <SignatureStamp signerName={menyerahkan} signatureDate={handoverDate?.toISOString() || ''} />}
+                                {menyerahkan && <SignatureStamp signerName={menyerahkan} signatureDate={handoverDate?.toISOString() || ''} signerDivision={getDivisionForUser(menyerahkan)} />}
                             </div>
                             <div className="mt-2 border-t border-gray-400 pt-1">
                                 <CustomSelect options={userOptions} value={menyerahkan} onChange={setMenyerahkan} placeholder="( Nama Jelas )" />
@@ -403,7 +429,7 @@ const HandoverForm: React.FC<{
                         <div>
                             <label htmlFor="penerima" className="font-medium text-gray-700">Penerima</label>
                             <div className="flex items-center justify-center mt-2 h-28">
-                                {penerima && <SignatureStamp signerName={penerima} signatureDate={handoverDate?.toISOString() || ''} />}
+                                {penerima && <SignatureStamp signerName={penerima} signatureDate={handoverDate?.toISOString() || ''} signerDivision={getDivisionForUser(penerima)} />}
                             </div>
                             <div className="mt-2 border-t border-gray-400 pt-1">
                                 <CustomSelect options={userOptions} value={penerima} onChange={setPenerima} placeholder="( Nama Jelas )" />
@@ -412,7 +438,7 @@ const HandoverForm: React.FC<{
                         <div>
                             <label htmlFor="mengetahui" className="font-medium text-gray-700">Mengetahui</label>
                             <div className="flex items-center justify-center mt-2 h-28">
-                                {mengetahui && <SignatureStamp signerName={mengetahui} signatureDate={handoverDate?.toISOString() || ''} />}
+                                {mengetahui && <SignatureStamp signerName={mengetahui} signatureDate={handoverDate?.toISOString() || ''} signerDivision={getDivisionForUser(mengetahui)} />}
                             </div>
                             <div className="mt-2 border-t border-gray-400 pt-1">
                                 <CustomSelect options={userOptions} value={mengetahui} onChange={setMengetahui} placeholder="( Nama Jelas )" />
@@ -433,7 +459,7 @@ const HandoverForm: React.FC<{
 };
 
 const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
-    const { currentUser, handovers, setHandovers, assets, users, prefillData, onClearPrefill, onUpdateAsset, onShowPreview } = props;
+    const { currentUser, handovers, setHandovers, assets, users, divisions, prefillData, onClearPrefill, onUpdateAsset, onShowPreview } = props;
 
     const [view, setView] = useState<'list' | 'form'>('list');
     const [selectedHandover, setSelectedHandover] = useState<Handover | null>(null);
@@ -456,6 +482,14 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const addNotification = useNotification();
+
+    const getDivisionForUser = (userName: string): string => {
+        if (!userName) return '';
+        const user = users.find(u => u.name === userName);
+        if (!user || !user.divisionId) return '';
+        const division = divisions.find(d => d.id === user.divisionId);
+        return division ? `Divisi ${division.name}` : '';
+    };
     
     useEffect(() => {
         if (prefillData) setView('form');
@@ -639,7 +673,7 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
                             Kembali ke Daftar
                         </button>
                     </div>
-                    <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
+                    <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md">
                         <HandoverForm {...props} onSave={handleCreateHandover} />
                     </div>
                 </div>
@@ -741,33 +775,45 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
                     <div className="overflow-x-auto custom-scrollbar">
                         <HandoverTable handovers={paginatedHandovers} onDetailClick={handleShowDetails} onDeleteClick={setHandoverToDeleteId} sortConfig={sortConfig} requestSort={requestSort} selectedHandoverIds={selectedHandoverIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} isBulkSelectMode={isBulkSelectMode} onEnterBulkMode={() => setIsBulkSelectMode(true)} />
                     </div>
-                    <PaginationControls currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={size => { setItemsPerPage(size); setCurrentPage(1); }} startIndex={startIndex} endIndex={endIndex} />
+                    <PaginationControls currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={size => { setItemsPerPage(size); setCurrentPage(1);}} startIndex={startIndex} endIndex={endIndex} />
                 </div>
             </div>
         );
     };
 
     return (
-        <>
+        <div className={view === 'form' ? 'pb-24' : ''}>
             {renderContent()}
 
             {selectedHandover && (
-                 <Modal 
+                <Modal 
                     isOpen={isDetailModalOpen} 
                     onClose={() => setIsDetailModalOpen(false)} 
                     title="" 
                     size="3xl"
                     disableContentPadding
+                    footerContent={
+                        selectedHandover.status === ItemStatus.IN_PROGRESS ? (
+                            <button
+                                onClick={() => addNotification('Fungsi ini belum diimplementasikan.', 'info')}
+                                disabled={isLoading}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400"
+                            >
+                                {isLoading ? <SpinnerIcon className="w-4 h-4"/> : <CheckIcon className="w-4 h-4"/>}
+                                {isLoading ? 'Memproses...' : 'Selesaikan Handover'}
+                            </button>
+                        ) : null
+                    }
                 >
-                    <div className="p-6">
+                      <div className="p-6">
                         <Letterhead />
                         <div className="text-center mb-6">
                             <h3 className="text-xl font-bold uppercase text-tm-dark">Berita Acara Serah Terima Barang</h3>
                             <p className="text-sm text-tm-secondary">Nomor: {selectedHandover.id}</p>
                         </div>
-
+                        
                         <div className="space-y-6 text-sm">
-                            <section>
+                           <section>
                                 <p className="mb-2 text-gray-800">Pada hari ini, tanggal {new Date(selectedHandover.handoverDate).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}, telah dilaksanakan serah terima barang internal dengan rincian sebagai berikut:</p>
                                 <dl className="grid grid-cols-2 gap-x-6 gap-y-2 p-3 bg-gray-50 border rounded-md">
                                     <div><dt className="text-gray-500">Pihak Pertama (Yang Menyerahkan)</dt><dd className="font-medium text-gray-900"><ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedHandover.menyerahkan})}>{selectedHandover.menyerahkan}</ClickableLink></dd></div>
@@ -806,26 +852,13 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
                                     </table>
                                 </div>
                             </section>
-
                             <section className="pt-6">
-                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-6">Persetujuan</h4>
+                            <h4 className="font-semibold text-gray-800 border-b pb-1 mb-6">Persetujuan</h4>
                                 <p className="text-xs text-center text-gray-500 mb-6">Demikian Berita Acara ini dibuat untuk dipergunakan sebagaimana mestinya.</p>
                                 <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-3">
-                                    <div>
-                                        <p className="font-semibold text-gray-600">Yang Menyerahkan,</p>
-                                        <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.menyerahkan} signatureDate={selectedHandover.handoverDate} /></div>
-                                        <div className="pt-1 mt-2"><p className="text-gray-800">({selectedHandover.menyerahkan})</p></div>
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-gray-600">Penerima,</p>
-                                        <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.penerima} signatureDate={selectedHandover.handoverDate} /></div>
-                                        <div className="pt-1 mt-2"><p className="text-gray-800">({selectedHandover.penerima})</p></div>
-                                    </div>
-                                     <div>
-                                        <p className="font-semibold text-gray-600">Mengetahui,</p>
-                                        <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.mengetahui} signatureDate={selectedHandover.handoverDate} /></div>
-                                        <div className="pt-1 mt-2"><p className="text-gray-800">({selectedHandover.mengetahui})</p></div>
-                                    </div>
+                                    <div><p className="font-semibold text-gray-600">Yang Menyerahkan,</p><div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.menyerahkan} signatureDate={selectedHandover.handoverDate} signerDivision={getDivisionForUser(selectedHandover.menyerahkan)} /></div><div className="pt-1 mt-2"><p>({selectedHandover.menyerahkan})</p></div></div>
+                                    <div><p className="font-semibold text-gray-600">Penerima,</p><div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.penerima} signatureDate={selectedHandover.handoverDate} signerDivision={getDivisionForUser(selectedHandover.penerima)} /></div><div className="pt-1 mt-2"><p>({selectedHandover.penerima})</p></div></div>
+                                    <div><p className="font-semibold text-gray-600">Mengetahui,</p><div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.mengetahui} signatureDate={selectedHandover.handoverDate} signerDivision={getDivisionForUser(selectedHandover.mengetahui)} /></div><div className="pt-1 mt-2"><p>({selectedHandover.mengetahui})</p></div></div>
                                 </div>
                             </section>
                         </div>
@@ -833,34 +866,54 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
                 </Modal>
             )}
 
-            <Modal isOpen={!!handoverToDeleteId} onClose={() => setHandoverToDeleteId(null)} title="Konfirmasi Hapus" hideDefaultCloseButton>
-                <div className="text-center">
-                    <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-red-500" />
-                    <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Handover?</h3>
-                    <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data handover <strong>{handoverToDeleteId}</strong>? Tindakan ini tidak dapat diurungkan.</p>
-                </div>
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                    <button onClick={() => setHandoverToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus</button>
-                </div>
-            </Modal>
+            {handoverToDeleteId && (
+                <Modal isOpen={!!handoverToDeleteId} onClose={() => setHandoverToDeleteId(null)} title="Konfirmasi Hapus" hideDefaultCloseButton>
+                    <div className="text-center">
+                        <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-red-500" />
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Data Handover?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus data handover <strong>{handoverToDeleteId}</strong>? Tindakan ini tidak dapat diurungkan.</p>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <button onClick={() => setHandoverToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">
+                            {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus
+                        </button>
+                    </div>
+                </Modal>
+            )}
+            
+            {bulkDeleteConfirmation && (
+                <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal" hideDefaultCloseButton>
+                     <div className="text-center">
+                        <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-red-500" />
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {selectedHandoverIds.length} Data Handover?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus semua data handover yang dipilih? Aksi ini tidak dapat diurungkan.</p>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">
+                           {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Ya, Hapus
+                        </button>
+                    </div>
+                </Modal>
+            )}
 
-            <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal">
-                 <p>Anda yakin ingin menghapus {selectedHandoverIds.length} data handover yang dipilih? Aksi ini tidak dapat diurungkan.</p>
-                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                    <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus ({selectedHandoverIds.length})</button>
-                </div>
-            </Modal>
-
-            <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesaikan Massal">
-                 <p>Anda akan menyelesaikan {actionableCounts.completeCount} dari {selectedHandoverIds.length} handover yang dipilih. Lanjutkan?</p>
-                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                    <button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={handleBulkComplete} disabled={isLoading || actionableCounts.completeCount === 0} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Selesaikan ({actionableCounts.completeCount})</button>
-                </div>
-            </Modal>
-        </>
+            {bulkCompleteConfirmation && (
+                 <Modal isOpen={bulkCompleteConfirmation} onClose={() => setBulkCompleteConfirmation(false)} title="Konfirmasi Selesaikan Massal" hideDefaultCloseButton>
+                    <div className="text-center">
+                        <CheckIcon className="w-12 h-12 mx-auto text-success" />
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Selesaikan {actionableCounts.completeCount} Handover?</h3>
+                        <p className="mt-2 text-sm text-gray-600">Anda akan mengubah status handover yang dipilih menjadi "Selesai".</p>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <button onClick={() => setBulkCompleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button onClick={handleBulkComplete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-success rounded-lg shadow-sm hover:bg-green-700">
+                           {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Ya, Selesaikan
+                        </button>
+                    </div>
+                </Modal>
+            )}
+        </div>
     );
 };
 

@@ -2,6 +2,8 @@
 
 Dokumen ini menjelaskan pendekatan operasional untuk memantau kesehatan, kinerja, dan error pada Aplikasi Inventori Aset saat berjalan di lingkungan produksi.
 
+> **Catatan**: Panduan ini berlaku untuk **aplikasi *full-stack* di lingkungan produksi**. Strategi ini menjadi relevan setelah backend dibangun dan di-deploy. Prototipe frontend saat ini dapat dipantau menggunakan *error tracking* dan *web vitals* standar.
+
 ## 1. Strategi Monitoring
 
 Monitoring proaktif bertujuan untuk mendeteksi masalah sebelum berdampak signifikan pada pengguna.

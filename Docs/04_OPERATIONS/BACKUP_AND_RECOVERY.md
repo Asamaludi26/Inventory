@@ -2,6 +2,8 @@
 
 Dokumen ini menjelaskan prosedur standar untuk mencadangkan (backup) data aplikasi dan langkah-langkah untuk memulihkan layanan jika terjadi kegagalan sistem atau kehilangan data.
 
+> **Catatan**: Rencana ini berlaku untuk **database PostgreSQL di lingkungan produksi**. Prototipe frontend saat ini menggunakan `localStorage` yang tidak memerlukan strategi backup formal karena datanya bersifat sementara dan dapat di-regenerasi dari file *mock data*.
+
 ## 1. Target Pemulihan
 
 -   **RTO (Recovery Time Objective)**: Waktu maksimal yang ditargetkan untuk memulihkan layanan setelah bencana. **Target: < 2 jam**.

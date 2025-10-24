@@ -6,7 +6,7 @@ Dokumen ini menjelaskan arsitektur, pola, dan konvensi yang digunakan dalam peng
 
 -   **Modular & Dapat Digunakan Kembali (Reusable)**: Kode diorganisir ke dalam komponen-komponen kecil dan independen yang mudah untuk digunakan kembali dan diuji.
 -   **Pemisahan Tanggung Jawab (Separation of Concerns)**: Logika bisnis, logika tampilan (UI), dan manajemen state dipisahkan untuk meningkatkan keterbacaan dan pemeliharaan.
--   **Kinerja**: Aplikasi dirancang agar tetap cepat dan responsif, terutama saat menangani data dalam jumlah besar, dengan menerapkan teknik seperti paginasi dan virtualisasi.
+-   **Kinerja**: Aplikasi dirancang agar tetap cepat dan responsif, terutama saat menangani data dalam jumlah besar, dengan menerapkan teknik seperti paginasi dan memoization (`useMemo`).
 -   **Pengalaman Pengguna (UX)**: Antarmuka harus intuitif, konsisten, dan memberikan umpan balik yang jelas kepada pengguna (misalnya, state loading, pesan error, notifikasi).
 
 ## 2. Tumpukan Teknologi
@@ -14,9 +14,8 @@ Dokumen ini menjelaskan arsitektur, pola, dan konvensi yang digunakan dalam peng
 -   **Framework**: **React 18**
 -   **Bahasa**: **TypeScript**
 -   **Styling**: **Tailwind CSS**
--   **Manajemen State**: **React Hooks** (`useState`, `useContext`) untuk state lokal dan sederhana. **Zustand** (direkomendasikan) untuk state global yang lebih kompleks.
+-   **Manajemen State**: **React Hooks** (`useState`, `useContext`, `useMemo`). State global diangkat ke komponen root (`App.tsx`) dan didistribusikan ke komponen anak melalui props.
 -   **Pustaka Ikon**: **React Icons**
--   **Build Tool**: **Vite**
 
 ## 3. Struktur Folder (`src`)
 
@@ -31,47 +30,31 @@ src/
 ├── components/         # Komponen UI "bodoh" (dumb) yang dapat digunakan kembali di seluruh aplikasi.
 │   ├── icons/          # Kumpulan komponen ikon (misal: AssetIcon.tsx, CloseIcon.tsx).
 │   ├── layout/         # Komponen untuk struktur halaman (misal: Sidebar.tsx, FormPageLayout.tsx).
-│   └── ui/             # Komponen UI dasar & interaktif (misal: Button.tsx, Modal.tsx, CustomSelect.tsx).
+│   └── ui/             # Komponen UI dasar & interaktif (misal: Modal.tsx, CustomSelect.tsx, DatePicker.tsx).
 │
 ├── features/           # Folder utama untuk setiap fitur/halaman bisnis. Setiap folder adalah modul mandiri.
-│   ├── assetRegistration/
-│   │   ├── RegistrationPage.tsx      # Komponen Halaman Utama (mengelola state & logika).
-│   │   └── components/
-│   │       └── RegistrationForm.tsx  # Komponen Form Pencatatan Aset.
-│   │
-│   ├── auth/
-│   │   ├── LoginPage.tsx
-│   │   └── components/
-│   │       └── DemoAccounts.tsx
-│   │
-│   ├── dashboard/
-│   │   ├── DashboardPage.tsx
-│   │   └── components/
-│   │       ├── StatCard.tsx
-│   │       └── ActivityItem.tsx
-│   │
-│   ├── itemRequest/
-│   │   ├── ItemRequestPage.tsx
-│   │   └── components/
-│   │       ├── RequestForm.tsx
-│   │       ├── RequestTable.tsx
-│   │       └── RequestStatusIndicator.tsx
-│   │
-│   ├── preview/
-│   │   └── PreviewModal.tsx            # Modal pratinjau detail yang dapat digunakan lintas fitur.
-│   │
-│   └── ... (dan folder fitur lainnya seperti `handover`, `dismantle`, `customers`, dll.)
+│   ├── auth/           # Alur login dan autentikasi.
+│   ├── assetRegistration/ # Halaman dan logika untuk mencatat aset.
+│   ├── dashboard/      # Halaman utama setelah login.
+│   ├── itemRequest/    # Alur kerja permintaan aset baru.
+│   ├── handover/       # Alur kerja serah terima aset.
+│   ├── dismantle/      # Alur kerja penarikan aset.
+│   ├── repair/         # Alur kerja manajemen perbaikan aset.
+│   ├── stock/          # Halaman ringkasan stok aset.
+│   ├── customers/      # Manajemen data pelanggan.
+│   ├── users/          # Manajemen akun pengguna.
+│   ├── categories/     # Manajemen kategori, tipe, dan model aset.
+│   └── preview/        # Modal pratinjau detail yang dapat digunakan lintas fitur.
 │
 ├── hooks/              # Custom React Hooks yang dapat digunakan kembali.
 │   ├── useSortableData.ts
 │   ├── useLongPress.ts
-│   └── ...
 │
 ├── providers/          # Penyedia konteks (React Context) untuk fungsionalitas global.
 │   └── NotificationProvider.tsx # Mengelola sistem notifikasi (toast) di seluruh aplikasi.
 │
-├── services/           # Modul untuk berkomunikasi dengan API backend.
-│   └── api.ts          # Berisi semua fungsi `fetch` untuk mengambil atau mengirim data ke server.
+├── services/           # Modul untuk berkomunikasi dengan API backend (saat ini Mock API).
+│   └── api.ts          # Berisi semua fungsi untuk mengambil atau mengirim data.
 │
 ├── types/              # Definisi tipe dan interface TypeScript global.
 │   └── index.ts        # File tunggal untuk semua tipe data (Asset, Request, User, dll).
@@ -83,46 +66,46 @@ src/
 
 ## 4. Alur Data & Manajemen State
 
-State global (seperti daftar aset, request, pengguna) dikelola menggunakan Zustand untuk menghindari _prop-drilling_ dan menyederhanakan logika.
+State global (seperti daftar aset, request, pengguna) dikelola di komponen `AppContent.tsx` menggunakan `useState`. Data ini kemudian dioper ke bawah ke komponen-komponen fitur melalui `props`.
+
+Setiap perubahan pada state global (misalnya, menambah aset baru) dilakukan melalui fungsi yang juga dioper sebagai `props`. Fungsi ini akan memanggil `api.ts` untuk menyimpan perubahan ke `localStorage`, lalu memperbarui state di `AppContent.tsx`, yang secara otomatis memicu re-render pada komponen yang relevan.
+
+**Diagram Alur Data Sederhana:**
 
 ```mermaid
 graph TD
-    subgraph "Komponen React"
-        A[Halaman Daftar Aset]
-        B[Modal Detail Aset]
+    subgraph App.tsx
+        A[<b>State Global</b><br>(assets, requests, dll.)]
+        B[<b>Fungsi Update</b><br>(setAssets, setRequests)]
     end
-
-    subgraph "Zustand Store (Contoh)"
-        C(useAssetStore)
+    
+    subgraph "Komponen Halaman"
+        C[ItemRequestPage.tsx]
     end
 
     subgraph "Service Layer"
-        D(api.ts)
+        D[api.ts]
+    end
+    
+    subgraph "Penyimpanan Browser"
+        E[localStorage]
     end
 
-    subgraph "Backend"
-        E[API Server]
-    end
+    A -- "Props (data)" --> C
+    B -- "Props (fungsi)" --> C
+    
+    C -- "1. Pengguna membuat request baru" --> B
+    B -- "2. Memanggil api.updateData()" --> D
+    D -- "3. Menyimpan data ke localStorage" --> E
+    D -- "4. Mengembalikan data baru" --> B
+    B -- "5. Memperbarui state global" --> A
 
-    A -- "1. Panggil aksi `fetchAssets()`" --> C
-    B -- "6. Membaca state 'assets' dari store" --> C
-    C -- "2. Menjalankan fungsi `fetchAllAssets()`" --> D
-    C -- "5. Memperbarui state 'assets' & 'isLoading'" --> A & B
-    D -- "3. Mengirim request HTTP" --> E
-    E -- "4. Mengirim response data" --> D
-
-    style A fill:#bde4ff
-    style B fill:#bde4ff
-    style C fill:#ffe4b5
+    style A fill:#ffe4b5
+    style B fill:#ffe4b5
+    style C fill:#bde4ff
     style D fill:#c1f0c1
+    style E fill:#d3d3d3
 ```
-
-1.  **Komponen** (`A`) memanggil sebuah aksi dari _store_ (misal: `useAssetStore.getState().fetchAssets()`).
-2.  **Aksi di Store** (`C`) memanggil fungsi yang sesuai dari _service layer_ (`D`).
-3.  **Service Layer** (`D`) menangani komunikasi dengan API Server (`E`).
-4.  Setelah mendapatkan data, _service layer_ mengembalikannya ke _store_.
-5.  **Store** (`C`) memperbarui _state_-nya.
-6.  Semua komponen (`A`, `B`) yang "mendengarkan" _store_ tersebut akan **otomatis me-render ulang** dengan data yang baru.
 
 ## 5. Filosofi Komponen
 
@@ -130,37 +113,30 @@ graph TD
     -   Komponen ini bersifat **presentasional** (bodoh/dumb).
     -   Mereka tidak tahu tentang logika bisnis atau dari mana data berasal.
     -   Mereka menerima data dan fungsi callback melalui `props`.
-    -   Contoh: `Button.tsx`, `Modal.tsx`, `CustomSelect.tsx`.
+    -   Contoh: `Modal.tsx`, `CustomSelect.tsx`.
 
 -   **Komponen Fitur (`src/features/...`)**:
     -   Komponen ini bersifat **pintar** (smart) atau _container_.
-    -   Mereka bertanggung jawab atas logika bisnis, mengambil data dari API, dan mengelola state untuk sebuah fitur.
+    -   Mereka bertanggung jawab atas logika bisnis, mengambil data, dan mengelola state untuk sebuah fitur.
     -   Mereka menggunakan komponen UI untuk membangun antarmuka.
-    -   Contoh: `ItemRequestPage.tsx` mengambil data request dan menampilkannya menggunakan tabel dan modal.
+    -   Contoh: `ItemRequestPage.tsx` mengelola logika untuk membuat dan menampilkan request, menggunakan `Modal`, `DatePicker`, dan komponen UI lainnya.
 
 ## 6. Styling dengan Tailwind CSS
 
--   **Utility-First**: Gunakan kelas utilitas Tailwind secara langsung di dalam JSX. Ini mempercepat pengembangan dan menjaga konsistensi.
--   **Konfigurasi Tema**: Warna kustom (`tm-primary`, `tm-accent`), font, dan ekstensi lainnya didefinisikan di `index.html` dalam tag `<script>`. Ini memastikan branding yang konsisten di seluruh aplikasi.
--   **Kelas Kustom**: Untuk properti yang lebih kompleks atau berulang (seperti scrollbar kustom atau animasi), kelas CSS global didefinisikan di `index.html` dalam tag `<style>`.
+-   **Utility-First**: Gunakan kelas utilitas Tailwind secara langsung di dalam JSX.
+-   **Konfigurasi Tema**: Warna kustom (`tm-primary`, `tm-accent`), font, dan ekstensi lainnya didefinisikan di `index.html`.
+-   **Kelas Kustom**: Untuk properti yang lebih kompleks (seperti scrollbar atau animasi), kelas CSS global didefinisikan di `index.html`.
 
-## 7. Interaksi dengan API
+## 7. Interaksi dengan API (Simulasi)
 
--   **Layer Layanan (`src/services/api.ts`)**: Semua logika untuk berkomunikasi dengan backend API terpusat di file ini. Ini membuat kode lebih terorganisir dan memudahkan jika ada perubahan pada URL API atau header.
--   **Penanganan Asinkron**: Gunakan `async/await` dengan blok `try...catch` untuk menangani panggilan API.
--   **State Loading dan Error**: Setiap komponen fitur yang mengambil data harus memiliki state untuk `isLoading` dan `error`. Tampilkan indikator loading (spinner) saat data diambil dan pesan error yang jelas jika terjadi kegagalan.
+-   **Mock API Layer (`src/services/api.ts`)**: Semua logika untuk berkomunikasi dengan data terpusat di file ini.
+-   **Prinsip Kerja**:
+    1.  Saat aplikasi dimuat, fungsi `fetchAllData` memeriksa `localStorage`.
+    2.  Jika data tidak ada di `localStorage`, data awal dari `src/data/mockData.ts` akan dimuat dan disimpan.
+    3.  Jika data ada, data dari `localStorage` yang akan digunakan.
+    4.  Setiap operasi "tulis" (membuat, mengedit, menghapus) memanggil fungsi `updateData`, yang akan menyimpan keseluruhan state (misal: seluruh array `assets`) kembali ke `localStorage`.
+-   **Tujuan**: Pendekatan ini memungkinkan pengembangan frontend yang sepenuhnya independen dan memberikan pengalaman persistensi data yang realistis selama sesi pengembangan.
+-   **Rencana Integrasi**: Ketika backend siap, fungsi-fungsi di dalam `api.ts` akan diganti dengan panggilan `fetch` atau `axios` ke endpoint REST API yang sesungguhnya, tanpa perlu mengubah logika di dalam komponen React secara signifikan.
 
-## 8. Pemetaan Tipe Data Frontend & Backend
-
-Untuk menjaga konsistensi dan memudahkan pengembangan full-stack, berikut adalah pemetaan antara tipe data utama di frontend dengan DTO (Data Transfer Object) di backend.
-
-| Tipe Frontend (`src/types/index.ts`) | DTO Backend (Terkait)    | Endpoint Utama         | Keterangan                                                              |
-| :----------------------------------- | :----------------------- | :--------------------- | :---------------------------------------------------------------------- |
-| `Asset`                              | `CreateAssetDto`         | `POST /api/assets`     | `CreateAssetDto` adalah subset dari `Asset` yang dibutuhkan saat pembuatan. |
-| `Request`                            | `CreateRequestDto`       | `POST /api/requests`   | `CreateRequestDto` berisi data yang dikirim dari form request.          |
-| `Handover`                           | `CreateHandoverDto`      | `POST /api/handovers`  | DTO untuk membuat Berita Acara Serah Terima baru.                       |
-| `Dismantle`                          | `CreateDismantleDto`     | `POST /api/dismantles` | DTO untuk membuat Berita Acara Penarikan Aset baru.                     |
-
-## 9. Strategi Testing
-
-Lihat [**Panduan Testing**](./TESTING_GUIDE.md) untuk detail lengkap mengenai strategi pengujian.
+## 8. Pemetaan Tipe Data
+File `src/types/index.ts` adalah satu-satunya sumber kebenaran (*single source of truth*) untuk semua bentuk data di aplikasi. Tipe-tipe ini (seperti `Asset`, `Request`, `User`) harus dijaga agar tetap sinkron dengan skema database dan DTO di backend.

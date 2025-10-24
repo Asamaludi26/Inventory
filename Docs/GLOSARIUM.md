@@ -12,10 +12,16 @@ Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang serin
 -   **Aset**
     Barang fisik milik perusahaan yang dicatat dan dilacak oleh sistem, memiliki ID unik, dan siklus hidup yang dapat dipantau (misal: laptop, router, kabel).
 
+-   **Ambang Batas (Threshold)**
+    Jumlah minimum stok untuk sebuah item di gudang. Jika jumlah stok berada di bawah ambang batas ini, item tersebut dianggap "Stok Menipis".
+
 ### B
 
 -   **BAST (Berita Acara Serah Terima)**
     Dokumen formal yang mencatat proses serah terima aset. Di aplikasi ini, BAST direpresentasikan oleh modul **Handover** (untuk serah terima internal) dan **Dismantle** (untuk penarikan dari pelanggan).
+    
+-   **Bulk Actions (Aksi Massal)**
+    Fitur yang memungkinkan pengguna (biasanya Admin) untuk melakukan satu aksi (seperti Hapus, Setujui, Tolak) pada beberapa item terpilih sekaligus dari halaman daftar.
 
 ### C
 
@@ -23,6 +29,9 @@ Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang serin
     Perangkat jaringan yang dipasang di lokasi pelanggan untuk menyediakan layanan (misal: modem, router WiFi, ONT/ONU). Dalam aplikasi ini, CPE biasanya termasuk dalam kategori aset yang "dapat dipasang ke pelanggan".
 
 ### D
+
+-   **Disposisi (Disposition)**
+    Instruksi atau arahan dari manajemen tingkat atas (Super Admin/CEO) untuk memprioritaskan sebuah request. Menghasilkan notifikasi khusus untuk tim Admin.
 
 -   **Dismantle**
     Proses penarikan kembali aset yang sebelumnya terpasang di lokasi pelanggan. Alur kerja ini menghasilkan Berita Acara Dismantle.
@@ -54,6 +63,9 @@ Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang serin
 
 -   **PITR (Point-in-Time Recovery)**
     Metode pencadangan database tingkat lanjut yang memungkinkan pemulihan data ke titik waktu yang sangat spesifik (misal: memulihkan database ke kondisi 5 menit sebelum terjadi error), bukan hanya ke backup harian terakhir.
+    
+-   **Preview Modal**
+    Jendela modal (*popup*) yang digunakan di seluruh aplikasi untuk menampilkan ringkasan detail dari sebuah item (aset, pelanggan, request, dll.) tanpa harus meninggalkan halaman saat ini.
 
 -   **PR (Pull Request)**
     Mekanisme di Git untuk mengajukan perubahan kode dari satu *branch* ke *branch* lain (biasanya dari *branch* fitur ke `develop`). Ini memicu proses *code review* sebelum perubahan digabungkan.

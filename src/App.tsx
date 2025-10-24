@@ -1,5 +1,7 @@
+
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory, Division, StandardItem, AssetType, RequestItem, ParsedScanResult, Notification } from './types';
+import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory, Division, StandardItem, AssetType, RequestItem, ParsedScanResult, Notification, AssetCondition, Attachment } from './types';
 import { Sidebar } from './components/layout/Sidebar';
 import DashboardPage from './features/dashboard/DashboardPage';
 import ItemRequestPage from './features/itemRequest/ItemRequestPage';
@@ -32,6 +34,12 @@ import { MegaphoneIcon } from './components/icons/MegaphoneIcon';
 import { InfoIcon } from './components/icons/InfoIcon';
 import { CloseIcon } from './components/icons/CloseIcon';
 import { parseScanData } from './utils/scanner';
+import ReportDamageModal from './features/stock/components/ReportDamageModal';
+// FIX: Import AddProgressUpdateModal, which was missing.
+import { StartRepairModal, CompleteRepairModal, DecommissionConfirmationModal, AddProgressUpdateModal } from './features/stock/components/RepairModals';
+import { WrenchIcon } from './components/icons/WrenchIcon';
+import RepairManagementPage from './features/repair/RepairManagementPage';
+import { RegisterIcon } from './components/icons/RegisterIcon';
 
 
 declare var Html5Qrcode: any;
@@ -232,7 +240,8 @@ const NotificationBell: React.FC<{
     setNotifications: React.Dispatch<React.SetStateAction<Notification[]>>;
     requests: Request[];
     setActivePage: (page: Page, filters?: any) => void;
-}> = ({ currentUser, users, notifications, setNotifications, requests, setActivePage }) => {
+    onShowPreview: (data: PreviewData) => void;
+}> = ({ currentUser, users, notifications, setNotifications, requests, setActivePage, onShowPreview }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -264,45 +273,36 @@ const NotificationBell: React.FC<{
 
     const handleNotificationClick = (notification: Notification) => {
         handleMarkAsRead(notification.id);
-        setActivePage('request', { openDetailForId: notification.referenceId });
+        if (notification.type.startsWith('REQUEST_') || ['FOLLOW_UP', 'CEO_DISPOSITION', 'PROGRESS_UPDATE_REQUEST', 'PROGRESS_FEEDBACK', 'STATUS_CHANGE'].includes(notification.type)) {
+             setActivePage('request', { openDetailForId: notification.referenceId });
+        } else if (notification.type.startsWith('ASSET_') || ['REPAIR_STARTED', 'REPAIR_COMPLETED', 'REPAIR_PROGRESS_UPDATE'].includes(notification.type)) {
+            onShowPreview({type: 'asset', id: notification.referenceId});
+        }
         setIsOpen(false);
     };
     
     const getNotificationDetails = (notification: Notification) => {
         const actor = users.find(u => u.name === notification.actorName);
-        const request = requests.find(r => r.id === notification.referenceId);
         let message = notification.message || '';
         let Icon = InfoIcon;
 
         switch (notification.type) {
-            case 'FOLLOW_UP':
-                message = `meminta follow-up untuk request`;
-                Icon = BellIcon;
-                break;
-            case 'CEO_DISPOSITION':
-                message = `memprioritaskan request`;
-                Icon = MegaphoneIcon;
-                break;
-            case 'PROGRESS_UPDATE_REQUEST':
-                message = `meminta update progres untuk request`;
-                Icon = InfoIcon;
-                break;
-            case 'PROGRESS_FEEDBACK':
-                message = `memberikan update progres untuk`;
-                Icon = CheckIcon;
-                break;
-            case 'STATUS_CHANGE':
-                message = `mengubah status request`;
-                Icon = RequestIcon;
-                break;
-            case 'REQUEST_APPROVED':
-                message = `menyetujui request Anda`;
-                Icon = CheckIcon;
-                break;
-            case 'REQUEST_REJECTED':
-                 message = `menolak request Anda`;
-                 Icon = CloseIcon;
-                 break;
+            case 'REQUEST_CREATED': message = `membuat request baru`; Icon = RequestIcon; break;
+            case 'REQUEST_AWAITING_FINAL_APPROVAL': message = `menyetujui request, butuh approval final untuk`; Icon = CheckIcon; break;
+            case 'REQUEST_FULLY_APPROVED': message = `memberikan approval final untuk`; Icon = CheckIcon; break;
+            case 'REQUEST_COMPLETED': message = `telah menyelesaikan registrasi aset untuk`; Icon = RegisterIcon; break;
+            case 'FOLLOW_UP': message = `meminta follow-up untuk request`; Icon = BellIcon; break;
+            case 'CEO_DISPOSITION': message = `memprioritaskan request`; Icon = MegaphoneIcon; break;
+            case 'PROGRESS_UPDATE_REQUEST': message = `meminta update progres untuk request`; Icon = InfoIcon; break;
+            case 'PROGRESS_FEEDBACK': message = `memberikan update progres untuk`; Icon = CheckIcon; break;
+            case 'STATUS_CHANGE': message = `mengubah status request`; Icon = RequestIcon; break;
+            case 'REQUEST_APPROVED': message = `menyetujui request Anda`; Icon = CheckIcon; break;
+            case 'REQUEST_REJECTED': message = `menolak request Anda`; Icon = CloseIcon; break;
+            case 'ASSET_DAMAGED_REPORT': message = `melaporkan kerusakan pada aset`; Icon = WrenchIcon; break;
+            case 'REPAIR_STARTED': message = `memulai perbaikan untuk aset Anda`; Icon = SpinnerIcon; break;
+            case 'REPAIR_COMPLETED': message = `menyelesaikan perbaikan untuk aset Anda`; Icon = CheckIcon; break;
+            case 'REPAIR_PROGRESS_UPDATE': message = `memberi update progres perbaikan aset`; Icon = InfoIcon; break;
+            case 'ASSET_DECOMMISSIONED': message = `memberhentikan aset Anda yang rusak berat`; Icon = ExclamationTriangleIcon; break;
         }
 
         const fullMessage = (
@@ -368,7 +368,7 @@ const NotificationBell: React.FC<{
                                         <p className="text-sm text-gray-600">{fullMessage}</p>
                                         <time className="block mt-1 text-xs font-medium text-gray-400">{formatRelativeTime(notif.timestamp)}</time>
                                     </div>
-                                    <Icon className="w-5 h-5 text-gray-400 flex-shrink-0 mt-1" />
+                                    <Icon className={`w-5 h-5 text-gray-400 flex-shrink-0 mt-1 ${notif.type === 'REPAIR_STARTED' ? 'animate-spin' : ''}`} />
                                 </div>
                             )})
                         ) : (
@@ -410,7 +410,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
 
   // State for pre-filling forms & cross-module modals
   const [prefillRegData, setPrefillRegData] = useState<{ request: Request; itemToRegister?: RequestItem } | null>(null);
-  const [prefillHoData, setPrefillHoData] = useState<Asset | null>(null);
+  const [prefillHoData, setPrefillHoData] = useState<Asset | Request | null>(null);
   const [prefillDmData, setPrefillDmData] = useState<Asset | null>(null);
   const [assetToInstall, setAssetToInstall] = useState<Asset | null>(null);
   const [isGlobalScannerOpen, setIsGlobalScannerOpen] = useState(false);
@@ -422,6 +422,13 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
   // QR Scanner context state
   const [scanContext, setScanContext] = useState<'global' | 'form'>('global');
   const [formScanCallback, setFormScanCallback] = useState<((data: ParsedScanResult) => void) | null>(null);
+
+  // Asset Damage Report Flow Modals
+  const [assetToReport, setAssetToReport] = useState<Asset | null>(null);
+  const [assetToStartRepair, setAssetToStartRepair] = useState<Asset | null>(null);
+  const [assetToCompleteRepair, setAssetToCompleteRepair] = useState<Asset | null>(null);
+  const [assetToDecommission, setAssetToDecommission] = useState<Asset | null>(null);
+  const [assetToUpdateProgress, setAssetToUpdateProgress] = useState<Asset | null>(null);
 
 
   // State for global management modals
@@ -773,6 +780,11 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
     setPrefillHoData(asset);
     handleSetActivePage('handover');
   };
+  
+  const handleInitiateHandoverFromRequest = (request: Request) => {
+    setPrefillHoData(request);
+    handleSetActivePage('handover');
+  };
 
   const handleInitiateDismantle = (asset: Asset) => {
     setPrefillDmData(asset);
@@ -836,6 +848,26 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       if (allItemsRegistered) {
           updatedRequest.isRegistered = true;
           updatedRequest.status = ItemStatus.COMPLETED;
+          
+          const requesterUser = users.find(u => u.name === updatedRequest.requester);
+          if (requesterUser) {
+              addAppNotification({
+                  recipientId: requesterUser.id,
+                  actorName: currentUser.name,
+                  type: 'REQUEST_COMPLETED',
+                  referenceId: requestId,
+              });
+          }
+          const admins = users.filter(u => u.role === 'Admin' || u.role === 'Super Admin');
+          admins.forEach(admin => {
+              addAppNotification({
+                  recipientId: admin.id,
+                  actorName: currentUser.name,
+                  type: 'REQUEST_COMPLETED',
+                  referenceId: requestId,
+              });
+          });
+
           addNotification(`Semua item untuk request ${requestId} telah dicatat. Status diubah menjadi Selesai.`, 'success');
       }
       
@@ -843,6 +875,158 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       return updatedRequests;
     }, 'app_requests');
   };
+  
+    const findReporter = (asset: Asset): User | undefined => {
+        const reportLog = [...(asset.activityLog || [])].reverse().find(log => log.action === 'Kerusakan Dilaporkan');
+        if (reportLog) {
+            return users.find(u => u.name === reportLog.user);
+        }
+        return undefined;
+    };
+
+    const handleReportDamage = (asset: Asset, condition: AssetCondition, description: string, attachments: Attachment[]) => {
+        handleUpdateAsset(asset.id, {
+            status: AssetStatus.DAMAGED,
+            condition: condition,
+            attachments: [...(asset.attachments || []), ...attachments],
+        }, {
+            user: currentUser.name,
+            action: 'Kerusakan Dilaporkan',
+            details: `Kerusakan dilaporkan dengan deskripsi: "${description}"`,
+        });
+
+        users.filter(u => u.role === 'Admin').forEach(admin => {
+            addAppNotification({
+                recipientId: admin.id,
+                actorName: currentUser.name,
+                type: 'ASSET_DAMAGED_REPORT',
+                referenceId: asset.id,
+                message: `melaporkan kerusakan pada aset ${asset.name}`
+            });
+        });
+        
+        addNotification(`Laporan kerusakan untuk aset ${asset.id} telah dikirim ke Admin.`, 'success');
+        setAssetToReport(null);
+    };
+
+    // FIX: Update signature to match the corrected StartRepairModal onSubmit prop.
+    const handleStartRepairProcess = (asset: Asset, data: { repairType: 'internal' | 'external'; technician?: string; vendor?: string; vendorContact?: string; estimatedDate: Date; notes: string }) => {
+        const { repairType, technician, vendor, vendorContact, estimatedDate, notes } = data;
+        let details = '';
+        let newStatus: AssetStatus;
+        let notificationMessage = '';
+        
+        if (repairType === 'internal') {
+            details = `Perbaikan internal dimulai oleh ${technician}. Estimasi selesai: ${estimatedDate.toISOString().split('T')[0]}. Catatan: "${notes}"`;
+            newStatus = AssetStatus.UNDER_REPAIR;
+            notificationMessage = `memulai perbaikan internal untuk aset Anda: ${asset.name}. Teknisi: ${technician}.`;
+        } else {
+            details = `Perbaikan eksternal dikirim ke ${vendor} (Kontak: ${vendorContact}). Estimasi kembali: ${estimatedDate.toISOString().split('T')[0]}. Catatan: "${notes}"`;
+            newStatus = AssetStatus.OUT_FOR_REPAIR;
+            notificationMessage = `aset Anda: ${asset.name} dikirim untuk perbaikan eksternal ke ${vendor}.`;
+        }
+        
+        handleUpdateAsset(asset.id, {
+            status: newStatus,
+        }, {
+            user: currentUser.name,
+            action: 'Proses Perbaikan Dimulai',
+            details: details,
+        });
+  
+        const reporter = findReporter(asset);
+        if (reporter) {
+            addAppNotification({
+                recipientId: reporter.id,
+                actorName: currentUser.name,
+                type: 'REPAIR_STARTED',
+                referenceId: asset.id,
+                message: notificationMessage
+            });
+        }
+        addNotification(`Proses perbaikan untuk ${asset.id} dimulai.`, 'info');
+        setAssetToStartRepair(null);
+    };
+
+    const handleReceiveFromRepair = (asset: Asset) => {
+        setAssetToCompleteRepair(asset);
+    };
+    
+    const handleAddProgressUpdate = (asset: Asset, note: string) => {
+        handleUpdateAsset(asset.id, {}, {
+            user: currentUser.name,
+            action: 'Update Progres Perbaikan',
+            details: `Update: "${note}"`,
+        });
+
+        const reporter = findReporter(asset);
+        if(reporter) {
+            addAppNotification({
+                recipientId: reporter.id,
+                actorName: currentUser.name,
+                type: 'REPAIR_PROGRESS_UPDATE',
+                referenceId: asset.id,
+                message: `memberi update progres untuk aset ${asset.name}: "${note}"`
+            });
+        }
+        addNotification('Update progres berhasil ditambahkan dan notifikasi dikirim.', 'success');
+        setAssetToUpdateProgress(null);
+    };
+
+    const handleCompleteRepair = (asset: Asset, data: { newCondition: AssetCondition; repairNotes: string; repairCost: number | null; actionsTaken: string[] }) => {
+        const { newCondition, repairNotes, repairCost, actionsTaken } = data;
+        const costString = repairCost ? ` Biaya: Rp ${repairCost.toLocaleString('id-ID')}` : '';
+        const actionsString = actionsTaken.length > 0 ? ` Tindakan: ${actionsTaken.join(', ')}.` : '';
+        const details = `Perbaikan selesai. Kondisi baru: ${newCondition}.${actionsString} Catatan: "${repairNotes}".${costString}`;
+        
+        handleUpdateAsset(asset.id, {
+            status: AssetStatus.IN_USE,
+            condition: newCondition,
+        }, {
+            user: currentUser.name,
+            action: 'Perbaikan Selesai',
+            details: details
+        });
+
+        const reporter = findReporter(asset);
+        if (reporter) {
+            addAppNotification({
+                recipientId: reporter.id,
+                actorName: currentUser.name,
+                type: 'REPAIR_COMPLETED',
+                referenceId: asset.id,
+                message: `perbaikan untuk aset Anda (${asset.name}) telah selesai.`
+            });
+        }
+        addNotification(`Aset ${asset.id} telah diperbaiki dan kembali digunakan.`, 'success');
+        setAssetToCompleteRepair(null);
+    };
+
+    const handleConfirmDecommission = (asset: Asset) => {
+        handleUpdateAsset(asset.id, {
+            status: AssetStatus.DECOMMISSIONED,
+            currentUser: null,
+            location: 'Diberhentikan',
+        }, {
+            user: currentUser.name,
+            action: 'Aset Diberhentikan',
+            details: `Aset diberhentikan karena kerusakan berat.`
+        });
+
+        const reporter = findReporter(asset);
+        if (reporter) {
+            addAppNotification({
+                recipientId: reporter.id,
+                actorName: currentUser.name,
+                type: 'ASSET_DECOMMISSIONED',
+                referenceId: asset.id,
+                message: `memberhentikan aset Anda (${asset.name}) karena rusak berat`
+            });
+        }
+        addNotification(`Aset ${asset.id} telah diberhentikan.`, 'warning');
+        setAssetToDecommission(null);
+    };
+
 
   const handleShowPreview = (data: PreviewData) => {
     setPreviewData(data);
@@ -875,7 +1059,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
   }
 
   const renderPage = () => {
-    const staffRestrictedPages: Page[] = ['registration', 'pengaturan-pengguna', 'kategori', 'customers'];
+    const staffRestrictedPages: Page[] = ['registration', 'pengaturan-pengguna', 'kategori', 'customers', 'repair'];
     if (currentUser.role === 'Staff' && staffRestrictedPages.includes(activePage)) {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-8 text-center bg-gray-50">
@@ -896,11 +1080,13 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       case 'registration':
         return <ItemRegistration currentUser={currentUser} assets={assets} setAssets={(valueOrFn) => setAndPersist(setAssets, valueOrFn, 'app_assets')} customers={customers} requests={requests} handovers={handovers} dismantles={dismantles} assetCategories={assetCategories} prefillData={prefillRegData} onClearPrefill={() => setPrefillRegData(null)} onRegistrationComplete={handleCompleteRequestRegistration} onInitiateHandover={handleInitiateHandover} onInitiateDismantle={handleInitiateDismantle} onInitiateInstallation={handleInitiateInstallation} assetToViewId={assetToViewId} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)} onShowPreview={handleShowPreview} setActivePage={handleSetActivePage} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal} setIsGlobalScannerOpen={setIsGlobalScannerOpen} setScanContext={setScanContext} setFormScanCallback={setFormScanCallback}/>;
       case 'handover':
-        return <ItemHandoverPage currentUser={currentUser} handovers={handovers} setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')} assets={assets} users={users} prefillData={prefillHoData} onClearPrefill={() => setPrefillHoData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={handleShowPreview}/>;
+        return <ItemHandoverPage currentUser={currentUser} handovers={handovers} setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')} assets={assets} users={users} divisions={divisions} prefillData={prefillHoData} onClearPrefill={() => setPrefillHoData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={handleShowPreview}/>;
       case 'dismantle':
         return <ItemDismantlePage currentUser={currentUser} dismantles={dismantles} setDismantles={(valueOrFn) => setAndPersist(setDismantles, valueOrFn, 'app_dismantles')} assets={assets} customers={customers} users={users} prefillData={prefillDmData} onClearPrefill={() => setPrefillDmData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={handleShowPreview} setActivePage={handleSetActivePage}/>;
       case 'stock':
-        return <StockOverviewPage currentUser={currentUser} assets={assets} assetCategories={assetCategories} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} />;
+        return <StockOverviewPage currentUser={currentUser} assets={assets} assetCategories={assetCategories} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} handovers={handovers} requests={requests} onReportDamage={setAssetToReport} />;
+      case 'repair':
+        return <RepairManagementPage currentUser={currentUser} assets={assets} users={users} onShowPreview={handleShowPreview} onStartRepair={setAssetToStartRepair} onAddProgressUpdate={setAssetToUpdateProgress} onReceiveFromRepair={handleReceiveFromRepair} onCompleteRepair={setAssetToCompleteRepair} onDecommission={setAssetToDecommission} />;
       case 'pengaturan-pengguna':
         return <AccountsPage currentUser={currentUser} users={users} setUsers={(valueOrFn) => setAndPersist(setUsers, valueOrFn, 'app_users')} divisions={divisions} setDivisions={(valueOrFn) => setAndPersist(setDivisions, valueOrFn, 'app_divisions')} setActivePage={handleSetActivePage} />;
       case 'kategori':
@@ -937,6 +1123,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                     setNotifications={(valueOrFn) => setAndPersist(setNotifications, valueOrFn, 'app_notifications')}
                     requests={requests}
                     setActivePage={handleSetActivePage}
+                    onShowPreview={handleShowPreview}
                   />
                   <button
                     onClick={() => {
@@ -1009,6 +1196,12 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
             onInitiateHandover={handleInitiateHandover}
             onInitiateDismantle={handleInitiateDismantle}
             onInitiateInstallation={handleInitiateInstallation}
+            onReportDamage={setAssetToReport}
+            onStartRepair={setAssetToStartRepair}
+            onMarkAsRepaired={setAssetToCompleteRepair}
+            onReceiveFromRepair={handleReceiveFromRepair}
+            onDecommission={setAssetToDecommission}
+            onAddProgressUpdate={setAssetToUpdateProgress}
         />
         {modelModalState && (
           <ModelManagementModal
@@ -1031,6 +1224,37 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                 onDelete={handleDeleteType}
             />
         )}
+        <ReportDamageModal
+            isOpen={!!assetToReport}
+            onClose={() => setAssetToReport(null)}
+            asset={assetToReport}
+            onSubmit={handleReportDamage}
+        />
+        <StartRepairModal
+            isOpen={!!assetToStartRepair}
+            onClose={() => setAssetToStartRepair(null)}
+            asset={assetToStartRepair}
+            users={users}
+            onSubmit={handleStartRepairProcess}
+        />
+        <CompleteRepairModal
+            isOpen={!!assetToCompleteRepair}
+            onClose={() => setAssetToCompleteRepair(null)}
+            asset={assetToCompleteRepair}
+            onSubmit={handleCompleteRepair}
+        />
+        <DecommissionConfirmationModal
+            isOpen={!!assetToDecommission}
+            onClose={() => setAssetToDecommission(null)}
+            asset={assetToDecommission}
+            onConfirm={handleConfirmDecommission}
+        />
+        <AddProgressUpdateModal
+            isOpen={!!assetToUpdateProgress}
+            onClose={() => setAssetToUpdateProgress(null)}
+            asset={assetToUpdateProgress}
+            onSubmit={handleAddProgressUpdate}
+        />
       </div>
   );
 };

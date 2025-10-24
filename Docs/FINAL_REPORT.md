@@ -1,9 +1,9 @@
 <div style="text-align: center; page-break-after: always;">
   <br/><br/><br/><br/><br/><br/>
-  <svg width="120" height="120" fill="none" stroke="#1D4ED8" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.75 6.75h14.5"/>
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.75v10.5"/>
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 21.25a9.5 9.5 0 100-19 9.5 9.5 0 000 19z"/>
+  <svg width="120" height="120" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="color: #1D4ED8;">
+      <path d="M12 21.25a9.5 9.5 0 100-19 9.5 9.5 0 000 19z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8.5 9.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 9.5v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
   <h1 style="font-family: sans-serif; font-size: 38px; color: #111827; margin-top: 20px;">LAPORAN PERTANGGUNGJAWABAN FINAL</h1>
   <h2 style="font-family: sans-serif; font-size: 24px; color: #1D4ED8; font-weight: 400;">PROYEK PENGEMBANGAN APLIKASI INVENTORI ASET</h2>
@@ -11,7 +11,7 @@
   <p style="font-family: sans-serif; font-size: 18px; color: #374151;">Untuk:</p>
   <h3 style="font-family: sans-serif; font-size: 22px; color: #111827;">PT. TRINITI MEDIA INDONESIA</h3>
   <br/><br/><br/><br/><br/><br/><br/>
-  <p style="font-family: sans-serif; font-size: 14px; color: #6B7280;">Versi Laporan: 1.0 (Final)</p>
+  <p style="font-family: sans-serif; font-size: 14px; color: #6B7280;">Versi Laporan: 1.1 (Final & Ditingkatkan)</p>
   <p style="font-family: sans-serif; font-size: 14px; color: #6B7280;">Tanggal: 17 Oktober 2025</p>
   <p style="font-family: sans-serif; font-size: 14px; color: #6B7280;">Disusun oleh: Angga Samuludi Septiawan</p>
 </div>
@@ -20,13 +20,15 @@
 
 # Ringkasan Eksekutif
 
-Laporan ini menandai penyelesaian dan serah terima resmi dari proyek pengembangan **Aplikasi Inventori Aset** untuk PT. Triniti Media Indonesia. Proyek ini telah berhasil dilaksanakan dari awal hingga akhir, sesuai dengan seluruh ruang lingkup, jadwal, dan tujuan yang telah disepakati dalam [Proposal Penawaran (Q-INV/AS/VIII/2024/001)](./Business/quotation.md) dan dikukuhkan dalam [Perjanjian Kerja (001/SPK-DEV/TMI-AS/X/2025)](./Business/perjanjian.md).
+Laporan ini menandai penyelesaian dan serah terima resmi dari proyek pengembangan **Aplikasi Inventori Aset** untuk PT. Triniti Media Indonesia. Proyek ini telah berhasil dilaksanakan sesuai dengan seluruh ruang lingkup, jadwal, dan tujuan yang telah disepakati dalam [Proposal Penawaran (Q-INV/AS/VIII/2024/001)](./Business/quotation.md) dan dikukuhkan dalam [Perjanjian Kerja (001/SPK-DEV/TMI-AS/X/2025)](./Business/perjanjian.md).
 
-Aplikasi yang diserahkan merupakan sebuah sistem manajemen aset terpusat yang modern, aman, dan efisien. Sistem ini dirancang secara spesifik untuk mengatasi tantangan operasional PT. Triniti Media Indonesia dengan mendigitalkan seluruh siklus hidup aset—mulai dari proses permintaan barang, persetujuan multi-level, pencatatan aset baru, serah terima internal, instalasi di lokasi pelanggan, hingga proses penarikan kembali (dismantle) dan penghapusan aset.
+Hasil akhir yang diserahkan adalah sebuah **Prototipe Frontend Fungsional Penuh (*High-Fidelity Functional Frontend Prototype*)**. Aplikasi ini secara komprehensif merealisasikan seluruh antarmuka pengguna (UI/UX) dan alur kerja sisi klien dari sistem manajemen aset yang dirancang. Sistem ini secara spesifik mengatasi tantangan operasional PT. Triniti Media Indonesia dengan mendigitalkan seluruh siklus hidup aset—mulai dari proses permintaan barang, persetujuan multi-level, pencatatan aset baru, serah terima internal, instalasi di lokasi pelanggan, hingga proses penarikan kembali (*dismantle*) dan perbaikan aset.
 
-Dibangun dengan tumpukan teknologi modern yang berorientasi pada masa depan—**React** untuk frontend, **NestJS** untuk backend, dan **PostgreSQL** untuk database—aplikasi ini menjamin skalabilitas, performa tinggi, dan kemudahan pemeliharaan. Arsitektur yang terpisah (*decoupled*) antara sisi klien dan server memastikan bahwa pengembangan fitur baru di masa depan dapat dilakukan secara independen dan efisien.
+Dibangun dengan tumpukan teknologi modern yang berorientasi pada masa depan—**React** untuk frontend—aplikasi ini menjamin skalabilitas, performa tinggi, dan kemudahan pemeliharaan. Saat ini, logika bisnis dan penyimpanan data disimulasikan menggunakan **Mock API** yang berjalan di browser, memungkinkan demonstrasi dan pengujian alur kerja secara penuh tanpa ketergantungan pada server.
 
-Bersamaan dengan laporan ini, diserahkan pula seluruh artefak proyek yang mencakup **kode sumber (*source code*)** untuk aplikasi frontend dan backend, serta **dokumentasi komprehensif** yang mencakup segala aspek dari arsitektur sistem, panduan pengembangan, standar operasional, hingga panduan pengguna akhir. Penyerahan ini memberikan kepemilikan penuh dan kontrol otonom kepada PT. Triniti Media Indonesia atas aset digital yang sangat berharga ini.
+Arsitektur yang telah dirancang (dijelaskan dalam dokumentasi teknis) bersifat terpisah (*decoupled*), menjadikan prototipe ini sebagai fondasi yang solid dan siap untuk diintegrasikan dengan layanan backend (misalnya, NestJS & PostgreSQL) di fase pengembangan selanjutnya.
+
+Bersamaan dengan laporan ini, diserahkan pula seluruh artefak proyek yang mencakup **kode sumber (*source code*)** untuk aplikasi frontend, serta **dokumentasi komprehensif** yang mencakup segala aspek dari arsitektur sistem, panduan pengembangan, standar operasional, hingga panduan pengguna akhir. Penyerahan ini memberikan kepemilikan penuh dan kontrol otonom kepada PT. Triniti Media Indonesia atas aset digital yang sangat berharga ini, serta cetak biru yang jelas untuk penyelesaian proyek menjadi aplikasi *full-stack*.
 
 Laporan ini berfungsi sebagai dokumen warisan (*legacy document*) yang merangkum seluruh perjalanan proyek, dari analisis kebutuhan hingga realisasi teknis, dan memberikan rekomendasi strategis untuk pengembangan di masa depan.
 
@@ -57,8 +59,9 @@ Laporan ini berfungsi sebagai dokumen warisan (*legacy document*) yang merangkum
     - [3.4. Modul Manajemen Stok (Stock)](#34-modul-manajemen-stok-stock)
     - [3.5. Modul Manajemen Serah Terima (Handover)](#35-modul-manajemen-serah-terima-handover)
     - [3.6. Modul Manajemen Penarikan (Dismantle)](#36-modul-manajemen-penarikan-dismantle)
-    - [3.7. Modul Manajemen Pelanggan (Customers)](#37-modul-manajemen-pelanggan-customers)
-    - [3.8. Modul Pengaturan (Settings)](#38-modul-pengaturan-settings)
+    - [3.7. Modul Manajemen Perbaikan Aset (Repair)](#37-modul-manajemen-perbaikan-aset-repair)
+    - [3.8. Modul Manajemen Pelanggan (Customers)](#38-modul-manajemen-pelanggan-customers)
+    - [3.9. Modul Pengaturan (Settings)](#39-modul-pengaturan-settings)
 - **BAB 4: PANDUAN TEKNIS DAN PENGEMBANGAN LANJUTAN**
     - [4.1. Panduan Setup Lingkungan Pengembangan](#41-panduan-setup-lingkungan-pengembangan)
     - [4.2. Arsitektur dan Pola Frontend (React)](#42-arsitektur-dan-pola-frontend-react)
@@ -119,6 +122,7 @@ Ruang lingkup proyek ini didefinisikan secara cermat untuk memastikan fokus dan 
 -   Manajemen Stok (*Stock*)
 -   Manajemen Serah Terima Internal (*Handover*)
 -   Manajemen Instalasi & Penarikan Aset dari Pelanggan (*Dismantle*)
+-   Manajemen Perbaikan Aset (*Repair*)
 -   Manajemen Data Pelanggan (*Customers*)
 -   Manajemen Pengguna & Divisi (*Users & Divisions*)
 -   Manajemen Kategori Aset (*Categories & Models*)
@@ -139,10 +143,10 @@ Aplikasi ini dirancang untuk empat persona utama, masing-masing dengan hak akses
 
 | Peran         | Deskripsi                                                                               | Tanggung Jawab Utama dalam Aplikasi                                                                                                                                                                                                                            |
 | ------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Staff**     | Karyawan umum dari berbagai divisi (misal: Engineer Lapangan, NOC).                      | - Membuat permintaan aset untuk kebutuhan reguler.<br>- Melakukan *follow-up* atas status permintaan.<br>- Melihat daftar aset yang sedang ia pegang.                                                                                                    |
+| **Staff**     | Karyawan umum dari berbagai divisi (misal: Engineer Lapangan, NOC).                      | - Membuat permintaan aset untuk kebutuhan reguler.<br>- Melakukan *follow-up* atas status permintaan.<br>- Melihat daftar aset yang sedang ia pegang.<br>- Melaporkan kerusakan pada aset yang dipegang.                                                    |
 | **Manager**   | Supervisor atau Kepala Divisi.                                                          | - Semua hak akses Staff.<br>- Membuat permintaan aset untuk kebutuhan mendesak (*Urgent*) atau berbasis proyek (*Project Based*).                                                                                                                     |
-| **Admin**     | Staf dari Divisi Inventori yang mengelola operasional gudang dan aset.                  | - Mengelola seluruh siklus hidup permintaan aset (menyetujui, menolak, memproses).<br>- Mencatat aset baru ke dalam sistem.<br>- Mengelola serah terima internal dan penarikan dari pelanggan.<br>- Mengelola data master (pelanggan, kategori). |
-| **Super Admin** | Pimpinan perusahaan atau Kepala Divisi IT dengan otoritas penuh.                        | - Memiliki semua hak akses Admin.<br>- Mengelola akun pengguna dan struktur divisi.<br>- Memberikan persetujuan final untuk permintaan bernilai tinggi.<br>- Mengakses semua data dan laporan analitik.                                                  |
+| **Admin**     | Staf dari Divisi Inventori yang mengelola operasional gudang dan aset.                  | - Mengelola seluruh siklus hidup permintaan aset (menyetujui, menolak, memproses).<br>- Mencatat aset baru ke dalam sistem.<br>- Mengelola serah terima internal dan penarikan dari pelanggan.<br>- Mengelola alur perbaikan aset.<br>- Mengelola data master (pelanggan, kategori). |
+| **Super Admin** | Pimpinan perusahaan atau Kepala Divisi IT dengan otoritas penuh.                        | - Memiliki semua hak akses Admin.<br>- Mengelola akun pengguna dan struktur divisi.<br>- Memberikan persetujuan final untuk permintaan bernilai tinggi.<br>- Mengakses semua data dan laporan analitik.<br>- Melakukan disposisi & meminta update progres. |
 
 ### 1.6. Definisi dan Istilah
 -   **Aset**: Setiap barang fisik milik perusahaan yang dicatat dan dilacak oleh sistem.
@@ -282,9 +286,9 @@ Bab ini menguraikan implementasi dari setiap modul fungsional utama dalam aplika
 ### 3.1. Modul Dashboard
 -   **Tujuan**: Memberikan pandangan cepat (*at-a-glance*) mengenai status inventori dan tugas yang mendesak.
 -   **Fitur Utama**:
-    -   **Kartu Statistik**: Menampilkan metrik kunci seperti total aset, nilai stok, dan jumlah aset yang digunakan.
+    -   **Kartu Statistik**: Menampilkan metrik kunci seperti total aset, nilai stok, dan jumlah aset yang sedang digunakan.
     -   **Panel "Item Perlu Tindakan"**: Pintasan interaktif yang mengarahkan pengguna ke halaman relevan untuk tugas-tugas seperti persetujuan request atau pencatatan aset.
-    -   **Grafik Distribusi**: Visualisasi komposisi aset berdasarkan status dan kategori.
+    -   **Analitik Permintaan**: Visualisasi distribusi tipe order (Urgent, Project, Regular) dan performa waktu persetujuan.
     -   **Riwayat Aktivitas Terbaru**: Log *real-time* dari semua transaksi penting yang terjadi di sistem.
 -   **Alur Kerja**: Pengguna login dan langsung disajikan dengan informasi yang paling relevan dengan perannya, memungkinkan identifikasi cepat atas tugas yang perlu diprioritaskan.
 
@@ -294,8 +298,7 @@ Bab ini menguraikan implementasi dari setiap modul fungsional utama dalam aplika
     -   Formulir pembuatan request yang dinamis.
     -   Dukungan untuk tipe order `Regular`, `Urgent`, dan `Project Based`.
     -   Alur persetujuan multi-level (Logistik/Admin, Final/Super Admin).
-    -   Sistem notifikasi untuk setiap perubahan status.
-    -   Fitur *follow-up* untuk menanyakan progres.
+    -   Sistem notifikasi untuk setiap perubahan status, *follow-up*, dan disposisi.
     -   Fitur aksi massal (*bulk actions*) untuk menyetujui, menolak, atau menghapus banyak request sekaligus.
 -   **Alur Kerja**: Staff/Manajer membuat request -> Admin menerima notifikasi -> Admin melakukan persetujuan logistik -> Jika nilai tinggi, Super Admin memberikan persetujuan final -> Status diperbarui secara otomatis.
 
@@ -303,51 +306,55 @@ Bab ini menguraikan implementasi dari setiap modul fungsional utama dalam aplika
 -   **Tujuan**: Memastikan setiap aset fisik tercatat secara akurat dalam sistem.
 -   **Fitur Utama**:
     -   Formulir pencatatan komprehensif (info dasar, pembelian, garansi, lokasi).
-    -   Kemampuan untuk mencatat aset dari request yang telah disetujui (data terisi otomatis).
+    -   Kemampuan untuk mencatat aset dari request yang telah disetujui.
     -   Dukungan untuk mencatat banyak unit dengan nomor seri individual atau sebagai stok massal (*bulk*).
     -   Integrasi pemindai QR/Barcode untuk input nomor seri/MAC address.
     -   Generasi dan pencetakan label Kode QR.
--   **Alur Kerja**: Admin membuka fitur "Catat Aset" -> Mengisi formulir secara manual atau dari data request -> Memasukkan detail unit -> Menyimpan data -> Aset baru tercatat dengan status "Disimpan".
+-   **Alur Kerja**: Admin membuka fitur "Catat Aset" -> Mengisi formulir -> Memasukkan detail unit -> Menyimpan data -> Aset baru tercatat dengan status "Disimpan".
 
 ### 3.4. Modul Manajemen Stok (Stock)
 -   **Tujuan**: Memberikan gambaran umum mengenai ketersediaan setiap tipe aset.
 -   **Fitur Utama**:
     -   Tabel agregat yang menampilkan jumlah stok per tipe barang (di gudang, digunakan, rusak).
-    -   Indikator visual untuk stok yang menipis atau habis.
+    -   Indikator visual dan filter untuk stok yang menipis atau habis.
     -   Perhitungan otomatis total nilai aset yang ada di gudang.
-    -   Pintasan untuk membuat request baru langsung dari item yang stoknya menipis.
--   **Alur Kerja**: Admin/Manajer membuka halaman Stok -> Melihat daftar aset dan jumlahnya -> Mengidentifikasi item yang perlu di-restock -> Mengklik tombol "Request" untuk membuat permintaan baru.
+-   **Alur Kerja**: Admin/Manajer membuka halaman Stok -> Melihat daftar aset dan jumlahnya -> Mengidentifikasi item yang perlu di-restock -> Membuat permintaan baru.
 
 ### 3.5. Modul Manajemen Serah Terima (Handover)
 -   **Tujuan**: Mencatat secara resmi perpindahan tanggung jawab aset antar karyawan internal.
 -   **Fitur Utama**:
     -   Formulir pembuatan Berita Acara Serah Terima (BAST) digital.
     -   Pemilihan aset dari daftar yang tersedia di gudang.
-    -   Pencatatan pihak yang menyerahkan, menerima, dan mengetahui.
-    -   Pembaruan status dan lokasi aset secara otomatis setelah proses selesai.
 -   **Alur Kerja**: Admin membuat BAST -> Memilih aset dan pihak terkait -> Memproses handover -> Sistem mencatat transaksi dan memperbarui data aset.
 
 ### 3.6. Modul Manajemen Penarikan (Dismantle)
 -   **Tujuan**: Mengelola proses penarikan kembali aset yang terpasang di lokasi pelanggan.
 -   **Fitur Utama**:
     -   Formulir pembuatan Berita Acara Dismantle.
-    -   Pencatatan kondisi aset saat ditarik.
-    -   Alur kerja dua tahap: penarikan oleh teknisi dan konfirmasi penerimaan oleh admin gudang.
--   **Alur Kerja**: Teknisi membuat B.A. Dismantle di lapangan -> Admin gudang menerima notifikasi -> Setelah aset tiba, admin gudang melakukan konfirmasi -> Aset kembali ke stok dengan status "Disimpan" dan kondisi yang sesuai.
+    -   Pencatatan kondisi aset dan lampiran foto saat ditarik.
+-   **Alur Kerja**: Teknisi membuat B.A. Dismantle -> Admin gudang menerima notifikasi -> Setelah aset tiba, admin gudang melakukan konfirmasi -> Aset kembali ke stok.
 
-### 3.7. Modul Manajemen Pelanggan (Customers)
+### 3.7. Modul Manajemen Perbaikan Aset (Repair)
+-   **Tujuan**: Melacak alur kerja perbaikan aset dari laporan kerusakan hingga selesai.
+-   **Fitur Utama**:
+    -   Formulir pelaporan kerusakan oleh pengguna.
+    -   Halaman manajemen untuk Admin melacak semua aset yang rusak atau dalam perbaikan.
+    -   Kemampuan untuk memulai proses perbaikan (internal/eksternal) dan mencatat progres.
+    -   Pemberian notifikasi kepada pelapor saat perbaikan dimulai, ada progres, atau selesai.
+-   **Alur Kerja**: Pengguna lapor rusak -> Admin memulai perbaikan -> Admin memberi update progres -> Admin menyelesaikan perbaikan -> Aset kembali ke status "Digunakan".
+
+### 3.8. Modul Manajemen Pelanggan (Customers)
 -   **Tujuan**: Sebagai pusat data master untuk semua pelanggan.
 -   **Fitur Utama**:
     -   Fungsi Tambah, Edit, Hapus data pelanggan.
-    -   Pencarian dan filter pelanggan.
-    -   Detail pelanggan menampilkan informasi kontak dan daftar aset yang sedang terpasang di lokasi mereka.
--   **Alur Kerja**: Admin dapat mengelola data pelanggan, dan saat melihat detail, bisa langsung memulai proses *dismantle* dari aset yang terpasang.
+    -   Detail pelanggan menampilkan informasi kontak dan daftar aset yang terpasang.
+-   **Alur Kerja**: Admin mengelola data pelanggan dan dapat memulai proses *dismantle* dari halaman detail.
 
-### 3.8. Modul Pengaturan (Settings)
--   **Tujuan**: Memberikan fleksibilitas kepada Super Admin dan Admin untuk mengkonfigurasi sistem.
+### 3.9. Modul Pengaturan (Settings)
+-   **Tujuan**: Memberikan fleksibilitas konfigurasi sistem.
 -   **Fitur Utama**:
-    -   **Manajemen Akun & Divisi**: Super Admin dapat menambah, mengedit, dan menghapus akun pengguna serta mengelola struktur divisi perusahaan.
-    -   **Manajemen Kategori**: Admin dapat mengelola Kategori, Tipe, dan Model Standar Aset, memastikan sistem dapat beradaptasi dengan jenis aset baru di masa depan.
+    -   **Manajemen Akun & Divisi**: Super Admin dapat mengelola akun pengguna dan struktur divisi.
+    -   **Manajemen Kategori**: Admin dapat mengelola Kategori, Tipe, dan Model Standar Aset.
 
 <div style="page-break-after: always;"></div>
 
@@ -356,51 +363,45 @@ Bab ini menguraikan implementasi dari setiap modul fungsional utama dalam aplika
 Bab ini disarikan dari dokumentasi teknis yang lebih rinci dan ditujukan bagi tim teknis yang akan memelihara atau mengembangkan aplikasi ini di masa depan.
 
 ### 4.1. Panduan Setup Lingkungan Pengembangan
-Untuk memulai pengembangan, seorang developer memerlukan Node.js, pnpm, Git, dan Docker. Proses setup diringkas sebagai berikut:
-
-1.  **Clone Repositori**: `git clone <repository-url>`
-2.  **Setup Backend**:
-    -   `cd backend`
-    -   `pnpm install`
-    -   `docker-compose up -d` (untuk database)
-    -   `cp .env.example .env`
-    -   `pnpm prisma migrate dev`
-    -   `pnpm run start:dev` (Server berjalan di `http://localhost:3001`)
+Aplikasi saat ini berupa prototipe frontend yang berjalan secara mandiri.
+1.  **Prasyarat**: Node.js, pnpm, Git.
+2.  **Clone Repositori**: `git clone <repository-url>`
 3.  **Setup Frontend**:
-    -   `cd frontend`
+    -   `cd <project-folder>` (root proyek)
     -   `pnpm install`
     -   `pnpm run dev` (Aplikasi berjalan di `http://localhost:5173`)
+-   **Catatan**: Aplikasi menggunakan Mock API dengan `localStorage`, tidak memerlukan setup backend atau database untuk menjalankannya.
 
 _Untuk panduan lengkap, lihat [Getting Started Guide](./02_DEVELOPMENT_GUIDES/GETTING_STARTED.md)._
 
 ### 4.2. Arsitektur dan Pola Frontend (React)
 -   **Struktur Folder**: Berbasis fitur (`src/features`), memisahkan komponen UI yang dapat digunakan kembali (`src/components/ui`) dari logika halaman.
--   **Manajemen State**: Menggunakan React Hooks untuk state lokal dan **Zustand** untuk state global yang lebih kompleks, memberikan solusi yang ringan dan efisien.
--   **Styling**: Menggunakan **Tailwind CSS** dengan pendekatan *utility-first* untuk konsistensi dan kecepatan pengembangan.
--   **Interaksi API**: Semua komunikasi dengan backend terpusat di `src/services/api.ts`.
+-   **Manajemen State**: Menggunakan React Hooks (`useState`, `useContext`, `useMemo`) untuk state lokal dan global. State global diangkat ke komponen root (`App.tsx`) dan dioper ke bawah melalui props.
+-   **Styling**: Menggunakan **Tailwind CSS** dengan pendekatan *utility-first*.
+-   **Interaksi API**: Semua komunikasi disimulasikan di `src/services/api.ts`, yang membaca dan menulis data ke `localStorage` browser.
 
 _Untuk detail lengkap, lihat [Panduan Frontend](./02_DEVELOPMENT_GUIDES/FRONTEND_GUIDE.md)._
 
 ### 4.3. Arsitektur dan Pola Backend (NestJS)
--   **Struktur Modular**: Setiap domain bisnis (misal: `assets`, `requests`) dikemas dalam modulnya sendiri, mendorong organisasi kode yang bersih.
+Dokumen ini menjelaskan **arsitektur target** yang akan diimplementasikan.
+-   **Struktur Modular**: Setiap domain bisnis (misal: `assets`, `requests`) dikemas dalam modulnya sendiri.
 -   **Pola Desain**: Menggunakan pola *Controller-Service-Repository* di mana Controller menangani request HTTP, Service berisi logika bisnis, dan interaksi database dienkapsulasi menggunakan **Prisma**.
--   **Validasi**: Menggunakan DTO (*Data Transfer Objects*) dengan `class-validator` untuk validasi otomatis setiap data yang masuk.
--   **Autentikasi & Otorisasi**: Menggunakan **Passport.js** dengan strategi JWT dan *Guards* untuk melindungi endpoint.
+-   **Validasi**: Menggunakan DTO (*Data Transfer Objects*) dengan `class-validator`.
+-   **Autentikasi & Otorisasi**: Menggunakan **Passport.js** dengan strategi JWT dan *Guards*.
 
 _Untuk detail lengkap, lihat [Panduan Backend](./02_DEVELOPMENT_GUIDES/BACKEND_GUIDE.md)._
 
 ### 4.4. Standar Koding dan Kontribusi
 -   **Version Control**: Menggunakan alur kerja **Git Flow** yang disederhanakan (`main`, `develop`, `feat/*`, `fix/*`).
 -   **Pesan Commit**: Mengikuti standar **Conventional Commits** (misal: `feat(request): add bulk approval`).
--   **Formatting**: **Prettier** dan **ESLint** diintegrasikan untuk memastikan gaya kode yang konsisten secara otomatis.
--   **Proses Kontribusi**: Semua perubahan harus melalui **Pull Request (PR)** ke cabang `develop` dan memerlukan persetujuan dari setidaknya satu anggota tim lain.
+-   **Proses Kontribusi**: Semua perubahan harus melalui **Pull Request (PR)** ke cabang `develop` dan memerlukan *code review*.
 
 _Lihat [Standar Koding](./03_STANDARDS_AND_PROCEDURES/CODING_STANDARDS.md) dan [Panduan Kontribusi](./03_STANDARDS_AND_PROCEDURES/CONTRIBUTING.md) untuk detail._
 
 ### 4.5. Referensi API
 Dokumentasi API interaktif (Swagger) tersedia secara otomatis saat backend berjalan.
 -   **URL Lokal**: [http://localhost:3001/api/docs](http://localhost:3001/api/docs)
--   **Autentikasi**: Menggunakan `Bearer Token` (JWT) di header `Authorization` untuk semua endpoint yang terproteksi.
+-   **Autentikasi**: Menggunakan `Bearer Token` (JWT).
 
 _Lihat [Referensi API](./02_DEVELOPMENT_GUIDES/API_REFERENCE.md) untuk contoh._
 
@@ -417,14 +418,8 @@ _Lihat [Panduan Testing](./02_DEVELOPMENT_GUIDES/TESTING_GUIDE.md) untuk contoh 
 Bab ini menguraikan aspek-aspek non-fungsional yang memastikan aplikasi siap untuk di-deploy, dioperasikan, dan dipelihara di lingkungan produksi.
 
 ### 5.1. Panduan Deployment
--   **Backend (NestJS)**: Direkomendasikan untuk di-deploy sebagai **kontainer Docker**. Prosesnya meliputi:
-    1.  Membangun *image Docker* dari `Dockerfile`.
-    2.  Mengunggah *image* ke *container registry* (misal: Docker Hub, GCR).
-    3.  Menjalankan kontainer di platform hosting (misal: Google Cloud Run, AWS App Runner) dengan menyuntikkan variabel lingkungan produksi (`DATABASE_URL`, `JWT_SECRET`).
--   **Frontend (React)**: Di-deploy sebagai **situs statis**.
-    1.  Menjalankan `pnpm run build` untuk menghasilkan file statis di folder `dist/`.
-    2.  Mengunggah isi folder `dist/` ke layanan hosting statis (misal: Vercel, Netlify, AWS S3).
-    3.  Mengkonfigurasi *proxy/rewrite rules* di level hosting untuk meneruskan request `/api/*` ke URL backend produksi.
+-   **Backend (NestJS)**: Direkomendasikan untuk di-deploy sebagai **kontainer Docker** di platform seperti Google Cloud Run atau AWS App Runner.
+-   **Frontend (React)**: Di-deploy sebagai **situs statis** di platform seperti Vercel atau Netlify, dengan konfigurasi *proxy/rewrite rules* untuk meneruskan request `/api/*` ke URL backend produksi.
 
 _Lihat [Panduan Deployment](./04_OPERATIONS/DEPLOYMENT.md) untuk detail konfigurasi._
 
@@ -433,32 +428,20 @@ _Lihat [Panduan Deployment](./04_OPERATIONS/DEPLOYMENT.md) untuk detail konfigur
 -   **Keamanan Data**:
     -   **In-Transit**: Wajib menggunakan HTTPS (TLS) di lingkungan produksi.
     -   **At-Rest**: Kata sandi di-hash menggunakan **bcrypt**.
--   **Pencegahan Kerentanan**:
-    -   **SQL Injection**: Dicegah oleh Prisma ORM.
-    -   **XSS**: Dikurangi dengan penggunaan Helmet di backend dan praktik React yang aman di frontend.
-    -   **Broken Access Control**: Dicegah dengan *Guards* di setiap endpoint.
+-   **Pencegahan Kerentanan**: Menggunakan Prisma ORM (mencegah SQL Injection) dan Helmet (header HTTP aman).
 
 _Lihat [Strategi Keamanan](./03_STANDARDS_AND_PROCEDURES/SECURITY_GUIDE.md) untuk detail lengkap._
 
 ### 5.3. Strategi Monitoring dan Logging
--   **Monitoring**:
-    -   **Frontend**: Memantau metrik *Web Vitals* (LCP, FID, CLS) dan *error tracking* menggunakan tools seperti Sentry atau Datadog.
-    -   **Backend**: Memantau ketersediaan (health check), latensi API, tingkat error server (5xx), dan utilisasi sumber daya (CPU/RAM).
--   **Logging**:
-    -   **Format**: Semua log dihasilkan dalam format **JSON terstruktur**.
-    -   **Output**: Aplikasi backend mencetak log ke `stdout`, yang kemudian ditangkap dan di-agregasi oleh layanan logging terpusat (misal: Datadog Logs, ELK Stack).
+-   **Monitoring**: Memantau *Web Vitals* di frontend dan ketersediaan, latensi, serta tingkat error di backend.
+-   **Logging**: Semua log dihasilkan dalam format **JSON terstruktur** dan di-agregasi oleh layanan logging terpusat (misal: Datadog, ELK Stack).
 
 _Lihat [Strategi Monitoring & Logging](./04_OPERATIONS/MONITORING_AND_LOGGING.md) untuk detail._
 
 ### 5.4. Rencana Pencadangan dan Pemulihan Bencana
 -   **Target Backup**: Database PostgreSQL.
--   **Strategi**:
-    1.  **Backup Penuh Harian**: Menggunakan `pg_dump` setiap hari pada jam sepi.
-    2.  **Point-in-Time Recovery (PITR)**: Mengaktifkan *Write-Ahead Logging* (WAL) untuk memungkinkan pemulihan ke titik waktu manapun.
--   **Penyimpanan**: Backup disimpan di *Cloud Object Storage* (misal: AWS S3) dengan replikasi antar-regional.
--   **Target Pemulihan**:
-    -   **RTO (Recovery Time Objective)**: Target waktu pemulihan layanan < 2 jam.
-    -   **RPO (Recovery Point Objective)**: Target kehilangan data maksimal < 5 menit.
+-   **Strategi**: Kombinasi **Backup Penuh Harian** dan **Point-in-Time Recovery (PITR)**.
+-   **Target Pemulihan**: RTO < 2 jam, RPO < 5 menit.
 
 _Lihat [Rencana Backup & Recovery](./04_OPERATIONS/BACKUP_AND_RECOVERY.md) untuk prosedur pemulihan._
 
@@ -476,19 +459,19 @@ Bab ini adalah ringkasan dari [Panduan Pengguna](./05_USER_DOCUMENTATION/USER_GU
 ### 6.2. Panduan untuk Peran Staff & Manajer
 -   **Membuat Request Aset**: Buka `Manajemen Aset > Request Aset`, klik "Buat Request Baru", isi formulir, dan ajukan. Manajer memiliki opsi tambahan untuk tipe order `Urgent` dan `Project Based`.
 -   **Melakukan Follow-up**: Klik tombol "Follow Up" pada request yang berstatus `Menunggu Persetujuan` untuk mengirim notifikasi ke Admin.
--   **Melihat Aset Pribadi**: (Akan diimplementasikan) Halaman khusus untuk melihat daftar aset yang sedang dipegang.
+-   **Melihat Aset Pribadi**: Halaman `Stok Aset` akan menampilkan daftar aset yang sedang dipegang.
 
 ### 6.3. Panduan untuk Peran Admin
 -   **Mengelola Request**: Buka detail request dari halaman `Request Aset` atau `Dashboard` untuk menyetujui atau menolak.
--   **Mencatat Aset Baru**: Buka `Manajemen Aset > Catat Aset` untuk membuat data aset baru secara manual atau dari request yang telah tiba.
--   **Membuat Handover**: Buka `Manajemen Aset > Handover Aset` untuk mencatat serah terima aset antar karyawan.
--   **Membuat Dismantle**: Mulai proses penarikan aset dari halaman detail aset atau detail pelanggan.
--   **Mengelola Data Master**: Akses menu `Daftar Pelanggan` dan `Pengaturan > Kategori & Model` untuk mengelola data.
+-   **Mencatat Aset Baru**: Buka `Manajemen Aset > Catat Aset` untuk membuat data aset baru.
+-   **Membuat Handover**: Buka `Manajemen Aset > Handover Aset` untuk mencatat serah terima.
+-   **Mengelola Perbaikan**: Buka `Manajemen Aset > Perbaikan Aset` untuk melacak dan memproses aset yang rusak.
+-   **Mengelola Data Master**: Akses menu `Daftar Pelanggan` dan `Pengaturan > Kategori & Model`.
 
 ### 6.4. Panduan untuk Peran Super Admin
 -   **Semua Fitur Admin**: Memiliki akses ke semua fitur yang dimiliki Admin.
--   **Persetujuan Final**: Memberikan persetujuan akhir untuk request dengan nilai tinggi yang sudah disetujui Admin.
--   **Manajemen Pengguna**: Buka `Pengaturan > Akun & Divisi` untuk menambah, mengedit, atau menghapus akun pengguna dan mengelola struktur divisi perusahaan.
+-   **Persetujuan Final**: Memberikan persetujuan akhir untuk request dengan nilai tinggi.
+-   **Manajemen Pengguna**: Buka `Pengaturan > Akun & Divisi` untuk mengelola akun pengguna dan divisi.
 
 <div style="page-break-after: always;"></div>
 
@@ -499,37 +482,33 @@ Dengan selesainya laporan ini, item-item berikut secara resmi diserahterimakan k
 
 | Kategori              | Item                                                               | Format                                                    |
 | --------------------- | ------------------------------------------------------------------ | --------------------------------------------------------- |
-| **Aplikasi Fungsional** | Aplikasi web yang telah selesai dikembangkan.                      | URL ter-deploy / File build.                              |
+| **Aplikasi Fungsional** | Prototipe Frontend Aplikasi Web yang telah selesai dikembangkan.   | URL ter-deploy / File build `dist`.                       |
 | **Kode Sumber**         | Seluruh kode sumber aplikasi Frontend (React).                     | Repositori Git / Arsip ZIP.                               |
-|                       | Seluruh kode sumber aplikasi Backend (NestJS).                     | Repositori Git / Arsip ZIP.                               |
 | **Dokumentasi**         | Seluruh isi dari direktori `/Docs` pada repositori.                | File Markdown (.md) di dalam repositori.                  |
-|                       | Dokumentasi API interaktif (Swagger).                              | Dihasilkan otomatis oleh backend saat berjalan.           |
-| **Database**          | Skema database akhir dan file migrasi.                             | `schema.prisma` dan folder `prisma/migrations`.           |
+| **Database**          | Skema database siap pakai untuk implementasi.                      | `schema.prisma` dan file migrasi awal.                    |
 | **Dokumen Bisnis**      | Proposal Penawaran dan Perjanjian Kerja.                           | File di dalam folder `/Business`.                         |
 
 ### 7.2. Masa Garansi dan Dukungan Teknis
 Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.md) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
 
-Untuk dukungan teknis dan pemeliharaan berkelanjutan setelah masa garansi berakhir, dapat didiskusikan perjanjian layanan terpisah.
-
 ### 7.3. Rekomendasi Pengembangan Lanjutan
 Aplikasi ini memiliki fondasi yang kuat untuk dikembangkan lebih lanjut. Berikut adalah beberapa rekomendasi fitur untuk masa depan:
 
--   **Integrasi Akuntansi**: Menghubungkan data pembelian dan nilai aset ke sistem akuntansi untuk otomatisasi laporan keuangan.
--   **Fitur Depresiasi Aset**: Menambahkan modul untuk menghitung dan melacak penyusutan nilai aset secara otomatis.
--   **Aplikasi Mobile**: Mengembangkan aplikasi mobile native (iOS/Android) untuk teknisi lapangan, dengan fitur offline-first untuk area dengan konektivitas terbatas.
--   **Dashboard Analitik Lanjutan**: Menggunakan tools Business Intelligence (BI) untuk membuat visualisasi data yang lebih mendalam mengenai tren penggunaan aset, biaya pemeliharaan, dll.
--   **Manajemen Vendor**: Menambahkan modul untuk mengelola data pemasok dan riwayat pembelian.
+-   **Implementasi Backend**: Langkah paling krusial adalah membangun backend dan database sesuai dengan arsitektur dan skema yang telah didokumentasikan.
+-   **Integrasi Akuntansi**: Menghubungkan data pembelian dan nilai aset ke sistem akuntansi.
+-   **Fitur Depresiasi Aset**: Menambahkan modul untuk menghitung penyusutan nilai aset.
+-   **Aplikasi Mobile**: Mengembangkan aplikasi mobile untuk teknisi lapangan.
+-   **Dashboard Analitik Lanjutan**: Menggunakan tools Business Intelligence (BI) untuk visualisasi data yang lebih mendalam.
 
 ### 7.4. Peta Jalan Produk (Product Roadmap)
 Berikut adalah contoh peta jalan pengembangan yang dapat diadopsi.
 
 | Kuartal      | Fokus Utama                 | Fitur Potensial                                                                   |
 | ------------ | --------------------------- | --------------------------------------------------------------------------------- |
-| **Q1 2026**  | **Stabilisasi & Adopsi**    | - Pelatihan pengguna intensif.<br>- Perbaikan bug minor pasca-produksi.<br>- Pengumpulan umpan balik. |
-| **Q2 2026**  | **Peningkatan Laporan**     | - Modul laporan kustom.<br>- Integrasi dasar ke Google Sheets/Excel.                |
-| **Q3 2026**  | **Efisiensi Lapangan**      | - Pengembangan prototipe aplikasi mobile.<br>- Fitur geo-tagging lokasi aset.      |
-| **Q4 2026**  | **Integrasi Keuangan**      | - Implementasi modul depresiasi aset.<br>- Eksplorasi integrasi API ke sistem akuntansi. |
+| **Q1 2026**  | **Implementasi Backend**    | - Pembangunan API dan database berdasarkan dokumentasi.<br>- Integrasi frontend dengan backend. |
+| **Q2 2026**  | **Stabilisasi & Adopsi**    | - Pelatihan pengguna intensif.<br>- Perbaikan bug pasca-produksi.<br>- Pengumpulan umpan balik. |
+| **Q3 2026**  | **Peningkatan Laporan**     | - Modul laporan kustom.<br>- Integrasi dasar ke Google Sheets/Excel.                |
+| **Q4 2026**  | **Efisiensi Lapangan**      | - Pengembangan prototipe aplikasi mobile.<br>- Fitur geo-tagging lokasi aset.      |
 
 <div style="page-break-after: always;"></div>
 

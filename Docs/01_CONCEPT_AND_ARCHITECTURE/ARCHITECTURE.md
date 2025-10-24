@@ -2,6 +2,9 @@
 
 Dokumen ini menjelaskan blueprint arsitektural tingkat tinggi dari Aplikasi Inventori Aset. Tujuannya adalah untuk memberikan pemahaman konseptual tentang bagaimana komponen-komponen utama sistem saling terhubung dan berinteraksi.
 
+> **PENTING: Status Proyek Saat Ini**
+> Arsitektur yang dijelaskan dalam dokumen ini adalah **arsitektur target** untuk aplikasi *full-stack* yang lengkap. Implementasi saat ini adalah sebuah **prototipe frontend fungsional penuh**. Logika backend dan database disimulasikan menggunakan *mock API layer* yang berjalan di browser dan menyimpan data di `localStorage`. Dokumen ini berfungsi sebagai cetak biru untuk tim backend dalam membangun layanan sisi server.
+
 ---
 
 ## 1. Visi Arsitektur
@@ -23,19 +26,19 @@ Diagram berikut menggunakan notasi C4 untuk memvisualisasikan arsitektur dalam b
 
 ### Level 1: Diagram Konteks Sistem
 
-Diagram ini menunjukkan gambaran besar: bagaimana sistem aplikasi inventori berinteraksi dengan pengguna dan sistem lain (potensial).
+Diagram ini menunjukkan gambaran besar: bagaimana sistem Aplikasi Inventori Aset akan berinteraksi dengan penggunanya di dalam perusahaan.
 
 ```mermaid
 graph TD
-    subgraph "Pengguna Internal"
-        A[Staff / Manajer]
-        B[Admin / Super Admin]
+    subgraph "Pengguna Internal PT. Triniti Media"
+        A[<b>Staff / Manajer</b><br>Karyawan yang membuat<br>request dan menggunakan aset]
+        B[<b>Admin / Super Admin</b><br>Tim yang mengelola inventori<br>dan sistem]
     end
 
-    C(Aplikasi Inventori Aset)
+    C(<b>Aplikasi Inventori Aset</b><br>Sistem terpusat untuk melacak<br>seluruh siklus hidup aset.)
 
-    A -- "Menggunakan (Web Browser)" --> C
-    B -- "Mengelola (Web Browser)" --> C
+    A -- "Menggunakan (via Web Browser)" --> C
+    B -- "Mengelola (via Web Browser)" --> C
     
     style A fill:#9f7aea,stroke:#333,stroke-width:2px
     style B fill:#9f7aea,stroke:#333,stroke-width:2px
@@ -44,24 +47,24 @@ graph TD
 
 ### Level 2: Diagram Kontainer
 
-Diagram ini memperbesar "Aplikasi Inventori Aset" untuk menunjukkan komponen-komponen utama di dalamnya.
+Diagram ini memperbesar "Aplikasi Inventori Aset" untuk menunjukkan komponen-komponen teknis utama di dalamnya.
 
 ```mermaid
 graph TD
-    A["Pengguna <br> (Staff/Admin)"]
+    A["<b>Pengguna</b><br>(Staff/Admin)<br><br>Mengakses aplikasi<br>melalui browser di<br>laptop atau perangkat mobile."]
 
-    subgraph "Infrastruktur Server"
+    subgraph "Infrastruktur Server (Target Produksi)"
         subgraph "Aplikasi Inventori Aset"
-            F["<b>Aplikasi Frontend</b><br>[React SPA]<br><br>Menyajikan antarmuka pengguna<br>dan logika sisi klien."]
-            G["<b>API Backend</b><br>[Server NestJS]<br><br>Menangani logika bisnis, otentikasi,<br>dan akses data."]
+            F["<b>Aplikasi Frontend</b><br>[React Single-Page App]<br><br>Bertanggung jawab atas semua<br>antarmuka pengguna dan pengalaman<br>interaktif. Dijalankan di browser pengguna."]
+            G["<b>API Backend</b><br>[Server NestJS]<br><br>Menyediakan REST API. Menangani<br>logika bisnis, autentikasi, otorisasi,<br>dan validasi data."]
         end
         
-        H["<b>Database</b><br>[PostgreSQL]<br><br>Menyimpan semua data<br>aset, pengguna, request, dll."]
+        H["<b>Database</b><br>[PostgreSQL]<br><br>Penyimpanan data persisten untuk<br>semua entitas: aset, pengguna,<br>request, pelanggan, dll."]
     end
 
     A -- "Mengakses via HTTPS" --> F
-    F -- "Memanggil API via HTTPS<br>[JSON]" --> G
-    G -- "Membaca/Menulis Data via TCP/IP" --> H
+    F -- "Memanggil API via HTTPS<br>[Payload JSON]" --> G
+    G -- "Membaca/Menulis Data<br>[TCP/IP]" --> H
 
     style F fill:#63b3ed,stroke:#333,stroke-width:2px
     style G fill:#4299e1,stroke:#333,stroke-width:2px

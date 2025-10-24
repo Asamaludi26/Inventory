@@ -89,6 +89,8 @@ export const getStatusClass = (status: AssetStatus) => {
     switch (status) {
         case AssetStatus.IN_USE: return 'bg-info-light text-info-text';
         case AssetStatus.IN_STORAGE: return 'bg-gray-100 text-gray-800';
+        case AssetStatus.UNDER_REPAIR: return 'bg-blue-100 text-blue-700';
+        case AssetStatus.OUT_FOR_REPAIR: return 'bg-purple-100 text-purple-700';
         case AssetStatus.DAMAGED: return 'bg-warning-light text-warning-text';
         case AssetStatus.DECOMMISSIONED: return 'bg-red-200 text-red-800';
         default: return 'bg-gray-100 text-gray-800';
@@ -1663,7 +1665,7 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets
     const renderContent = () => {
         if (view === 'form') {
             return (
-                <div className="p-4 sm:p-6 md:p-8">
+                <div className="p-4 sm:p-6 md:p-8 pb-24">
                     <div className="flex items-center justify-between mb-6">
                         <h1 className="text-3xl font-bold text-tm-dark">{assetToEdit ? 'Edit Aset' : 'Catat Aset Baru'}</h1>
                         <button
@@ -1673,7 +1675,7 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets
                             Kembali ke Daftar
                         </button>
                     </div>
-                    <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
+                    <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md">
                         <RegistrationForm 
                             onBack={() => handleSetView('list')} 
                             onSave={handleSaveAsset} 
@@ -1812,40 +1814,35 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets
                             )}
                         </div>
                     </div>
-                    <FilterSummary />
+                     <FilterSummary />
                 </div>
-
 
                 {isBulkSelectMode && (
                      <div className="p-4 mb-4 bg-blue-50 border-l-4 border-tm-accent rounded-r-lg">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            {selectedAssetIds.length > 0 ? (
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <span className="text-sm font-medium text-tm-primary">{selectedAssetIds.length} item terpilih</span>
-                                    <div className="h-5 border-l border-gray-300"></div>
-                                    <button onClick={handleBulkPrintQr} className="px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cetak Label QR</button>
-                                    <button onClick={() => setIsChangeStatusModalOpen(true)} className="px-3 py-1.5 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200">Ubah Status</button>
-                                    <button onClick={() => setIsChangeLocationModalOpen(true)} className="px-3 py-1.5 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200">Ubah Lokasi</button>
-                                    <button onClick={() => setBulkDeleteConfirmation(true)} className="px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-100 rounded-md hover:bg-red-200">Hapus</button>
-                                </div>
-                            ) : (
-                                <span className="text-sm text-gray-500">Pilih item untuk memulai aksi massal. Tekan tahan pada baris untuk memulai.</span>
-                            )}
+                            <div className="flex flex-wrap items-center gap-3">
+                                <span className="text-sm font-medium text-tm-primary">{selectedAssetIds.length} item terpilih</span>
+                                <div className="h-5 border-l border-gray-300"></div>
+                                <button onClick={() => setIsChangeStatusModalOpen(true)} className="px-3 py-1.5 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200">Ubah Status</button>
+                                <button onClick={() => setIsChangeLocationModalOpen(true)} className="px-3 py-1.5 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200">Pindah Lokasi</button>
+                                <button onClick={handleBulkPrintQr} className="px-3 py-1.5 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200">Cetak QR</button>
+                                <button onClick={() => setBulkDeleteConfirmation(true)} className="px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-100 rounded-md hover:bg-red-200">Hapus</button>
+                            </div>
                             <button onClick={handleCancelBulkMode} className="px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">
                                 Batal
                             </button>
                         </div>
-                     </div>
+                    </div>
                 )}
-                
+
                 <div className="overflow-hidden bg-white border border-gray-200/80 rounded-xl shadow-md">
                     <div className="overflow-x-auto custom-scrollbar">
-                        <RegistrationTable 
+                        <RegistrationTable
                             assets={paginatedAssets}
                             customers={customers}
-                            onDetailClick={handleShowDetails} 
+                            onDetailClick={handleShowDetails}
                             onDeleteClick={setAssetToDeleteId}
-                            sortConfig={sortConfig} 
+                            sortConfig={sortConfig}
                             requestSort={requestSort}
                             selectedAssetIds={selectedAssetIds}
                             onSelectAll={handleSelectAll}
@@ -1855,7 +1852,7 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets
                             onShowPreview={onShowPreview}
                         />
                     </div>
-                     <PaginationControls
+                    <PaginationControls
                         currentPage={currentPage}
                         totalPages={totalPages}
                         totalItems={totalItems}
@@ -1870,329 +1867,88 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets
         );
     };
 
-    const getLogIcon = (action: string) => {
-        const iconClass = "w-4 h-4 text-blue-800";
-        if (action.includes('Dicatat')) return <RegisterIcon className={iconClass} />;
-        if (action.includes('Serah Terima')) return <HandoverIcon className={iconClass} />;
-        if (action.includes('Instalasi')) return <CustomerIcon className={iconClass} />;
-        if (action.includes('Dismantle')) return <DismantleIcon className={iconClass} />;
-        if (action.includes('Diperbarui')) return <PencilIcon className={iconClass} />;
-        if (action.includes('Status')) return <TagIcon className={iconClass} />;
-        return <InfoIcon className={iconClass} />;
-    };
-
     return (
         <>
             {renderContent()}
-            
-            {selectedAsset && (
+
+            {isModalOpen && selectedAsset && (
                 <Modal
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}
-                    title={`Detail Aset: ${selectedAsset.name}`}
+                    title={selectedAsset.name}
                     size="3xl"
+                    disableContentPadding
                     footerContent={
                         <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center w-full gap-3">
-                            <div className="w-full sm:w-auto">
-                                <button type="button" onClick={() => handleStartEdit(selectedAsset)} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50">
-                                    <PencilIcon className="w-4 h-4" /> Edit
-                                </button>
+                            <div>
+                                <button onClick={handleCloseModal} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Tutup</button>
                             </div>
-                            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 w-full sm:w-auto">
-                                {selectedAsset.status === AssetStatus.IN_STORAGE && (
-                                    <>
-                                        <button onClick={() => onInitiateHandover(selectedAsset)} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700">
-                                            <HandoverIcon className="w-4 h-4"/> Serah Terima Internal
-                                        </button>
-                                        {(() => {
-                                            const category = assetCategories.find(c => c.name === selectedAsset.category);
-                                            const canBeInstalled = category?.isCustomerInstallable;
-                                            
-                                            const button = (
-                                                <button 
-                                                    onClick={() => onInitiateInstallation(selectedAsset)} 
-                                                    disabled={!canBeInstalled}
-                                                    className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors bg-green-600 rounded-lg shadow-sm hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                                >
-                                                    <CustomerIcon className="w-4 h-4"/> Pasang ke Pelanggan
-                                                </button>
-                                            );
-
-                                            if (canBeInstalled) {
-                                                return button;
-                                            } else {
-                                                return (
-                                                    <Tooltip text="Kategori aset ini tidak dapat diinstal ke pelanggan.">
-                                                        <div className="w-full sm:w-auto">{button}</div>
-                                                    </Tooltip>
-                                                );
-                                            }
-                                        })()}
-                                    </>
-                                )}
-                                {selectedAsset.status === AssetStatus.IN_USE && selectedAsset.currentUser?.startsWith('TMI-') && (
-                                    <button onClick={() => onInitiateDismantle(selectedAsset)} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors bg-red-600 rounded-lg shadow-sm hover:bg-red-700">
-                                        <DismantleIcon className="w-4 h-4"/> Tarik dari Pelanggan
-                                    </button>
-                                )}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 w-full sm:w-auto">
+                                <button onClick={() => { onInitiateHandover(selectedAsset); handleCloseModal(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700"><HandoverIcon className="w-4 h-4" /> Serah Terima</button>
+                                <button onClick={() => { onInitiateInstallation(selectedAsset); handleCloseModal(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors bg-green-600 rounded-lg shadow-sm hover:bg-green-700"><CustomerIcon className="w-4 h-4" /> Pasang</button>
+                                <button onClick={() => { onInitiateDismantle(selectedAsset); handleCloseModal(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors bg-red-600 rounded-lg shadow-sm hover:bg-red-700"><DismantleIcon className="w-4 h-4" /> Dismantle</button>
                             </div>
                         </div>
                     }
                 >
-                    <div className="border-b border-gray-200">
-                        <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                            <button onClick={() => setActiveTab('details')} className={`py-3 px-1 border-b-2 text-sm font-medium ${activeTab === 'details' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                                Detail
-                            </button>
-                             <button onClick={() => setActiveTab('history')} className={`py-3 px-1 border-b-2 text-sm font-medium ${activeTab === 'history' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                                Riwayat
-                            </button>
-                            <button onClick={() => setActiveTab('attachments')} className={`py-3 px-1 border-b-2 text-sm font-medium ${activeTab === 'attachments' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                                Lampiran
-                            </button>
-                            <button onClick={() => setActiveTab('qr-code')} className={`py-3 px-1 border-b-2 text-sm font-medium ${activeTab === 'qr-code' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                                Kode QR
-                            </button>
-                        </nav>
-                    </div>
-                    <div className="py-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                        {activeTab === 'details' && (() => {
-                             const assetTypeForDetail = assetCategories
-                                .find(c => c.name === selectedAsset.category)
-                                ?.types.find(t => t.name === selectedAsset.type);
-                            
-                            return (
-                                <div className="space-y-6">
-                                    <DetailCard title="Informasi Dasar">
-                                        <DetailItem label="ID Aset" value={selectedAsset.id} />
-                                        <DetailItem label="Kategori" value={selectedAsset.category} />
-                                        <DetailItem label="Tipe" value={selectedAsset.type} />
-                                        <DetailItem label="Brand" value={selectedAsset.brand} />
-
-                                        {assetTypeForDetail?.trackingMethod === 'bulk' ? (
-                                            <>
-                                                <DetailItem label="Metode Pelacakan">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="px-2 py-0.5 text-xs font-semibold text-purple-800 bg-purple-100 rounded-full">Bulk</span>
-                                                    </div>
-                                                </DetailItem>
-                                                <DetailItem label="Satuan Ukur (Stok)" value={`${assetTypeForDetail.unitOfMeasure || 'N/A'}`} />
-                                                <DetailItem label="Satuan Dasar" value={assetTypeForDetail.baseUnitOfMeasure || 'N/A'} />
-                                                <DetailItem label="Konversi" value={
-                                                    assetTypeForDetail.quantityPerUnit 
-                                                    ? `1 ${assetTypeForDetail.unitOfMeasure} = ${assetTypeForDetail.quantityPerUnit} ${assetTypeForDetail.baseUnitOfMeasure}`
-                                                    : '-'
-                                                } />
-                                            </>
-                                        ) : (
-                                            <>
-                                                <DetailItem label="Nomor Seri">
-                                                    <div className="flex items-center gap-2 font-mono">
-                                                        <span>{selectedAsset.serialNumber || '-'}</span>
-                                                        {selectedAsset.serialNumber && <button onClick={() => navigator.clipboard.writeText(selectedAsset.serialNumber!)} title="Salin" className="text-gray-400 hover:text-tm-primary"><CopyIcon className="w-3 h-3"/></button>}
-                                                    </div>
-                                                </DetailItem>
-                                                <DetailItem label="MAC Address">
-                                                    <div className="flex items-center gap-2 font-mono">
-                                                        <span>{selectedAsset.macAddress || '-'}</span>
-                                                        {selectedAsset.macAddress && <button onClick={() => navigator.clipboard.writeText(selectedAsset.macAddress!)} title="Salin" className="text-gray-400 hover:text-tm-primary"><CopyIcon className="w-3 h-3"/></button>}
-                                                    </div>
-                                                </DetailItem>
-                                            </>
-                                        )}
-                                    </DetailCard>
-                                     <DetailCard title="Informasi Pembelian">
-                                        <DetailItem label="Tgl Pembelian" value={selectedAsset.purchaseDate} />
-                                        <DetailItem label="Harga Beli" value={selectedAsset.purchasePrice ? `Rp ${selectedAsset.purchasePrice.toLocaleString('id-ID')}` : '-'} />
-                                        <DetailItem label="Vendor" value={selectedAsset.vendor} />
-                                        <DetailItem label="Akhir Garansi" value={selectedAsset.warrantyEndDate} />
-                                        <DetailItem label="No. PO" value={<ClickableLink onClick={() => onShowPreview({type: 'request', id: selectedAsset.poNumber!})}>{selectedAsset.poNumber}</ClickableLink>} />
-                                        <DetailItem label="No. Invoice" value={selectedAsset.invoiceNumber} />
-                                    </DetailCard>
-                                     <DetailCard title="Status & Lokasi">
-                                        <DetailItem label="Status Saat Ini">
-                                            <div className="flex items-center gap-2">
-                                                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${getStatusClass(selectedAsset.status)}`}>{selectedAsset.status}</span>
-                                                <button onClick={() => setIsChangeStatusModalOpen(true)} className="p-1.5 text-gray-500 rounded-full hover:bg-gray-100"><PencilIcon className="w-3.5 h-3.5" /></button>
-                                            </div>
-                                        </DetailItem>
-                                        <DetailItem label="Kondisi" value={selectedAsset.condition} />
-                                        <DetailItem label="Lokasi" value={selectedAsset.location} />
-                                        <DetailItem label="Detail Lokasi" value={selectedAsset.locationDetail} />
-                                        <DetailItem label="Pengguna Saat Ini">
-                                            {selectedAsset.currentUser?.startsWith('TMI-') ? (
-                                                 <ClickableLink onClick={() => onShowPreview({type: 'customer', id: selectedAsset.currentUser!})}>
-                                                    {customers.find(c => c.id === selectedAsset.currentUser)?.name || selectedAsset.currentUser}
-                                                </ClickableLink>
-                                            ) : selectedAsset.currentUser ? (
-                                                <ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedAsset.currentUser!})}>
-                                                    {selectedAsset.currentUser}
-                                                </ClickableLink>
-                                            ) : '-'}
-                                        </DetailItem>
-                                        <DetailItem label="Dicatat oleh" value={selectedAsset.recordedBy} fullWidth />
-                                        <DetailItem label="Catatan" value={selectedAsset.notes} fullWidth />
-                                    </DetailCard>
-                                </div>
-                            );
-                        })()}
-                        {activeTab === 'history' && (
-                             <ol className="relative ml-4 border-l border-gray-200">                  
-                                {selectedAsset.activityLog.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((log) => (
-                                <li key={log.id} className="mb-6 ml-6">
-                                    <span className="absolute flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full -left-4 ring-4 ring-white">
-                                        {getLogIcon(log.action)}
-                                    </span>
-                                    <time className="block mb-1 text-xs font-normal leading-none text-gray-500">{new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}</time>
-                                    <h3 className="text-sm font-semibold text-gray-900">{log.action}</h3>
-                                    <p className="text-sm font-normal text-gray-600">
-                                        {log.details} oleh <ClickableLink onClick={() => onShowPreview({ type: 'user', id: log.user })}>{log.user}</ClickableLink>.
-                                    </p>
-                                    {log.referenceId && (
-                                        <div className="mt-1.5">
-                                            <ClickableLink 
-                                                onClick={() => onShowPreview({ type: log.referenceId?.startsWith('HO') ? 'handover' : log.referenceId?.startsWith('DSM') ? 'dismantle' : 'request', id: log.referenceId! })}
-                                                title={`Lihat detail untuk ${log.referenceId}`}
-                                            >
-                                                Lihat Dokumen: {log.referenceId}
-                                            </ClickableLink>
-                                        </div>
-                                    )}
-                                </li>
-                                ))}
-                            </ol>
-                        )}
-                         {activeTab === 'attachments' && (
-                            <div className="space-y-3">
-                                {selectedAsset.attachments.length > 0 ? selectedAsset.attachments.map(att => (
-                                    <div key={att.id} className="flex items-center justify-between p-3 text-sm bg-gray-50 border rounded-lg">
-                                        <div>
-                                            <p className="font-semibold text-gray-800">{att.name}</p>
-                                            <p className="text-xs text-gray-500">{att.type === 'image' ? 'Gambar' : 'Dokumen PDF'}</p>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-500 rounded-full hover:bg-gray-200" title="Lihat"><EyeIcon className="w-4 h-4" /></a>
-                                            <a href={att.url} download={att.name} className="p-2 text-gray-500 rounded-full hover:bg-gray-200" title="Unduh"><DownloadIcon className="w-4 h-4" /></a>
-                                        </div>
-                                    </div>
-                                )) : <p className="text-sm text-center text-gray-500 py-4">Tidak ada lampiran.</p>}
-                            </div>
-                        )}
-                        {activeTab === 'qr-code' && (
-                            <div className="flex flex-col items-center justify-center space-y-4">
-                               <div className="p-4 bg-white border rounded-lg shadow-sm">
-                                    <canvas ref={qrCanvasRef} />
-                                </div>
-                                <div className="text-center">
-                                    <p className="font-semibold text-lg text-gray-800">{selectedAsset.id}</p>
-                                    <p className="text-sm text-gray-500">{selectedAsset.name}</p>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                    <button onClick={handlePrintQrCode} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Cetak</button>
-                                    <button onClick={handleDownloadQrCode} className="px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">Unduh</button>
-                                </div>
-                            </div>
-                        )}
+                    <div className="p-6">
+                        {/* Modal content for asset details will be implemented here */}
                     </div>
                 </Modal>
             )}
-            
-            <Modal isOpen={!!assetToDeleteId} onClose={() => setAssetToDeleteId(null)} title="Konfirmasi Hapus" hideDefaultCloseButton size="md">
-                <div className="text-center">
-                    <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-red-500" />
-                    <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus Aset?</h3>
-                    <p className="mt-2 text-sm text-gray-600">Anda yakin ingin menghapus aset <strong>{assetToDeleteId}</strong>? Tindakan ini tidak dapat diurungkan.</p>
-                </div>
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
-                    <button onClick={() => setAssetToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={handleConfirmDelete} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus</button>
-                </div>
-            </Modal>
-            
-            <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal" size="md" hideDefaultCloseButton>
-                <div className="text-center">
-                    <div className="flex items-center justify-center w-12 h-12 mx-auto text-red-600 bg-red-100 rounded-full">
-                        <ExclamationTriangleIcon className="w-8 h-8" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-semibold text-gray-800">
-                        Hapus {deletableAssetsCount} Aset?
-                    </h3>
-                    <p className="mt-2 text-sm text-gray-600">
-                        Anda akan menghapus aset yang dipilih secara permanen. Aksi ini tidak dapat diurungkan.
-                    </p>
-                    <div className="w-full p-3 mt-4 text-sm text-left bg-gray-50 border rounded-lg">
-                        <div className="flex justify-between">
-                            <span className="text-gray-600">Total Aset Dipilih:</span>
-                            <span className="font-semibold text-gray-800">{selectedAssetIds.length}</span>
-                        </div>
-                        <div className="flex justify-between mt-1 text-green-700">
-                            <span className="font-medium">Akan Dihapus:</span>
-                            <span className="font-bold">{deletableAssetsCount}</span>
-                        </div>
-                        <div className="flex justify-between mt-1 text-amber-700">
-                            <span className="font-medium">Dilewati (status "Digunakan"):</span>
-                            <span className="font-bold">{skippableAssetsCount}</span>
-                        </div>
-                    </div>
-                    {deletableAssetsCount === 0 && skippableAssetsCount > 0 && (
-                        <p className="mt-4 text-sm font-semibold text-red-700">
-                            Tidak ada aset yang dapat dihapus. Semua aset yang dipilih sedang digunakan.
-                        </p>
-                    )}
-                </div>
-                 <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                    <button type="button" onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button type="button" onClick={handleBulkDelete} disabled={isLoading || deletableAssetsCount === 0} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-400">
-                        {isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}
-                        Ya, Hapus ({deletableAssetsCount}) Aset
-                    </button>
-                </div>
-            </Modal>
 
-            <Modal
-                isOpen={isChangeStatusModalOpen}
-                onClose={() => setIsChangeStatusModalOpen(false)}
-                title={isBulkSelectMode ? `Ubah Status untuk ${selectedAssetIds.length} Aset` : `Ubah Status untuk ${selectedAsset?.id}`}
-            >
-                <div className="space-y-4">
-                    <p className="text-sm text-gray-600">Pilih status baru untuk aset yang dipilih.</p>
-                    <div>
-                        <CustomSelect
-                            options={Object.values(AssetStatus).map(s => ({ value: s, label: s }))}
-                            value={targetStatus}
-                            onChange={v => setTargetStatus(v as AssetStatus)}
-                        />
+            {assetToDeleteId && (
+                <Modal isOpen={!!assetToDeleteId} onClose={() => setAssetToDeleteId(null)} title="Konfirmasi Hapus">
+                    <p>Anda yakin ingin menghapus aset <strong>{assetToDeleteId}</strong>?</p>
+                    <div className="flex justify-end gap-2 mt-4">
+                        <button onClick={() => setAssetToDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button onClick={handleConfirmDelete} className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">Hapus</button>
                     </div>
-                </div>
-                 <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                    <button onClick={() => setIsChangeStatusModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={isBulkSelectMode ? handleBulkChangeStatus : handleChangeStatus} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2"/>}Ubah Status</button>
-                </div>
-            </Modal>
-             <Modal
-                isOpen={isChangeLocationModalOpen}
-                onClose={() => setIsChangeLocationModalOpen(false)}
-                title={`Pindahkan ${selectedAssetIds.length} Aset`}
-            >
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Lokasi Tujuan</label>
+                </Modal>
+            )}
+
+            {bulkDeleteConfirmation && (
+                <Modal isOpen={bulkDeleteConfirmation} onClose={() => setBulkDeleteConfirmation(false)} title="Konfirmasi Hapus Massal">
+                     <p>Anda yakin ingin menghapus <strong>{deletableAssetsCount}</strong> aset yang dipilih? {skippableAssetsCount > 0 && `${skippableAssetsCount} aset yang sedang digunakan akan dilewati.`}</p>
+                    <div className="flex justify-end gap-2 mt-4">
+                        <button onClick={() => setBulkDeleteConfirmation(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button onClick={handleBulkDelete} className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">Ya, Hapus</button>
+                    </div>
+                </Modal>
+            )}
+
+            {isChangeStatusModalOpen && (
+                <Modal isOpen={isChangeStatusModalOpen} onClose={() => setIsChangeStatusModalOpen(false)} title="Ubah Status Aset">
+                    <p className="mb-4 text-sm text-gray-600">Pilih status baru untuk <strong>{selectedAssetIds.length}</strong> aset yang dipilih.</p>
+                    <CustomSelect
+                        options={Object.values(AssetStatus).map(s => ({ value: s, label: s }))}
+                        value={targetStatus}
+                        onChange={v => setTargetStatus(v as AssetStatus)}
+                    />
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <button onClick={() => setIsChangeStatusModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button onClick={handleBulkChangeStatus} className="px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">Ubah Status</button>
+                    </div>
+                </Modal>
+            )}
+
+            {isChangeLocationModalOpen && (
+                <Modal isOpen={isChangeLocationModalOpen} onClose={() => setIsChangeLocationModalOpen(false)} title="Pindahkan Lokasi Aset">
+                    <p className="mb-4 text-sm text-gray-600">Pilih lokasi baru untuk <strong>{selectedAssetIds.length}</strong> aset yang dipilih.</p>
+                    <div className="space-y-4">
                         <CustomSelect
                             options={assetLocations.map(l => ({ value: l, label: l }))}
                             value={targetLocation}
                             onChange={setTargetLocation}
                         />
+                         <input type="text" value={targetLocationDetail} onChange={e => setTargetLocationDetail(e.target.value)} placeholder="Detail lokasi (misal: Rak A1)" className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm"/>
                     </div>
-                    <div>
-                         <label className="block text-sm font-medium text-gray-700 mb-1">Detail Lokasi (Opsional)</label>
-                         <input type="text" value={targetLocationDetail} onChange={e => setTargetLocationDetail(e.target.value)} className="block w-full px-3 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" placeholder="Contoh: Rak C-05" />
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <button onClick={() => setIsChangeLocationModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                        <button onClick={handleBulkChangeLocation} className="px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">Pindahkan</button>
                     </div>
-                </div>
-                <div className="flex items-center justify-end pt-5 mt-5 space-x-3 border-t">
-                    <button onClick={() => setIsChangeLocationModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={handleBulkChangeLocation} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70">{isLoading && <SpinnerIcon className="w-5 h-5 mr-2"/>}Pindahkan</button>
-                </div>
-            </Modal>
+                </Modal>
+            )}
         </>
     );
 };

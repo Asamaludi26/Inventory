@@ -2,6 +2,9 @@
 
 Dokumen ini berfungsi sebagai panduan bagi developer (terutama frontend) untuk memahami cara berinteraksi dengan API backend.
 
+> **Catatan Penting: Spesifikasi Target API**
+> Endpoint dan format data yang dijelaskan di bawah ini adalah **spesifikasi untuk server backend (NestJS) yang akan dibangun**. Prototipe frontend saat ini **mensimulasikan** API ini menggunakan *mock layer* di `src/services/api.ts`. Gunakan dokumen ini sebagai acuan untuk integrasi di masa depan.
+
 ## 1. Dokumentasi Interaktif (Swagger/OpenAPI)
 
 Sumber kebenaran utama untuk semua endpoint API adalah dokumentasi Swagger yang di-generate secara otomatis oleh backend.

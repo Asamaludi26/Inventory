@@ -14,6 +14,7 @@ import { CustomerIcon } from '../icons/CustomerIcon';
 import { BoxIcon } from '../icons/BoxIcon';
 import { SettingsIcon } from '../icons/SettingsIcon';
 import { CategoryIcon } from '../icons/CategoryIcon';
+import { WrenchIcon } from '../icons/WrenchIcon';
 
 interface SidebarProps {
   currentUser: User;
@@ -45,6 +46,7 @@ const allMenuItems: MenuItem[] = [
       { id: 'request', label: 'Request Aset', icon: RequestIcon },
       { id: 'handover', label: 'Handover Aset', icon: HandoverIcon },
       { id: 'dismantle', label: 'Dismantle Aset', icon: DismantleIcon },
+      { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Admin', 'Super Admin'] },
     ],
   },
   { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Admin', 'Super Admin'] },

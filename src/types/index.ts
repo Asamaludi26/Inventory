@@ -1,4 +1,6 @@
-// FIX: Removed circular dependency and added export for Page type.
+
+
+// FIX: Removed circular dependency by deleting the import of 'Page' from the same file.
 export type Page =
   | 'dashboard'
   | 'registration'
@@ -8,7 +10,8 @@ export type Page =
   | 'dismantle'
   | 'customers'
   | 'pengaturan-pengguna'
-  | 'kategori';
+  | 'kategori'
+  | 'repair';
 
 export type PreviewData = {
     type: 'asset' | 'customer' | 'user' | 'request' | 'handover' | 'dismantle' | 'customerAssets' | 'stockItemAssets' | 'stockHistory';
@@ -53,11 +56,14 @@ export enum ItemStatus {
   CANCELLED = 'Dibatalkan',
   COMPLETED = 'Selesai',
   IN_PROGRESS = 'Dalam Proses',
+  AWAITING_HANDOVER = 'Menunggu Diserahkan',
 }
 
 export enum AssetStatus {
   IN_USE = 'Digunakan',
   IN_STORAGE = 'Disimpan',
+  UNDER_REPAIR = 'Dalam Perbaikan',
+  OUT_FOR_REPAIR = 'Perbaikan Eksternal',
   DAMAGED = 'Rusak',
   DECOMMISSIONED = 'Diberhentikan',
 }
@@ -138,6 +144,7 @@ export interface OrderDetails {
     type: OrderType;
     justification?: string;
     project?: string;
+    source?: 'STOCK' | 'PROCUREMENT';
 }
 
 export interface Request {
@@ -223,13 +230,22 @@ export interface ActivityLog {
 }
 
 export type NotificationType =
+  | 'REQUEST_CREATED'
+  | 'REQUEST_AWAITING_FINAL_APPROVAL'
+  | 'REQUEST_FULLY_APPROVED'
+  | 'REQUEST_COMPLETED'
   | 'FOLLOW_UP'
   | 'CEO_DISPOSITION'
   | 'PROGRESS_UPDATE_REQUEST'
   | 'PROGRESS_FEEDBACK'
   | 'STATUS_CHANGE'
   | 'REQUEST_APPROVED'
-  | 'REQUEST_REJECTED';
+  | 'REQUEST_REJECTED'
+  | 'ASSET_DAMAGED_REPORT'
+  | 'REPAIR_STARTED'
+  | 'REPAIR_COMPLETED'
+  | 'ASSET_DECOMMISSIONED'
+  | 'REPAIR_PROGRESS_UPDATE';
 
 export interface Notification {
   id: string;

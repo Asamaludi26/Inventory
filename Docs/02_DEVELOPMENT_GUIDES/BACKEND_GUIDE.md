@@ -2,6 +2,9 @@
 
 Dokumen ini memberikan panduan teknis mendalam mengenai arsitektur, pola, dan praktik terbaik untuk pengembangan sisi server (backend) aplikasi Inventori Aset.
 
+> **Catatan Penting: Arsitektur Target**
+> Panduan ini menjelaskan **arsitektur target** yang akan dibangun menggunakan NestJS. Prototipe aplikasi saat ini **belum memiliki backend ini**; ia menggunakan Mock API yang berjalan di sisi klien. Dokumen ini berfungsi sebagai **cetak biru** untuk tim backend.
+
 ## 1. Tumpukan Teknologi
 
 Backend dibangun di atas tumpukan teknologi modern berbasis TypeScript untuk memastikan _type-safety_, skalabilitas, dan kemudahan pemeliharaan.

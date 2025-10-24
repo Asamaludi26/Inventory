@@ -1152,6 +1152,17 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             rejectedByDivision: null,
         };
         setRequests(prev => [newRequest, ...prev]);
+
+        const adminsAndSuperAdmins = users.filter(u => u.role === 'Admin' || u.role === 'Super Admin');
+        adminsAndSuperAdmins.forEach(admin => {
+            addNotification({
+                recipientId: admin.id,
+                actorName: currentUser.name,
+                type: 'REQUEST_CREATED',
+                referenceId: newRequest.id,
+            });
+        });
+
         setView('list');
         setItemToPrefill(null);
         if (data.order.type === 'Urgent') {
@@ -1174,48 +1185,46 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 prevRequests.map(req => {
                     if (req.id !== requestId) return req;
 
-                    // General permission check
                     if (currentUser.role !== 'Admin' && currentUser.role !== 'Super Admin') {
                         errorMessage = 'Anda tidak memiliki izin untuk menyetujui permintaan.';
                         return req;
                     }
 
-                    // --- PENDING STATUS ---
                     if (req.status === ItemStatus.PENDING) {
                         if (currentUser.role === 'Admin') {
                             approved = true;
                             finalStatus = ItemStatus.LOGISTIC_APPROVED;
-                            updatedRequestForModal = {
-                                status: ItemStatus.LOGISTIC_APPROVED,
-                                logisticApprover: currentUser.name,
-                                logisticApprovalDate: today,
-                            };
+                            updatedRequestForModal = { status: ItemStatus.LOGISTIC_APPROVED, logisticApprover: currentUser.name, logisticApprovalDate: today };
+                            
+                            const superAdmins = users.filter(u => u.role === 'Super Admin');
+                            superAdmins.forEach(sa => {
+                                addNotification({ recipientId: sa.id, actorName: currentUser.name, type: 'REQUEST_AWAITING_FINAL_APPROVAL', referenceId: req.id });
+                            });
                             return { ...req, ...updatedRequestForModal };
                         }
                         if (currentUser.role === 'Super Admin') {
                             approved = true;
                             finalStatus = ItemStatus.APPROVED;
-                            updatedRequestForModal = {
-                                status: ItemStatus.APPROVED,
-                                logisticApprover: currentUser.name, // Fulfills logistic role
-                                logisticApprovalDate: today,
-                                finalApprover: currentUser.name, // Fulfills final approver role
-                                finalApprovalDate: today,
-                            };
+                            updatedRequestForModal = { status: ItemStatus.APPROVED, logisticApprover: currentUser.name, logisticApprovalDate: today, finalApprover: currentUser.name, finalApprovalDate: today, };
+                            
+                            const admins = users.filter(u => u.role === 'Admin' && u.id !== currentUser.id);
+                            admins.forEach(admin => {
+                                addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_FULLY_APPROVED', referenceId: req.id });
+                            });
                             return { ...req, ...updatedRequestForModal };
                         }
                     }
 
-                    // --- LOGISTIC_APPROVED STATUS ---
                     if (req.status === ItemStatus.LOGISTIC_APPROVED) {
                         if (currentUser.role === 'Super Admin') {
                             approved = true;
                             finalStatus = ItemStatus.APPROVED;
-                            updatedRequestForModal = {
-                                status: ItemStatus.APPROVED,
-                                finalApprover: currentUser.name,
-                                finalApprovalDate: today,
-                            };
+                            updatedRequestForModal = { status: ItemStatus.APPROVED, finalApprover: currentUser.name, finalApprovalDate: today };
+                            
+                            const admins = users.filter(u => u.role === 'Admin');
+                            admins.forEach(admin => {
+                                addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_FULLY_APPROVED', referenceId: req.id });
+                            });
                             return { ...req, ...updatedRequestForModal };
                         }
                         if (currentUser.role === 'Admin') {
@@ -1234,13 +1243,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 const originalRequest = requests.find(r => r.id === requestId);
                 const requesterUser = users.find(u => u.name === originalRequest?.requester);
                 if (requesterUser) {
-                    addNotification({
-                        recipientId: requesterUser.id,
-                        actorName: currentUser.name,
-                        type: 'REQUEST_APPROVED',
-                        referenceId: requestId,
-                        message: `Request Anda #${requestId} telah disetujui.`
-                    });
+                    addNotification({ recipientId: requesterUser.id, actorName: currentUser.name, type: 'REQUEST_APPROVED', referenceId: requestId });
                 }
                 addNotificationUI(`Request berhasil disetujui. Status: ${finalStatus}`, 'success');
                 if (updatedRequestForModal) {
@@ -1274,7 +1277,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
 
         setTimeout(() => {
             const now = new Date();
-            // Double check cooldown in case of race conditions
             if (followUpRequest.lastFollowUpAt) {
                 const lastFollowUpDate = new Date(followUpRequest.lastFollowUpAt);
                 const diffHours = (now.getTime() - lastFollowUpDate.getTime()) / (1000 * 60 * 60);
@@ -1286,10 +1288,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 }
             }
             
-            // Update request state with new timestamp
             setRequests(prev => prev.map(r => r.id === followUpRequest.id ? { ...r, lastFollowUpAt: now.toISOString() } : r));
 
-            // Send notifications only to Admins, not Super Admins
             const admins = users.filter(u => u.role === 'Admin');
             admins.forEach(admin => {
                 addNotification({
@@ -1473,9 +1473,20 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                     actorName: currentUser.name,
                     type: 'STATUS_CHANGE',
                     referenceId: updatedRequest.id,
-                    message: `Status request #${updatedRequest.id} diubah menjadi "${newStatus}".`
+                    message: `statusnya diubah menjadi "${newStatus}"`
                 });
             }
+            
+            const adminsAndSuperAdmins = users.filter(u => (u.role === 'Admin' || u.role === 'Super Admin') && u.id !== currentUser.id);
+            adminsAndSuperAdmins.forEach(admin => {
+                addNotification({
+                    recipientId: admin.id,
+                    actorName: currentUser.name,
+                    type: 'STATUS_CHANGE',
+                    referenceId: updatedRequest.id,
+                    message: `statusnya diubah menjadi "${newStatus}"`
+                });
+            });
     
             setRequests(prev => prev.map(r => r.id === selectedRequest.id ? updatedRequest : r));
             addNotificationUI(`Status request ${selectedRequest.id} diubah menjadi "${newStatus}".`, 'success');
@@ -1511,14 +1522,13 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
 
             const requesterUser = users.find(u => u.name === selectedRequest.requester);
             if(requesterUser) {
-                addNotification({
-                    recipientId: requesterUser.id,
-                    actorName: currentUser.name,
-                    type: 'REQUEST_REJECTED',
-                    referenceId: selectedRequest.id,
-                    message: `Request Anda #${selectedRequest.id} ditolak.`
-                });
+                addNotification({ recipientId: requesterUser.id, actorName: currentUser.name, type: 'REQUEST_REJECTED', referenceId: selectedRequest.id });
             }
+
+            const adminsAndSuperAdmins = users.filter(u => (u.role === 'Admin' || u.role === 'Super Admin') && u.id !== currentUser.id);
+            adminsAndSuperAdmins.forEach(admin => {
+                addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_REJECTED', referenceId: selectedRequest.id, message: `menolak request dengan alasan: "${rejectionReason.trim()}"` });
+            });
 
             addNotificationUI('Request telah ditolak.', 'success');
             setIsLoading(false);
@@ -1767,7 +1777,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
     const renderContent = () => {
         if (view === 'form') {
             return (
-                <div className="p-4 sm:p-6 md:p-8">
+                <div className="p-4 sm:p-6 md:p-8 pb-24">
                     <div className="flex items-center justify-between mb-6">
                         <h1 className="text-3xl font-bold text-tm-dark">Buat Request Baru</h1>
                         <button
@@ -1780,7 +1790,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                             Kembali ke Daftar
                         </button>
                     </div>
-                    <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
+                    <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md">
                         <RequestForm currentUser={currentUser} assets={assets} assetCategories={assetCategories} divisions={divisions} onCreateRequest={handleCreateRequest} prefillItem={itemToPrefill} openModelModal={openModelModal} openTypeModal={openTypeModal} setActivePage={setActivePage} />
                     </div>
                 </div>
@@ -2001,6 +2011,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                         Anda akan mengirimkan notifikasi follow-up untuk request <strong className="font-semibold text-gray-900">#{followUpRequest?.id}</strong> kepada tim Inventori (Admin).
                     </p>
                 }
+                zIndex="z-[70]"
             />
 
             {stagingRequest && (

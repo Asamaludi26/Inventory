@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Asset, AssetStatus, Page, PreviewData, AssetCategory, AssetType, TrackingMethod, User } from '../../types';
+import { Asset, AssetStatus, Page, PreviewData, AssetCategory, Handover, User, AssetCondition } from '../../types';
 import { useSortableData, SortConfig } from '../../hooks/useSortableData';
 import { PaginationControls } from '../../components/ui/PaginationControls';
 import { SearchIcon } from '../../components/icons/SearchIcon';
@@ -14,7 +14,6 @@ import { ClickableLink } from '../../components/ui/ClickableLink';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { CloseIcon } from '../../components/icons/CloseIcon';
 import { FilterIcon } from '../../components/icons/FilterIcon';
-import { Checkbox } from '../../components/ui/Checkbox';
 import { HistoryIcon } from '../../components/icons/HistoryIcon';
 import { DollarIcon } from '../../components/icons/DollarIcon';
 import { PencilIcon } from '../../components/icons/PencilIcon';
@@ -24,6 +23,10 @@ import { UsersIcon } from '../../components/icons/UsersIcon';
 import { WrenchIcon } from '../../components/icons/WrenchIcon';
 import { EyeIcon } from '../../components/icons/EyeIcon';
 import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
+import { BsUpcScan, BsGeoAlt, BsCalendarCheck, BsTag, BsShieldCheck } from 'react-icons/bs';
+import { CopyIcon } from '../../components/icons/CopyIcon';
+import { useNotification } from '../../providers/NotificationProvider';
+import { Checkbox } from '../../components/ui/Checkbox';
 
 
 interface StockOverviewPageProps {
@@ -34,6 +37,9 @@ interface StockOverviewPageProps {
     onShowPreview: (data: PreviewData) => void;
     initialFilters?: any;
     onClearInitialFilters: () => void;
+    handovers: Handover[];
+    requests: any[]; // Added requests prop
+    onReportDamage: (asset: Asset) => void;
 }
 
 interface StockItem {
@@ -46,7 +52,7 @@ interface StockItem {
     total: number;
     valueInStorage: number;
     unitOfMeasure?: string;
-    trackingMethod?: TrackingMethod;
+    trackingMethod?: 'individual' | 'bulk';
 }
 
 const LOW_STOCK_DEFAULT = 5;
@@ -75,32 +81,6 @@ const SummaryCard: React.FC<{ title: string; value: string | number; icon: React
 
 const SortableHeader: React.FC<{
     children: React.ReactNode;
-    columnKey: keyof StockItem;
-    sortConfig: SortConfig<StockItem> | null;
-    requestSort: (key: keyof StockItem) => void;
-    className?: string;
-}> = ({ children, columnKey, sortConfig, requestSort, className }) => {
-    const isSorted = sortConfig?.key === columnKey;
-    const direction = isSorted ? sortConfig.direction : undefined;
-
-    const getSortIcon = () => {
-        if (!isSorted) return <SortIcon className="w-4 h-4 text-gray-400" />;
-        if (direction === 'ascending') return <SortAscIcon className="w-4 h-4 text-tm-accent" />;
-        return <SortDescIcon className="w-4 h-4 text-tm-accent" />;
-    };
-
-    return (
-        <th scope="col" className={`px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500 ${className}`}>
-            <button onClick={() => requestSort(columnKey)} className="flex items-center space-x-1 group">
-                <span>{children}</span>
-                <span className="opacity-50 group-hover:opacity-100">{getSortIcon()}</span>
-            </button>
-        </th>
-    );
-};
-
-const MyAssetsSortableHeader: React.FC<{
-    children: React.ReactNode;
     columnKey: keyof Asset;
     sortConfig: SortConfig<Asset> | null;
     requestSort: (key: keyof Asset) => void;
@@ -125,16 +105,138 @@ const MyAssetsSortableHeader: React.FC<{
     );
 };
 
+const StockSortableHeader: React.FC<{
+    children: React.ReactNode;
+    columnKey: keyof StockItem;
+    sortConfig: SortConfig<StockItem> | null;
+    requestStockSort: (key: keyof StockItem) => void;
+    className?: string;
+}> = ({ children, columnKey, sortConfig, requestStockSort, className }) => {
+    const isSorted = sortConfig?.key === columnKey;
+    const direction = isSorted ? sortConfig.direction : undefined;
 
-const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, assets, assetCategories, setActivePage, onShowPreview, initialFilters, onClearInitialFilters }) => {
+    const getSortIcon = () => {
+        if (!isSorted) return <SortIcon className="w-4 h-4 text-gray-400" />;
+        if (direction === 'ascending') return <SortAscIcon className="w-4 h-4 text-tm-accent" />;
+        return <SortDescIcon className="w-4 h-4 text-tm-accent" />;
+    };
+
+    return (
+        <th scope="col" className={`px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500 ${className}`}>
+            <button onClick={() => requestStockSort(columnKey)} className="flex items-center space-x-1 group">
+                <span>{children}</span>
+                <span className="opacity-50 group-hover:opacity-100">{getSortIcon()}</span>
+            </button>
+        </th>
+    );
+};
+
+
+const getConditionInfo = (condition: AssetCondition) => {
+    switch (condition) {
+        case AssetCondition.BRAND_NEW:
+        case AssetCondition.GOOD:
+        case AssetCondition.USED_OKAY:
+            return { Icon: CheckIcon, color: 'text-success' };
+        case AssetCondition.MINOR_DAMAGE:
+            return { Icon: WrenchIcon, color: 'text-warning-text' };
+        case AssetCondition.MAJOR_DAMAGE:
+        case AssetCondition.FOR_PARTS:
+            return { Icon: WrenchIcon, color: 'text-danger-text' };
+        default:
+            return { Icon: WrenchIcon, color: 'text-gray-500' };
+    }
+};
+
+const InfoItem: React.FC<{ icon: React.FC<{className?:string}>; label: string; children: React.ReactNode; }> = ({ icon: Icon, label, children }) => (
+    <div>
+        <dt className="flex items-center text-xs font-medium text-gray-500">
+            <Icon className="w-4 h-4 mr-2" />
+            <span>{label}</span>
+        </dt>
+        <dd className="mt-1 text-sm font-semibold text-gray-800 break-words">{children}</dd>
+    </div>
+);
+
+const AssetCard: React.FC<{
+    asset: Asset;
+    dateReceived: string | null;
+    onShowDetail: (data: PreviewData) => void;
+    onReportDamage: (asset: Asset) => void;
+}> = ({ asset, dateReceived, onShowDetail, onReportDamage }) => {
+    const addNotification = useNotification();
+    const ConditionIcon = getConditionInfo(asset.condition).Icon;
+    const conditionColor = getConditionInfo(asset.condition).color;
+
+    const copyToClipboard = (text: string, label: string) => {
+        navigator.clipboard.writeText(text);
+        addNotification(`${label} berhasil disalin!`, 'success');
+    };
+
+    return (
+        <div className="flex flex-col bg-white border border-gray-200/80 rounded-xl shadow-sm transition-all duration-300 hover:shadow-lg hover:border-tm-accent/50">
+            <div className="p-4 border-b">
+                <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-lg font-bold text-tm-dark leading-tight">{asset.name}</h3>
+                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getAssetStatusClass(asset.status)}`}>
+                        {asset.status}
+                    </span>
+                </div>
+                 <p className="flex items-center gap-2 mt-1 text-xs font-mono text-gray-500">
+                    {asset.id}
+                    <button onClick={() => copyToClipboard(asset.id, 'ID Aset')} title="Salin ID Aset" className="text-gray-400 hover:text-tm-primary">
+                        <CopyIcon className="w-3.5 h-3.5" />
+                    </button>
+                </p>
+            </div>
+            <div className="grid grid-cols-2 gap-y-4 gap-x-6 p-4 flex-grow">
+                <InfoItem icon={BsTag} label="Kategori">{asset.category}</InfoItem>
+                <InfoItem icon={BsCalendarCheck} label="Tgl Diterima">{dateReceived || 'N/A'}</InfoItem>
+                <InfoItem icon={BsUpcScan} label="Nomor Seri">
+                    {asset.serialNumber ? (
+                         <span className="flex items-center gap-1.5 font-mono">
+                            <span className="truncate" title={asset.serialNumber}>{asset.serialNumber}</span>
+                            <button onClick={() => copyToClipboard(asset.serialNumber!, 'Nomor Seri')} title="Salin Nomor Seri" className="text-gray-400 hover:text-tm-primary">
+                                <CopyIcon className="w-3.5 h-3.5" />
+                            </button>
+                        </span>
+                    ) : '-'}
+                </InfoItem>
+                <InfoItem icon={ConditionIcon} label="Kondisi">
+                    <span className={conditionColor}>{asset.condition}</span>
+                </InfoItem>
+            </div>
+             <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50/50 border-t rounded-b-xl">
+                <button
+                    onClick={() => onShowDetail({ type: 'asset', id: asset.id })}
+                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-tm-primary transition-colors bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-tm-light"
+                >
+                    <EyeIcon className="w-4 h-4"/>
+                    Detail
+                </button>
+                 <button
+                    onClick={() => onReportDamage(asset)}
+                    disabled={asset.status === AssetStatus.DAMAGED}
+                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-white transition-colors bg-amber-500 border border-amber-500 rounded-lg shadow-sm hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                    <WrenchIcon className="w-4 h-4"/>
+                    Laporkan
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
+const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, assets, assetCategories, setActivePage, onShowPreview, initialFilters, onClearInitialFilters, handovers, requests, onReportDamage }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [itemsPerPage, setItemsPerPage] = useState(9); // Adjusted for card layout
     const [thresholds, setThresholds] = useState<Record<string, number>>({});
     const [editingThresholdKey, setEditingThresholdKey] = useState<string | null>(null);
     const [tempThreshold, setTempThreshold] = useState<string>('');
 
-    const initialFilterState = { category: '', brand: '', lowStockOnly: false };
+    const initialFilterState = { category: '', brand: '', lowStockOnly: false, status: '', condition: '' };
     const [filters, setFilters] = useState(initialFilterState);
     const [tempFilters, setTempFilters] = useState(filters);
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -183,18 +285,25 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
     // --- STAFF-SPECIFIC LOGIC ---
     const myAssets = useMemo(() => {
         if (currentUser.role !== 'Staff') return [];
-        const staffAssets = assets.filter(asset => asset.currentUser === currentUser.name);
-
-        return staffAssets.filter(asset => {
-            const searchLower = searchQuery.toLowerCase();
-            return (
-                asset.name.toLowerCase().includes(searchLower) ||
-                asset.id.toLowerCase().includes(searchLower) ||
-                asset.brand.toLowerCase().includes(searchLower) ||
-                (asset.serialNumber && asset.serialNumber.toLowerCase().includes(searchLower))
-            );
-        });
-    }, [assets, currentUser, searchQuery]);
+        return assets.filter(asset => asset.currentUser === currentUser.name)
+            .filter(asset => {
+                const searchLower = searchQuery.toLowerCase();
+                return (
+                    asset.name.toLowerCase().includes(searchLower) ||
+                    asset.id.toLowerCase().includes(searchLower) ||
+                    asset.brand.toLowerCase().includes(searchLower) ||
+                    (asset.serialNumber && asset.serialNumber.toLowerCase().includes(searchLower))
+                );
+            })
+            .filter(asset => filters.category ? asset.category === filters.category : true)
+            .filter(asset => filters.status ? asset.status === filters.status : true)
+            .filter(asset => {
+                if (!filters.condition) return true;
+                if (filters.condition === 'GOOD') return [AssetCondition.GOOD, AssetCondition.BRAND_NEW, AssetCondition.USED_OKAY].includes(asset.condition);
+                if (filters.condition === 'ATTENTION') return [AssetCondition.MINOR_DAMAGE, AssetCondition.MAJOR_DAMAGE, AssetCondition.FOR_PARTS].includes(asset.condition);
+                return true;
+            });
+    }, [assets, currentUser, searchQuery, filters]);
 
     const { items: sortedMyAssets, requestSort: requestMyAssetsSort, sortConfig: myAssetsSortConfig } = useSortableData(myAssets, { key: 'name', direction: 'ascending' });
     
@@ -208,10 +317,23 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
         const myAssets = assets.filter(a => a.currentUser === currentUser.name);
         return {
             total: myAssets.length,
-            inUse: myAssets.filter(a => a.status === AssetStatus.IN_USE).length,
-            damaged: myAssets.filter(a => a.status === AssetStatus.DAMAGED).length,
+            goodCondition: myAssets.filter(a => [AssetCondition.GOOD, AssetCondition.BRAND_NEW, AssetCondition.USED_OKAY].includes(a.condition)).length,
+            needsAttention: myAssets.filter(a => [AssetCondition.MINOR_DAMAGE, AssetCondition.MAJOR_DAMAGE, AssetCondition.FOR_PARTS].includes(a.condition)).length,
         }
     }, [assets, currentUser]);
+
+    const getDateReceived = (assetId: string, staffName: string): string | null => {
+        const relevantHandovers = handovers
+            .filter(h => h.penerima === staffName && h.items.some(item => item.assetId === assetId))
+            .sort((a, b) => new Date(b.handoverDate).getTime() - new Date(a.handoverDate).getTime());
+        
+        if (relevantHandovers.length > 0) {
+            return new Date(relevantHandovers[0].handoverDate).toLocaleDateString('id-ID', {
+                day: '2-digit', month: 'long', year: 'numeric'
+            });
+        }
+        return null;
+    };
 
 
     // --- ADMIN/MANAGER-SPECIFIC LOGIC ---
@@ -251,7 +373,7 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                     total: 0, 
                     valueInStorage: 0,
                     unitOfMeasure: type?.unitOfMeasure || 'unit',
-                    trackingMethod: type?.trackingMethod || 'individual'
+                    trackingMethod: type?.trackingMethod || 'individual',
                 });
             }
 
@@ -319,7 +441,7 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
         return aggregatedStock
             .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.brand.toLowerCase().includes(searchQuery.toLowerCase()))
             .filter(item => filters.category ? item.category === filters.category : true)
-            .filter(item => filters.brand ? item.brand === filters.brand : true)
+            .filter(item => filters.brand ? item.brand : true)
             .filter(item => {
                 if (!filters.lowStockOnly) return true;
                 const key = `${item.name}|${item.brand}`;
@@ -328,7 +450,7 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
             });
     }, [aggregatedStock, searchQuery, filters, thresholds, currentUser.role]);
 
-    const { items: sortedStock, requestSort, sortConfig } = useSortableData(filteredStock, { key: 'name', direction: 'ascending' });
+    const { items: sortedStock, requestSort: requestStockSort, sortConfig: stockSortConfig } = useSortableData(filteredStock, { key: 'name', direction: 'ascending' });
     
     const totalItems = sortedStock.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -341,80 +463,107 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
     }, [searchQuery, filters, itemsPerPage]);
 
     if (currentUser.role === 'Staff') {
+        const staffCategoryOptions = useMemo(() => [
+            { value: '', label: 'Semua Kategori' },
+            ...[...new Set(myAssets.map(a => a.category))].map(c => ({ value: c, label: c }))
+        ], [myAssets]);
+        const staffStatusOptions = useMemo(() => [
+            { value: '', label: 'Semua Status' },
+            ...[...new Set(myAssets.map(a => a.status))].map(s => ({ value: s, label: s }))
+        ], [myAssets]);
+
+        const StaffStatCard: React.FC<{ title: string; value: number; icon: React.FC<{className?:string}>; color: 'blue' | 'green' | 'amber'; isActive: boolean; onClick: () => void;}> = ({ title, value, icon: Icon, color, isActive, onClick }) => {
+            const colors = {
+                blue: { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' },
+                green: { bg: 'bg-green-50', text: 'text-green-800', border: 'border-green-500' },
+                amber: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-500' },
+            };
+            const currentColors = colors[color];
+            return (
+                <div
+                    onClick={onClick}
+                    className={`relative p-5 rounded-xl border-2 transition-all duration-300 cursor-pointer group hover:shadow-lg hover:-translate-y-1 ${isActive ? `${currentColors.bg} ${currentColors.border}` : 'bg-white border-gray-200/80 hover:border-tm-accent/50'}`}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className={`flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-full ${isActive ? 'bg-white' : currentColors.bg} ${currentColors.text} transition-colors`}>
+                            <Icon className="w-6 h-6"/>
+                        </div>
+                        <div>
+                            <p className="text-3xl font-bold text-tm-dark">{value}</p>
+                            <p className="text-sm font-medium text-gray-500">{title}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         return (
             <div className="p-4 sm:p-6 md:p-8 space-y-8">
-                <h1 className="text-3xl font-bold text-tm-dark">Aset Milik {currentUser.name}</h1>
+                <h1 className="text-3xl font-bold text-tm-dark">Aset Saya</h1>
                 
                 {staffSummary && (
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-                        <SummaryCard title="Total Aset Dimiliki" value={staffSummary.total} icon={ArchiveBoxIcon} />
-                        <SummaryCard title="Aset Digunakan" value={staffSummary.inUse} icon={UsersIcon} />
-                        <SummaryCard title="Aset Rusak" value={staffSummary.damaged} icon={WrenchIcon} />
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                        <StaffStatCard title="Total Aset Saya" value={staffSummary.total} icon={ArchiveBoxIcon} color="blue" isActive={!filters.condition} onClick={() => setFilters(f => ({...f, condition: ''}))} />
+                        <StaffStatCard title="Kondisi Baik" value={staffSummary.goodCondition} icon={BsShieldCheck} color="green" isActive={filters.condition === 'GOOD'} onClick={() => setFilters(f => ({...f, condition: 'GOOD'}))} />
+                        <StaffStatCard title="Perlu Perhatian" value={staffSummary.needsAttention} icon={ExclamationTriangleIcon} color="amber" isActive={filters.condition === 'ATTENTION'} onClick={() => setFilters(f => ({...f, condition: 'ATTENTION'}))} />
                     </div>
                 )}
                 
                 <div className="p-4 bg-white border border-gray-200/80 rounded-xl shadow-md">
-                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"><SearchIcon className="w-5 h-5 text-gray-400" /></div>
-                        <input type="text" placeholder="Cari nama, ID, brand, atau nomor seri..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 py-2 pl-10 pr-4 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent" />
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="relative flex-grow">
+                            <SearchIcon className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 top-1/2 left-3" />
+                            <input type="text" placeholder="Cari nama, ID, brand, atau SN..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 py-2 pl-10 pr-4 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent" />
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex-1">
+                                <CustomSelect options={staffCategoryOptions} value={filters.category} onChange={v => setFilters(f => ({...f, category: v}))} placeholder="Filter Kategori" />
+                            </div>
+                            <div className="flex-1">
+                                <CustomSelect options={staffStatusOptions} value={filters.status} onChange={v => setFilters(f => ({...f, status: v}))} placeholder="Filter Status" />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="overflow-hidden bg-white border border-gray-200/80 rounded-xl shadow-md">
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <MyAssetsSortableHeader columnKey="name" sortConfig={myAssetsSortConfig} requestSort={requestMyAssetsSort}>Nama Aset</MyAssetsSortableHeader>
-                                    <MyAssetsSortableHeader columnKey="category" sortConfig={myAssetsSortConfig} requestSort={requestMyAssetsSort}>Kategori</MyAssetsSortableHeader>
-                                    <MyAssetsSortableHeader columnKey="condition" sortConfig={myAssetsSortConfig} requestSort={requestMyAssetsSort}>Kondisi</MyAssetsSortableHeader>
-                                    <MyAssetsSortableHeader columnKey="status" sortConfig={myAssetsSortConfig} requestSort={requestMyAssetsSort}>Status</MyAssetsSortableHeader>
-                                    <th className="relative px-6 py-3"><span className="sr-only">Aksi</span></th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {myAssetsPaginated.length > 0 ? (
-                                    myAssetsPaginated.map(asset => (
-                                        <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <p className="text-sm font-semibold text-gray-900">{asset.name}</p>
-                                                <p className="text-xs text-gray-500 font-mono">{asset.id} &bull; SN: {asset.serialNumber || 'N/A'}</p>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{asset.category}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{asset.condition}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getAssetStatusClass(asset.status)}`}>
-                                                    {asset.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
-                                                <button onClick={() => onShowPreview({ type: 'asset', id: asset.id })} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-info-light hover:text-info-text" title="Lihat Detail">
-                                                    <EyeIcon className="w-5 h-5"/>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                                            <div className="flex flex-col items-center">
-                                                <InboxIcon className="w-12 h-12 text-gray-400" />
-                                                <h3 className="mt-2 text-sm font-medium text-gray-900">Anda Tidak Memiliki Aset</h3>
-                                                <p className="mt-1 text-sm text-gray-500">Aset yang Anda pegang akan muncul di sini.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                {myAssetsPaginated.length > 0 ? (
+                    <>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {myAssetsPaginated.map(asset => (
+                                <AssetCard
+                                    key={asset.id}
+                                    asset={asset}
+                                    dateReceived={getDateReceived(asset.id, currentUser.name)}
+                                    onShowDetail={onShowPreview}
+                                    onReportDamage={onReportDamage}
+                                />
+                            ))}
+                        </div>
+                         <PaginationControls 
+                             currentPage={currentPage} 
+                             totalPages={myAssetsTotalPages} 
+                             totalItems={myAssetsTotalItems} 
+                             itemsPerPage={itemsPerPage} 
+                             onPageChange={setCurrentPage} 
+                             onItemsPerPageChange={setItemsPerPage} 
+                             startIndex={myAssetsStartIndex} 
+                             endIndex={myAssetsStartIndex + myAssetsPaginated.length} 
+                         />
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500 bg-white border-2 border-dashed rounded-xl">
+                        <InboxIcon className="w-16 h-16 text-gray-300" />
+                        <p className="mt-4 text-lg font-semibold">{searchQuery || Object.values(filters).some(Boolean) ? 'Aset Tidak Ditemukan' : 'Anda Belum Memiliki Aset'}</p>
+                        <p className="mt-1 text-sm">{searchQuery || Object.values(filters).some(Boolean) ? 'Coba ubah kata kunci atau filter pencarian Anda.' : 'Aset yang Anda pegang akan muncul di sini. Jika Anda membutuhkan aset, silakan buat permintaan.'}</p>
+                        <button onClick={() => setActivePage('request')} className="inline-flex items-center justify-center gap-2 mt-4 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover">
+                           <RequestIcon className="w-4 h-4" /> Buat Request Aset Baru
+                        </button>
                     </div>
-                     <PaginationControls currentPage={currentPage} totalPages={myAssetsTotalPages} totalItems={myAssetsTotalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} startIndex={myAssetsStartIndex} endIndex={myAssetsStartIndex + myAssetsPaginated.length} />
-                </div>
+                )}
             </div>
         );
     }
     
-    // Default view for Admin/Manager
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-8">
             <h1 className="text-3xl font-bold text-tm-dark">Stok Aset</h1>
@@ -526,10 +675,12 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <SortableHeader columnKey="name" sortConfig={sortConfig} requestSort={requestSort}>Nama Aset</SortableHeader>
+{/* FIX: Changed prop 'requestSort' to 'requestStockSort' for consistency. */}
+                                <StockSortableHeader columnKey="name" sortConfig={stockSortConfig} requestStockSort={requestStockSort}>Nama Aset</StockSortableHeader>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Ambang Batas</th>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Di Gudang</th>
-                                <SortableHeader columnKey="valueInStorage" sortConfig={sortConfig} requestSort={requestSort} className="text-right">Nilai Stok (Rp)</SortableHeader>
+{/* FIX: Changed prop 'requestSort' to 'requestStockSort' for consistency. */}
+                                <StockSortableHeader columnKey="valueInStorage" sortConfig={stockSortConfig} requestStockSort={requestStockSort} className="text-right">Nilai Stok (Rp)</StockSortableHeader>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Digunakan</th>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Rusak</th>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Total</th>

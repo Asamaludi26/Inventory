@@ -8,8 +8,9 @@ Selamat datang di Panduan Pengguna Aplikasi Inventori Aset PT. Triniti Media Ind
 - Buka aplikasi melalui browser Anda.
 - Masukkan **alamat email** dan **kata sandi** yang telah terdaftar.
 - Anda dapat mencentang "Ingat saya" agar tidak perlu memasukkan email saat login berikutnya.
+- Jika Anda tidak yakin dengan akun yang harus digunakan, klik tombol **"Lihat Akun Demo"** untuk melihat daftar akun yang tersedia.
 
-`[Screenshot: Halaman login dengan field email, password, dan tombol 'Ingat saya' disorot]`
+`[Screenshot: Halaman login dengan field email, password, dan tombol 'Lihat Akun Demo' disorot]`
 
 - Setelah berhasil login, Anda akan diarahkan ke halaman **Dashboard**.
 
@@ -36,16 +37,16 @@ Halaman Dashboard memberikan gambaran umum kondisi inventori dan tugas-tugas yan
 
 ## 3. Fitur Utama (Berdasarkan Peran)
 
-### 3.1. Untuk Semua Pengguna (Staff & Admin)
+### 3.1. Untuk Semua Pengguna (Staff & Manajer)
 
 #### Membuat Request Aset
 Ini adalah fitur untuk mengajukan permintaan pengadaan barang/aset baru.
 1.  Buka halaman **Manajemen Aset > Request Aset**.
 2.  Klik tombol **"Buat Request Baru"**.
 3.  Isi detail formulir:
-    - **Tanggal & Tipe Order**: Pilih tipe order (Regular, Urgent, atau Project). Jika _Urgent_, isi justifikasi.
+    - **Tanggal & Tipe Order**: Pilih tipe order. Jika Anda seorang **Manajer**, Anda dapat memilih `Urgent` atau `Project Based` dan wajib mengisi justifikasi/nama proyek.
     - **Detail Permintaan Barang**: Klik **"Tambah Item"** untuk menambahkan barang yang diminta. Pilih Kategori, Tipe, dan Model. Jumlah stok yang tersedia akan muncul otomatis.
-    > **Catatan untuk Staff**: Pilihan Kategori Aset yang tersedia akan disesuaikan dengan divisi Anda.
+    > **Catatan**: Pilihan Kategori Aset yang tersedia akan disesuaikan dengan divisi Anda.
 4.  Setelah semua item terisi, klik **"Ajukan Permintaan"**.
 5.  Anda dapat memantau status request Anda di halaman daftar request.
 
@@ -54,7 +55,13 @@ Ini adalah fitur untuk mengajukan permintaan pengadaan barang/aset baru.
 #### Melakukan Follow-up
 Jika request Anda belum diproses, Anda dapat mengirim notifikasi pengingat kepada Admin.
 1.  Di halaman daftar **Request Aset**, cari request Anda.
-2.  Klik tombol **"Follow Up"** pada baris request tersebut. Admin akan menerima notifikasi.
+2.  Klik tombol **"Follow Up"** pada baris request tersebut. Admin akan menerima notifikasi. Fitur ini hanya dapat digunakan sekali dalam 24 jam per request.
+
+#### Melihat & Melaporkan Aset Pribadi
+1.  Buka halaman **Manajemen Aset > Stok Aset**. Halaman ini akan secara otomatis menampilkan daftar aset yang terdaftar atas nama Anda.
+2.  Untuk melaporkan kerusakan, temukan aset yang rusak, lalu klik tombol **"Laporkan"** (ikon kunci pas).
+3.  Isi formulir laporan kerusakan dengan detail masalah dan lampirkan foto jika perlu.
+4.  Kirim laporan. Tim Admin akan menerima notifikasi dan menindaklanjuti.
 
 ### 3.2. Untuk Admin & Super Admin
 
@@ -75,32 +82,37 @@ Fitur ini digunakan untuk mendaftarkan barang yang telah tiba ke dalam sistem se
 2.  **Manual**: Buka halaman **Manajemen Aset > Catat Aset** dan klik **"Catat Aset Baru"**.
 3.  Isi formulir pencatatan secara lengkap:
     - **Informasi Dasar**: Kategori, Tipe, dan Model Aset.
-    - **Detail Unit**: Masukkan Nomor Seri dan MAC Address. Anda bisa menggunakan tombol **Pindai QR** untuk mengisinya secara otomatis. Jika mencatat lebih dari satu unit, klik **"Tambah Unit"**.
-    - **Informasi Pembelian**: Harga, vendor, tanggal beli, dan garansi.
-    - **Lokasi & Kondisi**: Tentukan kondisi aset saat diterima dan lokasi penyimpanannya.
-4.  Klik **"Simpan Aset Baru"**. Aset akan tercatat dan statusnya menjadi "Disimpan".
+    - **Detail Unit**: Masukkan Nomor Seri dan MAC Address. Anda bisa menggunakan tombol **Pindai QR** untuk mengisinya secara otomatis.
+4.  Klik **"Simpan Aset Baru"**.
+
+#### Mengelola Stok Aset
+Buka **Manajemen Aset > Stok Aset** untuk melihat ringkasan semua tipe aset yang ada di perusahaan.
+-   Lihat jumlah aset di gudang, yang sedang digunakan, dan yang rusak.
+-   Filter berdasarkan kategori, brand, atau status stok (misal: "Stok Menipis").
+-   Mulai permintaan baru langsung dari item yang stoknya habis.
 
 #### Mengelola Handover (Serah Terima Internal)
 Fitur ini mencatat perpindahan aset dari satu staf/divisi ke staf/divisi lain.
 1.  Buka halaman **Manajemen Aset > Handover Aset**.
 2.  Klik **"Buat Handover Baru"**.
-3.  Isi formulir Berita Acara:
-    - **Pihak Terlibat**: Tentukan siapa yang menyerahkan, menerima, dan mengetahui.
-    - **Detail Barang**: Klik **"Tambah Aset"** dan pilih aset yang akan diserahkan dari daftar aset yang tersedia di gudang.
-4.  Klik **"Proses Handover"**. Status aset akan otomatis berubah menjadi "Digunakan" dan lokasinya diperbarui.
+3.  Isi formulir Berita Acara: pilih aset dari gudang dan pihak yang terlibat.
+4.  Klik **"Proses Handover"**. Status aset akan otomatis berubah menjadi "Digunakan".
 
 #### Mengelola Dismantle (Penarikan Aset dari Pelanggan)
-Fitur ini digunakan saat aset ditarik kembali dari lokasi pelanggan.
-1.  Buka halaman **Daftar Pelanggan** atau **Catat Aset** untuk menemukan aset yang terpasang.
+1.  Buka halaman **Daftar Pelanggan** atau **Catat Aset**.
 2.  Dari detail pelanggan atau detail aset, klik tombol **"Tarik dari Pelanggan"**.
-3.  Anda akan diarahkan ke formulir Berita Acara Dismantle dengan data yang sudah terisi.
-4.  Lengkapi informasi yang diperlukan, seperti kondisi aset saat ditarik dan catatan.
-5.  Klik **"Proses Dismantle"**. Dokumen akan dibuat.
-6.  Setelah aset fisik tiba di gudang, Admin Gudang harus membuka detail dismantle ini dan mengklik **"Acknowledge & Complete"** untuk menyelesaikan proses dan mengembalikan aset ke stok.
+3.  Lengkapi formulir Berita Acara Dismantle.
+4.  Setelah aset tiba di gudang, Admin Gudang harus membuka detail dismantle ini dan mengklik **"Acknowledge & Complete"** untuk mengembalikan aset ke stok.
+
+#### Mengelola Perbaikan Aset
+1.  Buka **Manajemen Aset > Perbaikan Aset**.
+2.  Halaman ini menampilkan semua aset yang dilaporkan rusak atau sedang dalam perbaikan.
+3.  Klik **"Mulai Perbaikan"** pada aset yang rusak untuk mencatat teknisi/vendor dan estimasi selesai.
+4.  Gunakan tombol **"Update"** atau **"Selesaikan"** untuk memperbarui status perbaikan.
 
 #### Mengelola Pelanggan & Pengguna
-- **Pelanggan**: Buka **Daftar Pelanggan** untuk menambah, mengedit, atau melihat detail pelanggan, termasuk aset apa saja yang terpasang.
-- **Akun & Divisi**: Buka **Pengaturan > Akun & Divisi** untuk mengelola akun pengguna dan daftar divisi perusahaan.
+- **Pelanggan**: Buka **Daftar Pelanggan** untuk menambah, mengedit, atau melihat detail pelanggan.
+- **Akun & Divisi**: (Hanya Super Admin) Buka **Pengaturan > Akun & Divisi** untuk mengelola akun pengguna dan daftar divisi perusahaan.
 
 #### Mengelola Kategori
 Buka **Pengaturan > Kategori & Model** untuk menambah atau mengubah Kategori, Tipe, dan Model Standar Aset. Ini memungkinkan sistem untuk beradaptasi dengan jenis-jenis aset baru di masa depan.

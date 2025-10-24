@@ -1,19 +1,21 @@
 # Tumpukan Teknologi (Technology Stack)
 
-Dokumen ini merinci tumpukan teknologi yang dipilih untuk pengembangan Aplikasi Inventori Aset, beserta alasan strategis di balik setiap pilihan. Memahami "mengapa" akan membantu dalam pengambilan keputusan teknis di masa depan dan orientasi anggota tim baru.
+Dokumen ini merinci tumpukan teknologi yang dipilih untuk pengembangan Aplikasi Inventori Aset, beserta alasan strategis di balik setiap pilihan.
 
-## Frontend (Client-Side)
+> **Catatan Penting**: Tumpukan teknologi backend yang dijelaskan di bawah ini adalah **arsitektur target** yang direkomendasikan untuk implementasi sisi server. Prototipe saat ini menggunakan **Mock API** di dalam frontend yang memanfaatkan `localStorage` browser untuk simulasi persistensi data.
+
+## Frontend (Client-Side) - Telah Diimplementasikan
 
 | Teknologi          | Peran                    | Alasan Pemilihan                                                                                                                                                                                            |
 | ------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **React**          | Framework UI             | Ekosistem yang sangat matang, dukungan komunitas yang luas, dan arsitektur berbasis komponen yang mendorong reusabilitas kode. Ideal untuk membangun antarmuka pengguna yang interaktif dan kompleks.           |
 | **TypeScript**     | Bahasa Pemrograman       | Menambahkan _static typing_ di atas JavaScript, mengurangi bug runtime, meningkatkan _developer experience_ melalui _autocompletion_, dan membuat _codebase_ lebih mudah dipelihara saat proyek berkembang.   |
-| **Vite**           | Build Tool & Dev Server  | Menawarkan pengalaman pengembangan yang sangat cepat (_blazing-fast_) berkat _Hot Module Replacement_ (HMR) berbasis ESM dan _build performance_ yang dioptimalkan.                                         |
+| **React Hooks**    | Manajemen State          | Menggunakan hooks bawaan (`useState`, `useContext`, `useMemo`) untuk manajemen state. State global diangkat ke komponen root (`App.tsx`) dan didistribusikan ke bawah, memberikan solusi sederhana dan efektif untuk skala prototipe ini. |
 | **Tailwind CSS**   | Framework CSS            | Pendekatan _utility-first_ mempercepat proses styling, memastikan konsistensi visual, dan menghilangkan kebutuhan untuk menulis CSS kustom yang berlebihan. Sangat mudah untuk membuat desain yang responsif. |
-| **Zustand**        | Manajemen State Global   | Alternatif yang ringan dan sederhana untuk Redux. Menggunakan API berbasis hooks yang terasa natural di React, tanpa _boilerplate_ yang rumit. Cukup kuat untuk mengelola state global aplikasi.              |
-| **React Icons**    | Pustaka Ikon             | Menyediakan akses mudah ke ribuan ikon populer dari berbagai set ikon (Font Awesome, Material Icons, dll.) sebagai komponen React, memastikan konsistensi dan kemudahan penggunaan.                        |
+| **React Icons**    | Pustaka Ikon             | Menyediakan akses mudah ke ribuan ikon populer dari berbagai set ikon sebagai komponen React, memastikan konsistensi dan kemudahan penggunaan.                        |
+| **Mock API Layer** | Simulasi Backend         | Sebuah lapisan layanan (`src/services/api.ts`) yang meniru perilaku API backend dengan membaca dan menulis data ke `localStorage`. Ini memungkinkan pengembangan dan pengujian frontend secara penuh dan independen. |
 
-## Backend (Server-Side)
+## Backend (Server-Side) - Target Implementasi
 
 | Teknologi           | Peran                          | Alasan Pemilihan                                                                                                                                                                                                                             |
 | ------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -30,6 +32,6 @@ Dokumen ini merinci tumpukan teknologi yang dipilih untuk pengembangan Aplikasi 
 | Teknologi      | Peran                | Alasan Pemilihan                                                                                                                                             |
 | -------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Git**        | Version Control      | Standar industri untuk kontrol versi, memungkinkan kolaborasi tim yang efisien, pelacakan riwayat perubahan, dan manajemen cabang yang kuat.                   |
-| **pnpm**       | Package Manager      | Manajer paket yang cepat dan efisien dalam penggunaan ruang disk. Mendukung _monorepo_ secara native, yang cocok untuk struktur proyek `frontend/` dan `backend/`. |
+| **pnpm**       | Package Manager      | Manajer paket yang cepat dan efisien dalam penggunaan ruang disk.                                                                                            |
 | **ESLint**     | Linter               | Menganalisis kode secara statis untuk menemukan masalah, bug, dan inkonsistensi gaya penulisan kode. Membantu menjaga kualitas kode.                            |
 | **Prettier**   | Formatter Kode       | Memformat kode secara otomatis sesuai dengan aturan yang telah ditentukan, memastikan gaya penulisan yang konsisten di seluruh proyek tanpa perdebatan manual.   |

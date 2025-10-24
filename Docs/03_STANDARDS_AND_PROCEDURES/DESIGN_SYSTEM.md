@@ -66,12 +66,36 @@ Warna-warna ini digunakan untuk memberikan umpan balik visual yang cepat kepada 
 -   **Label**: Selalu ada di atas input, jelas, dan ringkas.
 -   **Input Field**: Latar `bg-gray-50`, border `border-gray-300`. Saat fokus, harus memiliki highlight `ring-tm-accent`.
 -   **Pesan Error**: Tampil di bawah input yang relevan dengan warna `text-danger-text`.
--   **Select/Dropdown**: Menggunakan komponen kustom `CustomSelect` untuk tampilan yang konsisten di semua browser.
+-   **Select/Dropdown**: Menggunakan komponen kustom `CustomSelect` dan `CreatableSelect` untuk tampilan yang konsisten di semua browser.
 
 ### Tabel
 -   **Header**: Latar `bg-gray-50`, teks `font-semibold` dan berwarna `text-gray-500`.
 -   **Baris**: Latar putih, dengan efek `hover:bg-gray-50` untuk memberikan umpan balik.
 -   **Aksi**: Tombol aksi (Edit, Hapus) ditempatkan di kolom terakhir, biasanya menggunakan ikon untuk menghemat ruang.
+
+### Stamps (Stempel)
+-   **Tujuan**: Memberikan representasi visual yang kuat untuk status persetujuan atau penolakan pada dokumen.
+-   **Jenis**:
+    -   `ApprovalStamp`: Warna hijau, teks "APPROVED".
+    -   `RejectionStamp`: Warna merah, teks "REJECTED".
+    -   `SignatureStamp`: Warna biru, menampilkan tanda tangan digital (nama).
+-   **Penggunaan**: Ditempatkan di area tanda tangan pada dokumen BAST, Dismantle, atau detail Request.
+
+### Avatar
+-   **Tujuan**: Merepresentasikan pengguna secara visual menggunakan inisial nama mereka.
+-   **Desain**: Lingkaran dengan warna latar belakang yang dihasilkan secara konsisten dari nama pengguna, menampilkan 1-2 huruf inisial.
+
+### Tooltip
+-   **Tujuan**: Memberikan informasi tambahan pada elemen UI saat pengguna mengarahkan kursor ke atasnya.
+-   **Desain**: Kotak kecil berwarna `bg-tm-primary` dengan teks putih yang muncul di dekat elemen target.
+
+### Pagination Controls
+-   **Tujuan**: Memungkinkan navigasi pada daftar data yang panjang.
+-   **Struktur**: Termasuk tombol "Sebelumnya" & "Selanjutnya", informasi jumlah data yang ditampilkan, dan pilihan untuk mengubah jumlah item per halaman.
+
+### Floating Action Bar
+-   **Tujuan**: Menjaga agar tombol aksi utama (seperti "Simpan") selalu terlihat di layar saat pengguna menggulir halaman formulir yang panjang.
+-   **Perilaku**: Muncul di bagian bawah layar saat tombol aksi utama di bagian bawah formulir tidak terlihat.
 
 ## 5. Aksesibilitas (A11y)
 

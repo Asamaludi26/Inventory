@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus, PreviewData, ActivityLogEntry, AssetCategory } from '../../types';
 import Modal from '../../components/ui/Modal';
 import { ClickableLink } from '../../components/ui/ClickableLink';
@@ -20,6 +21,12 @@ import { DownloadIcon } from '../../components/icons/DownloadIcon';
 import { EyeIcon } from '../../components/icons/EyeIcon';
 import { CopyIcon } from '../../components/icons/CopyIcon';
 import { Tooltip } from '../../components/ui/Tooltip';
+import { WrenchIcon } from '../../components/icons/WrenchIcon';
+import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
+import { CheckIcon } from '../../components/icons/CheckIcon';
+import { ExclamationTriangleIcon } from '../../components/icons/ExclamationTriangleIcon';
+import { TrashIcon } from '../../components/icons/TrashIcon';
+import { UsersIcon } from '../../components/icons/UsersIcon';
 
 interface PreviewModalProps {
     currentUser: User;
@@ -38,6 +45,13 @@ interface PreviewModalProps {
     onInitiateHandover: (asset: Asset) => void;
     onInitiateDismantle: (asset: Asset) => void;
     onInitiateInstallation: (asset: Asset) => void;
+    onReportDamage: (asset: Asset) => void;
+    onStartRepair: (asset: Asset) => void;
+    onMarkAsRepaired: (asset: Asset) => void;
+    onDecommission: (asset: Asset) => void;
+    // FIX: Add onReceiveFromRepair and onAddProgressUpdate to props to resolve type errors in App.tsx.
+    onReceiveFromRepair: (asset: Asset) => void;
+    onAddProgressUpdate: (asset: Asset) => void;
 }
 
 const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?: React.ReactNode; fullWidth?: boolean }> = ({ label, value, children, fullWidth = false }) => (
@@ -56,11 +70,57 @@ const getRoleClass = (role: User['role']) => {
     }
 }
 
+const RepairStatusCard: React.FC<{ asset: Asset }> = ({ asset }) => {
+    const repairInfo = useMemo(() => {
+        const reportLog = [...(asset.activityLog || [])].reverse().find(log => log.action === 'Kerusakan Dilaporkan');
+        const startLog = [...(asset.activityLog || [])].reverse().find(log => log.action === 'Proses Perbaikan Dimulai');
+
+        const originalReport = reportLog?.details.match(/deskripsi: "(.*?)"/)?.[1] || 'Tidak ada deskripsi.';
+        const reporter = reportLog?.user || 'N/A';
+        const reportDate = reportLog ? new Date(reportLog.timestamp).toLocaleString('id-ID') : 'N/A';
+        
+        const technician = startLog?.details.match(/oleh (.*?)\./)?.[1] || null;
+        const estimatedDate = startLog?.details.match(/selesai: (.*?)\./)?.[1] || null;
+
+        return { originalReport, reporter, reportDate, technician, estimatedDate };
+    }, [asset.activityLog]);
+
+    const isUnderRepair = asset.status === AssetStatus.UNDER_REPAIR;
+
+    return (
+        <div className={`p-4 rounded-lg border-l-4 ${isUnderRepair ? 'bg-blue-50 border-blue-500' : 'bg-amber-50 border-amber-500'}`}>
+            <div className="flex items-center gap-3 mb-3">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${isUnderRepair ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                    {isUnderRepair ? <SpinnerIcon className="animate-spin" /> : <WrenchIcon />}
+                </div>
+                <h3 className="text-lg font-bold text-gray-800">
+                    Status Perbaikan: <span className={isUnderRepair ? 'text-blue-700' : 'text-amber-700'}>{isUnderRepair ? 'Dalam Perbaikan' : 'Menunggu Aksi Admin'}</span>
+                </h3>
+            </div>
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                <PreviewItem label="Dilaporkan oleh" value={repairInfo.reporter} />
+                <PreviewItem label="Tanggal Laporan" value={repairInfo.reportDate} />
+                <PreviewItem label="Deskripsi Laporan" fullWidth>
+                    <p className="italic text-gray-600">"{repairInfo.originalReport}"</p>
+                </PreviewItem>
+                {isUnderRepair && (
+                    <>
+                        <PreviewItem label="Ditangani oleh" value={repairInfo.technician || 'N/A'} />
+                        <PreviewItem label="Estimasi Selesai" value={repairInfo.estimatedDate || 'N/A'} />
+                    </>
+                )}
+            </dl>
+        </div>
+    );
+};
+
+
 const PreviewModal: React.FC<PreviewModalProps> = (props) => {
     const { 
         currentUser,
         previewData, onClose, onShowPreview, onEditItem, assets, customers, users, requests, handovers, dismantles, divisions, 
-        assetCategories, onInitiateHandover, onInitiateDismantle, onInitiateInstallation
+        assetCategories, onInitiateHandover, onInitiateDismantle, onInitiateInstallation, onReportDamage, onStartRepair, onMarkAsRepaired, onDecommission,
+        onReceiveFromRepair, onAddProgressUpdate
     } = props;
     const [history, setHistory] = useState<PreviewData[]>([]);
     const [activeAssetTab, setActiveAssetTab] = useState<'details' | 'history' | 'attachments'>('details');
@@ -77,7 +137,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
             setActiveAssetTab('details');
         }
 
-    }, [previewData]);
+    }, [previewData, history]);
 
     const handleBreadcrumbClick = (index: number) => {
         const targetData = history[index];
@@ -119,6 +179,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
         const statusMap: Record<string, string> = {
             [AssetStatus.IN_STORAGE]: 'Disimpan',
             [AssetStatus.IN_USE]: 'Digunakan',
+            [AssetStatus.UNDER_REPAIR]: 'Dalam Perbaikan',
             [AssetStatus.DAMAGED]: 'Rusak',
         };
 
@@ -135,6 +196,9 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                     if (action.includes('Dismantle')) return <DismantleIcon className={iconClass} />;
                     if (action.includes('Diperbarui')) return <PencilIcon className={iconClass} />;
                     if (action.includes('Status')) return <TagIcon className={iconClass} />;
+                    if (action.includes('Kerusakan Dilaporkan')) return <WrenchIcon className={iconClass} />;
+                    if (action.includes('Perbaikan Dimulai')) return <SpinnerIcon className={`${iconClass} animate-spin`} />;
+                    if (action.includes('Perbaikan Selesai')) return <CheckIcon className={iconClass} />;
                     return <InfoIcon className={iconClass} />;
                 };
 
@@ -154,6 +218,9 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                             </nav>
                         </div>
                         <div className="py-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            {[AssetStatus.DAMAGED, AssetStatus.UNDER_REPAIR, AssetStatus.OUT_FOR_REPAIR].includes(asset.status) && (
+                                <div className="mb-6"><RepairStatusCard asset={asset} /></div>
+                            )}
                             {activeAssetTab === 'details' && (
                                 <div className="space-y-6">
                                     <div>
@@ -331,7 +398,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                     .filter(a => a.name === name && a.brand === brand)
                     .flatMap(asset => 
                         asset.activityLog
-                            .filter(log => ['Aset Dicatat', 'Serah Terima Internal', 'Instalasi Pelanggan', 'Dismantle dari Pelanggan'].includes(log.action))
+                            .filter(log => ['Aset Dicatat', 'Serah Terima Internal', 'Instalasi Pelanggan', 'Dismantle Selesai'].includes(log.action))
                             .map(log => {
                                 let direction: 'IN' | 'OUT' = 'IN';
                                 if (['Serah Terima Internal', 'Instalasi Pelanggan'].includes(log.action)) {
@@ -495,6 +562,9 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
             if (!asset) return baseButtons;
             const category = assetCategories.find(c => c.name === asset.category);
             const canBeInstalled = category?.isCustomerInstallable;
+            const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'Super Admin';
+            const isOwner = currentUser.name === asset.currentUser;
+            const canReportDamage = isOwner && ![AssetStatus.DAMAGED, AssetStatus.UNDER_REPAIR, AssetStatus.OUT_FOR_REPAIR].includes(asset.status);
 
             return (
                 <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center w-full gap-3">
@@ -507,6 +577,36 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                         )}
                     </div>
                     <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 w-full sm:w-auto">
+                        {canReportDamage && (
+                            <button onClick={() => { onReportDamage(asset); handleClose(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-amber-500 rounded-lg shadow-sm hover:bg-amber-600">
+                                <WrenchIcon className="w-4 h-4"/> Laporkan Kerusakan
+                            </button>
+                        )}
+                         {isAdmin && asset.status === AssetStatus.DAMAGED && (
+                            <button onClick={() => { onStartRepair(asset); handleClose(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700">
+                                <SpinnerIcon className="w-4 h-4"/> Mulai Proses Perbaikan
+                            </button>
+                         )}
+                         {isAdmin && [AssetStatus.UNDER_REPAIR, AssetStatus.OUT_FOR_REPAIR].includes(asset.status) && (
+                            <button onClick={() => { onAddProgressUpdate(asset); handleClose(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700">
+                                <InfoIcon className="w-4 h-4"/> Tambah Update
+                            </button>
+                         )}
+                         {isAdmin && asset.status === AssetStatus.OUT_FOR_REPAIR && (
+                            <button onClick={() => { onReceiveFromRepair(asset); handleClose(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700">
+                                <CheckIcon className="w-4 h-4"/> Terima dari Perbaikan
+                            </button>
+                         )}
+                         {isAdmin && asset.status === AssetStatus.UNDER_REPAIR && (
+                            <div className="flex flex-col sm:flex-row gap-2 w-full">
+                                <button onClick={() => { onMarkAsRepaired(asset); handleClose(); }} className="w-full justify-center inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700">
+                                    <CheckIcon className="w-4 h-4"/> Tandai Selesai Diperbaiki
+                                </button>
+                                <button onClick={() => { onDecommission(asset); handleClose(); }} className="w-full justify-center inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg shadow-sm hover:bg-red-700">
+                                    <TrashIcon className="w-4 h-4"/> Tandai Diberhentikan
+                                </button>
+                            </div>
+                        )}
                         {asset.status === AssetStatus.IN_STORAGE && (
                             <>
                                 <button onClick={() => { onInitiateHandover(asset); handleClose(); }} className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700">
@@ -518,7 +618,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                                     </button>
                                 ) : (
                                     <Tooltip text="Kategori aset ini tidak dapat diinstal ke pelanggan.">
-                                        <div className="w-full sm:w-auto">
+                                        <div className="w-full sm:w-auto">{/* Wrapper for Tooltip */}
                                             <button disabled className="w-full justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gray-400 rounded-lg cursor-not-allowed">
                                                 <CustomerIcon className="w-4 h-4"/> Pasang ke Pelanggan
                                             </button>
