@@ -27,33 +27,46 @@ Bagian ini menyediakan contoh visual konkret untuk diagram-diagram utama yang di
 Diagram ini menunjukkan fungsionalitas utama yang dapat diakses oleh setiap peran pengguna (aktor) dalam sistem.
 
 ```mermaid
-usecaseDiagram
-  left to right direction
-  actor "Staff / Leader" as Staff
-  actor "Admin Logistik" as AdminL
-  actor "Admin Purchase" as AdminP
-  actor "Super Admin" as SuperAdmin
+graph LR
+    %% Aktor Pengguna
+    Staff["Staff / Leader"]
+    AdminL["Admin Logistik"]
+    AdminP["Admin Purchase"]
+    SuperAdmin["Super Admin"]
 
-  AdminL --|> Staff
-  AdminP --|> Staff
-  SuperAdmin --|> AdminL
-  SuperAdmin --|> AdminP
+    subgraph "Aplikasi Inventori Aset"
+        direction TB
+        subgraph " "
+            UC1(Membuat Request Aset)
+            UC2(Melihat Aset Pribadi)
+            UC3(Melaporkan Kerusakan)
+        end
+        subgraph " "
+            UC4(Mencatat Aset Baru)
+            UC5(Mengelola Handover/Dismantle)
+            UC6(Mengelola Perbaikan Aset)
+        end
+        subgraph " "
+            UC7(Menyetujui Request)
+            UC8(Mengisi Detail Pembelian)
+        end
+        subgraph " "
+            UC9(Mengelola Pengguna & Divisi)
+            UC10(Memberi Persetujuan Final)
+        end
+    end
+    
+    %% Relasi Pewarisan (Generalisasi)
+    AdminL -- "mewarisi hak" --> Staff
+    AdminP -- "mewarisi hak" --> Staff
+    SuperAdmin -- "mewarisi hak" --> AdminL
+    SuperAdmin -- "mewarisi hak" --> AdminP
 
-  rectangle "Aplikasi Inventori Aset" {
-    Staff -- (Membuat Request Aset)
-    Staff -- (Melihat Aset Pribadi)
-    Staff -- (Melaporkan Kerusakan)
-
-    AdminL -- (Mencatat Aset Baru)
-    AdminL -- (Mengelola Handover/Dismantle)
-    AdminL -- (Mengelola Perbaikan Aset)
-
-    AdminP -- (Menyetujui Request)
-    AdminP -- (Mengisi Detail Pembelian)
-
-    SuperAdmin -- (Mengelola Pengguna & Divisi)
-    SuperAdmin -- (Memberi Persetujuan Final)
-  }
+    %% Relasi Asosiasi (Tugas Utama)
+    Staff --- UC1 & UC2 & UC3
+    AdminL --- UC4 & UC5 & UC6
+    AdminP --- UC7 & UC8
+    SuperAdmin --- UC9 & UC10
 ```
 
 ### Contoh 2: BPMN Diagram - Alur Kerja Permintaan Aset
