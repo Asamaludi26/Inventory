@@ -35,6 +35,8 @@ type MenuItem = {
   children?: MenuItem[];
   page?: Page; // The page ID it navigates to, if different from id
   filter?: Record<string, any>; // Filters to pass to the page
+  isExternal?: boolean; // To handle external links
+  path?: string; // Path for external links
 };
 
 const allMenuItems: MenuItem[] = [
@@ -72,6 +74,17 @@ const allMenuItems: MenuItem[] = [
         { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon, roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'] },
     ]
   },
+   {
+    id: 'businessDocs',
+    label: 'Dokumen Bisnis',
+    icon: FileTextIcon,
+    roles: ['Super Admin', 'Admin Purchase'],
+    children: [
+        { id: 'quotation', page: 'quotation', label: 'Proposal Penawaran', icon: FileSignatureIcon, isExternal: true, path: '/Docs/Business/quotation.html' },
+        { id: 'perjanjian', page: 'perjanjian', label: 'Perjanjian Kerja', icon: FileSignatureIcon, isExternal: true, path: '/Docs/Business/perjanjian.html' },
+        { id: 'bak', page: 'bak', label: 'Berita Acara Kerjasama', icon: JournalCheckIcon, isExternal: true, path: '/Docs/Business/bak.html' },
+    ]
+  },
 ];
 
 
@@ -87,6 +100,30 @@ const NavLink: React.FC<{
   const activeClasses = 'bg-gray-700/60 text-white';
   const inactiveClasses = 'text-gray-400 hover:bg-gray-700/40 hover:text-white';
 
+  const linkContent = (
+    <>
+        {isActive && !item.isExternal && <span className="absolute inset-y-0 left-0 w-1 bg-tm-accent rounded-r-full"></span>}
+        <item.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isActive ? 'text-white' : 'text-gray-500'}`} />
+        <span>{item.label}</span>
+        {item.isExternal && (
+            <svg className="w-4 h-4 ml-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+        )}
+    </>
+  );
+
+  if (item.isExternal) {
+      return (
+          <a
+            href={item.path}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${baseClasses} ${inactiveClasses}`}
+          >
+            {linkContent}
+          </a>
+      );
+  }
+
   return (
     <a
       href="#"
@@ -96,9 +133,7 @@ const NavLink: React.FC<{
       }}
       className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
     >
-      {isActive && <span className="absolute inset-y-0 left-0 w-1 bg-tm-accent rounded-r-full"></span>}
-      <item.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isActive ? 'text-white' : 'text-gray-500'}`} />
-      <span>{item.label}</span>
+        {linkContent}
     </a>
   );
 };
@@ -191,7 +226,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                         return (
                             <NavLink 
                                 key={item.id} 
-                                item={item as any}
+                                item={item}
                                 activePage={activePage} 
                                 onClick={() => handleNavClick(item.id as Page)}
                             />
@@ -222,7 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                                             return (
                                                 <NavLink
                                                     key={child.id}
-                                                    item={child as any}
+                                                    item={child}
                                                     activePage={activePage}
                                                     onClick={() => handleNavClick((child.page || child.id) as Page, child.filter)}
                                                     isSubmenu={true}
@@ -249,7 +284,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                                                         {child.children.map((grandchild) => (
                                                              <NavLink
                                                                 key={grandchild.id}
-                                                                item={grandchild as any}
+                                                                item={grandchild}
                                                                 activePage={activePage}
                                                                 onClick={() => handleNavClick((grandchild.page || grandchild.id) as Page, grandchild.filter)}
                                                                 isSubmenu={true}

@@ -20,7 +20,7 @@
 
 # Ringkasan Eksekutif
 
-Laporan ini menandai penyelesaian dan serah terima resmi dari proyek pengembangan **Aplikasi Inventori Aset** untuk PT. Triniti Media Indonesia. Proyek ini telah berhasil dilaksanakan sesuai dengan seluruh ruang lingkup, jadwal, dan tujuan yang telah disepakati dalam [Proposal Penawaran (Q-INV/AS/X/2025/001)](./Business/quotation.md) dan dikukuhkan dalam [Perjanjian Kerja (001/SPK-DEV/TMI-AS/X/2025)](./Business/perjanjian.md).
+Laporan ini menandai penyelesaian dan serah terima resmi dari proyek pengembangan **Aplikasi Inventori Aset** untuk PT. Triniti Media Indonesia. Proyek ini telah berhasil dilaksanakan sesuai dengan seluruh ruang lingkup, jadwal, dan tujuan yang telah disepakati dalam [Proposal Penawaran (Q-INV/AS/X/2025/001)](./Business/quotation.html) dan dikukuhkan dalam [Perjanjian Kerja (001/SPK-DEV/TMI-AS/X/2025)](./Business/perjanjian.html).
 
 Hasil akhir yang diserahkan adalah sebuah **Prototipe Frontend Fungsional Penuh (*High-Fidelity Functional Frontend Prototype*)**. Aplikasi ini secara komprehensif merealisasikan seluruh antarmuka pengguna (UI/UX) dan alur kerja sisi klien dari sistem manajemen aset yang dirancang. Sistem ini secara spesifik mengatasi tantangan operasional PT. Triniti Media Indonesia dengan mendigitalkan seluruh siklus hidup aset—mulai dari proses permintaan barang, persetujuan multi-level, pencatatan aset baru, serah terima internal, instalasi di lokasi pelanggan, hingga proses penarikan kembali (*dismantle*) dan perbaikan aset.
 
@@ -492,7 +492,7 @@ Dengan selesainya laporan ini, item-item berikut secara resmi diserahterimakan k
 | **Dokumen Bisnis**      | Proposal Penawaran, Perjanjian Kerja, dan Berita Acara Kerjasama.  | File di dalam folder `/Docs/Business`.                         |
 
 ### 7.2. Masa Garansi dan Dukungan Teknis
-Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.md) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
+Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.html) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
 
 ### 7.3. Rekomendasi Pengembangan Lanjutan
 Aplikasi ini memiliki fondasi yang kuat untuk dikembangkan lebih lanjut. Berikut adalah beberapa rekomendasi fitur untuk masa depan:
@@ -519,12 +519,12 @@ Berikut adalah contoh peta jalan pengembangan yang dapat diadopsi.
 
 ### Lampiran A: Salinan Proposal Penawaran
 Dokumen proposal penawaran asli yang merinci lingkup, fitur, dan investasi proyek dapat diakses pada file berikut:
--   [**Dokumen Proposal Penawaran**](./Business/quotation.md)
+-   [**Dokumen Proposal Penawaran**](./Business/quotation.html)
 
 ### Lampiran B: Salinan Perjanjian Kerja
 Dokumen legal yang mengikat perjanjian pelaksanaan pekerjaan antara pengembang dan klien dapat diakses pada file berikut:
--   [**Dokumen Perjanjian Kerja**](./Business/perjanjian.md)
+-   [**Dokumen Perjanjian Kerja**](./Business/perjanjian.html)
 
 ### Lampiran C: Salinan Berita Acara Kerjasama
 Dokumen berita acara yang merangkum poin-poin kesepakatan kerjasama teknis dan operasional.
--   [**Dokumen Berita Acara Kerjasama**](./Business/bak.md)
+-   [**Dokumen Berita Acara Kerjasama**](./Business/bak.html)

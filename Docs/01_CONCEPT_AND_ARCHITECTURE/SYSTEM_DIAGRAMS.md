@@ -27,32 +27,33 @@ Bagian ini menyediakan contoh visual konkret untuk diagram-diagram utama yang di
 Diagram ini menunjukkan fungsionalitas utama yang dapat diakses oleh setiap peran pengguna (aktor) dalam sistem.
 
 ```mermaid
-left to right direction
-actor "Staff / Leader" as Staff
-actor "Admin Logistik" as AdminL
-actor "Admin Purchase" as AdminP
-actor "Super Admin" as SuperAdmin
+usecaseDiagram
+  left to right direction
+  actor "Staff / Leader" as Staff
+  actor "Admin Logistik" as AdminL
+  actor "Admin Purchase" as AdminP
+  actor "Super Admin" as SuperAdmin
 
-AdminL --|> Staff
-AdminP --|> Staff
-SuperAdmin --|> AdminL
-SuperAdmin --|> AdminP
+  AdminL --|> Staff
+  AdminP --|> Staff
+  SuperAdmin --|> AdminL
+  SuperAdmin --|> AdminP
 
-rectangle "Aplikasi Inventori Aset" {
-  Staff -- (Membuat Request Aset)
-  Staff -- (Melihat Aset Pribadi)
-  Staff -- (Melaporkan Kerusakan)
+  rectangle "Aplikasi Inventori Aset" {
+    Staff -- (Membuat Request Aset)
+    Staff -- (Melihat Aset Pribadi)
+    Staff -- (Melaporkan Kerusakan)
 
-  AdminL -- (Mencatat Aset Baru)
-  AdminL -- (Mengelola Handover/Dismantle)
-  AdminL -- (Mengelola Perbaikan Aset)
+    AdminL -- (Mencatat Aset Baru)
+    AdminL -- (Mengelola Handover/Dismantle)
+    AdminL -- (Mengelola Perbaikan Aset)
 
-  AdminP -- (Menyetujui Request)
-  AdminP -- (Mengisi Detail Pembelian)
+    AdminP -- (Menyetujui Request)
+    AdminP -- (Mengisi Detail Pembelian)
 
-  SuperAdmin -- (Mengelola Pengguna & Divisi)
-  SuperAdmin -- (Memberi Persetujuan Final)
-}
+    SuperAdmin -- (Mengelola Pengguna & Divisi)
+    SuperAdmin -- (Memberi Persetujuan Final)
+  }
 ```
 
 ### Contoh 2: BPMN Diagram - Alur Kerja Permintaan Aset
@@ -130,15 +131,15 @@ graph TD
         LB(Load Balancer / CDN)
 
         subgraph "Vercel / Netlify"
-            FE[<b>Frontend Container</b><br>React SPA (Static Files)]
+            FE["Frontend Container\nReact SPA (Static Files)"]
         end
 
         subgraph "Cloud Run / App Runner"
-            BE[<b>Backend Container</b><br>NestJS API Server (Docker)]
+            BE["Backend Container\nNestJS API Server (Docker)"]
         end
 
         subgraph "Managed Database Service"
-            DB[<b>Database Server</b><br>PostgreSQL]
+            DB["Database Server\nPostgreSQL"]
         end
     end
 
