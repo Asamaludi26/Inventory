@@ -1,175 +1,187 @@
-# Panduan Deployment Produksi
+# Panduan Deployment Produksi (Debian 12)
 
-Dokumen ini menjelaskan proses teknis untuk membangun (build) dan men-deploy aplikasi **full-stack** (frontend dan backend) ke server produksi, seperti server milik PT. Triniti.
+Dokumen ini menjelaskan prosedur teknis lengkap untuk men-deploy aplikasi **full-stack** (frontend dan backend) ke server **Debian 12 (Bookworm)**.
 
-## 1. Konsep Arsitektur Deployment
+## 1. Arsitektur Deployment
 
-Kita akan men-deploy dua aplikasi berbeda yang bekerja sama di satu server, diatur oleh sebuah **Reverse Proxy (Nginx)**.
-
--   **Aplikasi Frontend (React)**: Hasil build-nya adalah **file statis** (HTML, CSS, JS). Nginx akan bertugas menyajikan file-file ini langsung ke pengguna.
--   **Aplikasi Backend (NestJS)**: Hasil build-nya adalah aplikasi **Node.js**. Aplikasi ini akan berjalan sebagai layanan (*service*) di latar belakang pada port internal (misal: `3001`) menggunakan manajer proses seperti **PM2**.
--   **Nginx (Reverse Proxy)**: Bertindak sebagai pintu gerbang utama. Ia akan menerima semua trafik dari domain publik (misal: `aset.trinitimedia.com`) dan meneruskannya ke layanan yang tepat:
-    -   Request ke `/api/*` akan diteruskan ke aplikasi backend.
-    -   Semua request lainnya akan dilayani oleh file statis frontend.
-
-**Diagram Alur Produksi:**
-```mermaid
-graph TD
-    User[Pengguna] -- "HTTP Request ke aset.trinitimedia.com" --> Nginx
-
-    subgraph "Server Produksi"
-        Nginx
-        
-        subgraph "Aplikasi Backend (Berjalan via PM2)"
-            Backend[Proses NestJS @ localhost:3001]
-        end
-
-        subgraph "File Statis Frontend"
-            Frontend[Direktori /var/www/assetflow/frontend]
-        end
-    end
-    
-    Nginx -- "Jika request adalah '/api/*'" --> Backend
-    Nginx -- "Jika request BUKAN '/api/*'" --> Frontend
-```
+Kita akan menggunakan **Nginx** sebagai **Reverse Proxy** dan **PM2** sebagai manajer proses untuk backend.
+-   **Aplikasi Frontend (React)**: Hasil build-nya adalah **file statis** yang akan disajikan langsung oleh Nginx.
+-   **Aplikasi Backend (NestJS)**: Hasil build-nya adalah aplikasi **Node.js** yang akan berjalan sebagai layanan di latar belakang pada port internal (`3001`) dan dikelola oleh PM2.
+-   **Nginx**: Bertindak sebagai pintu gerbang utama. Request ke `/api/*` akan diteruskan ke backend, sisanya akan dilayani oleh file statis frontend.
 
 ---
 
-## 2. Persiapan Server
+## 2. Langkah 1: Persiapan Awal Server
 
-Pastikan server Linux (misal: Ubuntu) sudah terinstal perangkat lunak berikut:
--   **Nginx**: `sudo apt install nginx`
--   **Node.js** (v18+): Gunakan `nvm` atau `nodesource` untuk instalasi.
--   **pnpm**: `npm install -g pnpm`
--   **PM2**: `pnpm add -g pm2`
+Langkah ini hanya perlu dilakukan sekali saat pertama kali menyiapkan server.
 
----
-
-## 3. Proses Deployment (Langkah-demi-Langkah)
-
-### Langkah 1: Build Kedua Aplikasi di Mesin Lokal
-Sebelum men-deploy, kita perlu membuat versi produksi dari kedua aplikasi.
-
-1.  **Build Frontend**:
+1.  **Update Sistem & Instal Nginx**:
     ```bash
+    # Perbarui daftar paket dan upgrade sistem
+    sudo apt update && sudo apt upgrade -y
+
+    # Instal Nginx
+    sudo apt install nginx -y
+
+    # Jalankan dan aktifkan Nginx agar otomatis berjalan saat boot
+    sudo systemctl start nginx
+    sudo systemctl enable nginx
+    ```
+
+2.  **Instal Node.js v18, pnpm, dan PM2**:
+    Gunakan repositori dari NodeSource untuk versi Node.js yang lebih modern.
+    ```bash
+    # Unduh dan jalankan skrip setup NodeSource untuk Node.js v18
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+
+    # Instal Node.js (yang juga akan menyertakan npm)
+    sudo apt install -y nodejs
+
+    # Instal pnpm dan PM2 secara global menggunakan npm
+    sudo npm install -g pnpm pm2
+    ```
+
+## 3. Langkah 2: Menyiapkan Struktur Direktori dan Izin
+
+1.  **Buat Struktur Direktori di `/var/www`**:
+    ```bash
+    sudo mkdir -p /var/www/assetflow/frontend
+    sudo mkdir -p /var/www/assetflow/backend
+    ```
+
+2.  **Atur Kepemilikan Direktori (PENTING!)**:
+    Ganti `[user]` dengan nama pengguna non-root Anda untuk menghindari masalah izin.
+    ```bash
+    sudo chown -R [user]:[user] /var/www/assetflow
+    ```
+
+## 4. Langkah 3: Deployment Frontend (React)
+
+Proses ini dilakukan dari **komputer lokal Anda**.
+
+1.  **Build Aplikasi Frontend**:
+    ```bash
+    # Dari direktori root proyek Anda, masuk ke folder frontend
     cd frontend
-    pnpm install
+
+    # Buat folder 'dist' yang berisi file produksi
     pnpm run build
     ```
-    -   **Hasil**: Folder baru `frontend/dist/`. Folder inilah yang akan kita deploy.
 
-2.  **Build Backend**:
+2.  **Salin Hasil Build ke Server**:
+    Gunakan `rsync` untuk efisiensi. Ganti `[user]@[ip_server]`.
     ```bash
-    cd backend
-    pnpm install
-    pnpm run build
-    ```
-    -   **Hasil**: Folder baru `backend/dist/`.
-
-### Langkah 2: Deploy File ke Server
-Salin file yang relevan dari komputer lokal Anda ke server produksi. Anda bisa menggunakan `scp` atau `rsync`.
-
-1.  **Salin Build Frontend**:
-    Salin **isi** dari folder `frontend/dist/` ke direktori di server.
-    ```bash
-    # Contoh menggunakan rsync
-    rsync -avz frontend/dist/ user@your_server_ip:/var/www/assetflow/frontend
-    ```
-    > **Penting**: Buat direktori `/var/www/assetflow/frontend` di server jika belum ada.
-
-2.  **Salin Folder Backend**:
-    Salin **seluruh folder** `backend/` ke server. Kita membutuhkan `package.json` untuk menginstal dependensi produksi.
-    ```bash
-    # Contoh menggunakan rsync
-    rsync -avz backend/ user@your_server_ip:/var/www/assetflow/backend
+    # Jalankan dari folder 'frontend' di komputer lokal
+    rsync -avz ./dist/ [user]@[ip_server]:/var/www/assetflow/frontend/
     ```
 
-### Langkah 3: Setup dan Jalankan Backend di Server
-SSH ke server Anda dan jalankan perintah berikut.
+## 5. Langkah 4: Deployment Backend (NestJS)
 
-1.  **Masuk ke Direktori Backend**:
+1.  **Salin Kode Sumber ke Server**:
+    Dari **folder root proyek** di komputer lokal Anda, salin seluruh folder `backend/`.
     ```bash
+    rsync -avz --exclude 'node_modules' --exclude 'dist' ./backend/ [user]@[ip_server]:/var/www/assetflow/backend/
+    ```
+
+2.  **Setup di Server (via SSH)**:
+    Login ke server Anda: `ssh [user]@[ip_server]`.
+
+3.  **Instal, Build, dan Jalankan Backend**:
+    ```bash
+    # Pindah ke direktori backend
     cd /var/www/assetflow/backend
-    ```
 
-2.  **Instal Dependensi Produksi**:
-    Perintah ini hanya akan menginstal paket yang dibutuhkan untuk produksi, bukan dependensi pengembangan.
-    ```bash
+    # Instal dependensi produksi saja
     pnpm install --production
-    ```
-    
-3.  **Setup File `.env`**:
-    Buat file `.env` di dalam direktori `backend/` dan isi dengan konfigurasi produksi.
-    ```env
-    DATABASE_URL="postgresql://USER:PASSWORD@HOST_PROD:PORT/DATABASE_PROD?schema=public"
-    JWT_SECRET="<your-long-random-secret-key>"
-    ```
 
-4.  **Jalankan Aplikasi dengan PM2**:
-    PM2 adalah manajer proses yang akan menjaga aplikasi Node.js tetap berjalan dan akan me-restartnya secara otomatis jika terjadi _crash_.
+    # Buat file .env untuk variabel lingkungan (SANGAT PENTING!)
+    nano .env
+    ```
+    Isi file `.env` dengan konfigurasi Anda:
+    ```env
+    DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
+    JWT_SECRET="KUNCI_RAHASIA_YANG_SANGAT_PANJANG_DAN_SULIT_DITEBAK"
+    ```
+    Simpan file (`Ctrl+X`, lalu `Y`, lalu `Enter`).
+
     ```bash
-    # Memulai aplikasi dan memberinya nama
+    # Build aplikasi dari TypeScript ke JavaScript
+    pnpm run build
+
+    # Jalankan aplikasi menggunakan PM2
     pm2 start dist/main.js --name assetflow-backend
 
-    # Menyimpan daftar proses agar otomatis berjalan saat server reboot
+    # Atur PM2 agar otomatis berjalan saat server reboot
+    pm2 startup
+    # (Salin dan jalankan perintah yang ditampilkan oleh PM2)
     pm2 save
     ```
 
-5.  **Verifikasi**:
-    Pastikan aplikasi backend berjalan dengan `pm2 list`. Anda akan melihat `assetflow-backend` dengan status `online`.
+## 6. Langkah 5: Konfigurasi Nginx & Firewall
 
-### Langkah 4: Konfigurasi Nginx sebagai Reverse Proxy
-Langkah terakhir adalah memberitahu Nginx bagaimana cara menangani trafik.
-
-1.  **Buat File Konfigurasi Nginx Baru**:
+1.  **Buat File Konfigurasi Nginx**:
     ```bash
     sudo nano /etc/nginx/sites-available/assetflow
     ```
-
-2.  **Isi File Konfigurasi**:
-    Salin dan tempel konfigurasi berikut. **Ganti `aset.trinitimedia.com` dengan domain Anda**.
+    Salin konten di bawah ini. Ganti `aset.trinitimedia.com` dengan domain Anda.
     ```nginx
     server {
         listen 80;
         server_name aset.trinitimedia.com;
+        root /var/www/assetflow/frontend;
 
-        # Logging
-        access_log /var/log/nginx/assetflow-access.log;
-        error_log /var/log/nginx/assetflow-error.log;
+        index index.html;
 
-        # Aturan untuk API Backend
-        # Semua request yang dimulai dengan /api/ akan diteruskan ke aplikasi NestJS
+        location / {
+            try_files $uri /index.html;
+        }
+
         location /api/ {
             proxy_pass http://localhost:3001;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
             proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
             proxy_cache_bypass $http_upgrade;
-        }
-
-        # Aturan untuk menyajikan file Frontend
-        # Semua request lain akan dilayani oleh file statis React
-        location / {
-            root /var/www/assetflow/frontend;
-            try_files $uri /index.html;
         }
     }
     ```
 
-3.  **Aktifkan Situs dan Restart Nginx**:
+2.  **Aktifkan Konfigurasi**:
     ```bash
-    # Buat symbolic link untuk mengaktifkan konfigurasi
     sudo ln -s /etc/nginx/sites-available/assetflow /etc/nginx/sites-enabled/
-
-    # Tes konfigurasi untuk memastikan tidak ada error
     sudo nginx -t
-
-    # Jika tes berhasil, restart Nginx untuk menerapkan perubahan
     sudo systemctl restart nginx
     ```
 
-Aplikasi Anda sekarang seharusnya sudah aktif dan dapat diakses melalui domain yang telah dikonfigurasi.
+3.  **Konfigurasi Firewall (UFW - Uncomplicated Firewall)**:
+    ```bash
+    # Izinkan koneksi SSH (SANGAT PENTING!)
+    sudo ufw allow OpenSSH
+
+    # Izinkan koneksi HTTP dan HTTPS melalui Nginx
+    sudo ufw allow 'Nginx Full'
+
+    # Aktifkan firewall
+    sudo ufw enable
+    # (Ketik 'y' dan Enter untuk melanjutkan)
+
+    # Periksa status firewall
+    sudo ufw status
+    ```
+
+## 7. Skrip Otomatisasi (Opsional)
+
+Untuk mempercepat deployment di masa mendatang, gunakan skrip `deploy.sh` yang telah disediakan. Pastikan variabel di dalam skrip sudah disesuaikan dengan lingkungan server Anda.
+
+**Cara Penggunaan Skrip di Server**:
+```bash
+# Deploy frontend saja
+./deploy.sh frontend
+
+# Deploy backend saja
+./deploy.sh backend
+
+# Deploy keduanya
+./deploy.sh all
+```

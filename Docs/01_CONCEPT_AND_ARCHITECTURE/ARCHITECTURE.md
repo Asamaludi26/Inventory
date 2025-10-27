@@ -73,7 +73,15 @@ graph TD
 
 ---
 
-## 3. Arsitektur Fisik & Target Deployment
+## 3. Komunikasi API & Alat Pengembang
+
+Komunikasi antara Frontend (ruang makan) dan Backend (dapur) terjadi melalui serangkaian "pesanan" standar yang disebut **API**. Untuk memastikan "dapur" berfungsi dengan sempurna bahkan sebelum "ruang makan" siap, tim pengembang menggunakan alat khusus.
+
+> **Analogi**: Bayangkan **Postman** sebagai **stetoskop** bagi dokter (pengembang backend). Dokter menggunakannya untuk memeriksa kesehatan organ dalam (API backend) secara langsung, tanpa harus menunggu laporan dari pasien (antarmuka frontend). Ini memungkinkan pengujian dan diagnosis yang cepat dan akurat selama proses pengembangan. **Pengguna akhir atau klien tidak memerlukan alat ini.**
+
+---
+
+## 4. Arsitektur Fisik & Target Deployment
 
 Bagian ini menjelaskan bagaimana komponen-komponen di atas akan di-deploy dan berinteraksi di lingkungan server produksi. Model ini menggunakan **Reverse Proxy** untuk menyajikan frontend dan backend di bawah satu domain tunggal, yang merupakan praktik industri terbaik untuk keamanan dan efisiensi.
 
@@ -116,9 +124,9 @@ Untuk panduan implementasi teknis dari arsitektur ini, silakan merujuk ke [**Pan
 
 ---
 
-## 4. Alur Data Utama
+## 5. Alur Data Utama
 
-### 4.1. Proses Request Aset
+### 5.1. Proses Request Aset
 
 Diagram berikut menggambarkan alur data dan interaksi antar komponen saat seorang staf membuat permintaan aset baru hingga disetujui.
 
@@ -170,7 +178,7 @@ sequenceDiagram
 
 ---
 
-## 5. Referensi Lanjutan
+## 6. Referensi Lanjutan
 
 Untuk detail implementasi yang lebih spesifik, silakan merujuk ke dokumen berikut:
 

@@ -2,6 +2,34 @@
 
 Dokumen ini merangkum semua aspek dan praktik keamanan yang diterapkan dalam Aplikasi Inventori Aset untuk melindungi data dan memastikan integritas sistem.
 
+## Ringkasan Keamanan untuk Stakeholder
+
+Keamanan bukanlah fitur tambahan, melainkan fondasi dari sistem ini. Kami membangun aplikasi dengan pendekatan keamanan berlapis (_defense-in-depth_) yang dapat diringkas dalam tiga pilar utama.
+
+### Pilar 1: Keamanan Akses (Siapa yang boleh masuk & apa yang boleh dilakukan?)
+> **Analogi**: Keamanan gedung perkantoran.
+
+-   **Autentikasi (Pemeriksaan Identitas)**: Setiap pengguna harus memiliki "KTP dan sidik jari" (email dan password) yang valid untuk masuk. Kata sandi disimpan menggunakan _hashing_ (diubah menjadi kode yang tidak bisa dibaca), sehingga bahkan kami tidak bisa melihat kata sandi asli Anda.
+-   **Otorisasi (Kartu Akses Berlevel)**: Setelah masuk, setiap pengguna mendapatkan "kartu akses" (Peran/Role) yang hanya bisa membuka pintu-pintu tertentu. Seorang `Staff` tidak akan pernah bisa mengakses menu `Super Admin`, sama seperti karyawan tidak bisa masuk ke ruang direksi tanpa izin.
+
+### Pilar 2: Keamanan Data (Bagaimana data dilindungi?)
+> **Analogi**: Pengiriman dan penyimpanan dokumen rahasia.
+
+-   **Data Saat Transit (Pengiriman)**: Semua komunikasi antara komputer Anda dan server kami dienkripsi menggunakan HTTPS. Ini seperti mengirim dokumen dalam koper baja terkunci, bukan kartu pos yang bisa dibaca siapa saja.
+-   **Data Saat Disimpan (Penyimpanan)**: Data disimpan di database yang dilindungi dengan kontrol akses yang ketat. Informasi paling sensitif, seperti password, diubah menjadi kode acak (di-hash) sebelum disimpan.
+
+### Pilar 3: Integritas & Ketersediaan Data (Bagaimana jika terjadi bencana?)
+> **Analogi**: Sistem arsip dan CCTV.
+
+-   **Rencana Backup**: Kami memiliki rencana pencadangan yang solid untuk mencegah kehilangan data.
+    -   **Backup Harian**: Seperti membuat "foto kopi" seluruh arsip setiap malam.
+    -   **Point-in-Time Recovery**: Seperti memiliki "rekaman CCTV" yang mencatat setiap perubahan. Jika terjadi masalah, kita bisa memutar kembali rekaman ke beberapa menit sebelum insiden terjadi.
+-   **Target Pemulihan**: Jika terjadi kegagalan total, kami menargetkan untuk memulihkan layanan dalam **kurang dari 2 jam**, dengan potensi kehilangan data **kurang dari 5 menit**.
+
+Strategi berlapis ini memastikan bahwa aplikasi dirancang untuk memenuhi standar keamanan perusahaan dan secara signifikan memitigasi risiko kebocoran atau kehilangan data.
+
+---
+
 ## 1. Model Keamanan
 
 Aplikasi ini mengadopsi model keamanan berlapis (_defense-in-depth_), di mana keamanan diterapkan pada setiap level: dari antarmuka pengguna, komunikasi jaringan, hingga server dan database.

@@ -14,32 +14,27 @@ Kami mengadopsi pendekatan **Piramida Pengujian**, dengan fokus pada:
 -   **Test Runner & Framework**: **Jest**
 -   **Frontend Testing**: **React Testing Library (RTL)** untuk merender komponen dan mensimulasikan interaksi pengguna.
 -   **Backend Testing**: Modul `@nestjs/testing` untuk membuat lingkungan pengujian yang terisolasi.
--   **E2E Testing (Rekomendasi)**: **Cypress** atau **Playwright**.
+-   **E2E Testing**: **Cypress** untuk mensimulasikan interaksi pengguna nyata di browser.
 
-## 3. Setup Lingkungan Tes
-
--   **Frontend**: Tidak ada setup khusus yang diperlukan. `create-vite-app` sudah menyertakan konfigurasi dasar untuk Jest.
--   **Backend**: Untuk tes integrasi yang memerlukan database, kita akan menggunakan database terpisah khusus untuk testing.
-    -   Konfigurasikan `DATABASE_URL` di `.env.test` untuk menunjuk ke database tes.
-    -   Gunakan skrip untuk membersihkan dan mengisi ulang database sebelum setiap rangkaian tes dijalankan.
-
-## 4. Cara Menjalankan Tes
+## 3. Cara Menjalankan Tes
 
 Jalankan perintah berikut dari folder masing-masing (`frontend/` atau `backend/`):
 
 ```bash
-# Menjalankan semua tes
+# Menjalankan semua tes sekali jalan
 pnpm run test
 
-# Menjalankan tes dalam mode watch (interaktif)
+# Menjalankan tes dalam mode watch (interaktif, otomatis berjalan saat ada perubahan)
 pnpm run test:watch
 ```
 
-## 5. Contoh Penulisan Tes
+---
+
+## 4. Contoh Penulisan Tes (Skrip Teruji)
 
 ### Contoh 1: Unit Test Komponen React (Frontend)
 
-Menggunakan React Testing Library untuk menguji komponen `Checkbox`.
+Menggunakan React Testing Library untuk menguji komponen `Checkbox`. Tes ini fokus pada perilaku komponen secara terisolasi.
 
 **File**: `src/components/ui/Checkbox.test.tsx`
 ```tsx
@@ -47,111 +42,62 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Checkbox } from './Checkbox';
 
 describe('Checkbox Component', () => {
-  test('renders unchecked by default', () => {
+  test('harus render dalam keadaan tidak tercentang secara default', () => {
     render(<Checkbox data-testid="my-checkbox" />);
     const checkbox = screen.getByTestId('my-checkbox');
     expect(checkbox).not.toBeChecked();
   });
 
-  test('renders checked when checked prop is true', () => {
+  test('harus render dalam keadaan tercentang jika prop `checked` adalah true', () => {
     render(<Checkbox checked data-testid="my-checkbox" />);
     const checkbox = screen.getByTestId('my-checkbox');
     expect(checkbox).toBeChecked();
   });
 
-  test('calls onChange when clicked', () => {
+  test('harus memanggil fungsi `onChange` ketika diklik', () => {
+    // jest.fn() adalah fungsi mock untuk melacak panggilan
     const handleChange = jest.fn();
     render(<Checkbox onChange={handleChange} data-testid="my-checkbox" />);
     
     const checkbox = screen.getByTestId('my-checkbox');
     fireEvent.click(checkbox);
     
+    // Verifikasi bahwa fungsi mock dipanggil tepat 1 kali
     expect(handleChange).toHaveBeenCalledTimes(1);
   });
+  
+  test('tidak boleh memanggil `onChange` jika dalam keadaan disabled', () => {
+    const handleChange = jest.fn();
+    render(<Checkbox onChange={handleChange} disabled data-testid="my-checkbox" />);
+    
+    const checkbox = screen.getByTestId('my-checkbox');
+    expect(checkbox).toBeDisabled();
+    
+    // fireEvent.click tidak akan berpengaruh pada elemen yang disabled
+    fireEvent.click(checkbox);
+    
+    expect(handleChange).not.toHaveBeenCalled();
+  });
 });
 ```
 
-### Contoh 2: Tes Integrasi Endpoint NestJS (Backend)
+### Contoh 2: Unit Test Service NestJS (Backend)
 
-Menggunakan `@nestjs/testing` dan `supertest` untuk menguji endpoint `GET /assets`.
-
-**File**: `src/assets/assets.controller.integration.spec.ts`
-```typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import * as request from 'supertest';
-import { AppModule } from '../app.module';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { PrismaService } from '../shared/prisma/prisma.service';
-
-describe('AssetsController (Integration)', () => {
-  let app: INestApplication;
-  let prisma: PrismaService;
-  let jwtToken: string; // Token untuk autentikasi
-
-  beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
-    await app.init();
-    
-    prisma = app.get<PrismaService>(PrismaService);
-    
-    // Setup: Hapus data lama dan isi dengan data tes
-    await prisma.asset.deleteMany({});
-    await prisma.asset.create({
-      data: { /* ... data aset untuk tes ... */ },
-    });
-
-    // Login sebagai user tes untuk mendapatkan token
-    const loginResponse = await request(app.getHttpServer())
-      .post('/api/auth/login')
-      .send({ email: 'test-admin@example.com', password: 'password' });
-    jwtToken = loginResponse.body.access_token;
-  });
-
-  afterAll(async () => {
-    await app.close();
-  });
-
-  it('GET /api/assets - should return an array of assets', () => {
-    return request(app.getHttpServer())
-      .get('/api/assets')
-      .set('Authorization', `Bearer ${jwtToken}`) 
-      .expect(200)
-      .expect((res) => {
-        expect(Array.isArray(res.body.data)).toBe(true);
-        expect(res.body.data.length).toBeGreaterThan(0);
-        expect(res.body.data[0]).toHaveProperty('id');
-      });
-  });
-
-  it('GET /api/assets - should fail with 401 if no token is provided', () => {
-    return request(app.getHttpServer())
-      .get('/api/assets')
-      .expect(401);
-  });
-});
-```
-### Contoh 3: Unit Test Service NestJS (Backend)
-
-Menggunakan `@nestjs/testing` untuk menguji `AssetsService` secara terisolasi dengan me-mock `PrismaService`.
+Menggunakan `@nestjs/testing` untuk menguji `AssetsService` secara terisolasi dengan me-mock `PrismaService`. Ini memastikan logika bisnis diuji tanpa bergantung pada database sungguhan.
 
 **File**: `src/assets/assets.service.spec.ts`
 ```typescript
 import { Test, TestingModule } from '@nestjs/testing';
 import { AssetsService } from './assets.service';
 import { PrismaService } from '../shared/prisma/prisma.service';
-import { CreateAssetDto } from './dto/create-asset.dto';
 import { AssetCondition } from '@prisma/client';
 
-// Buat mock untuk PrismaService
-const db = {
+// Buat mock untuk PrismaService. Ini meniru objek PrismaClient.
+const dbMock = {
   asset: {
     findMany: jest.fn(),
     create: jest.fn(),
+    findUnique: jest.fn(),
   },
 };
 
@@ -165,33 +111,33 @@ describe('AssetsService', () => {
         AssetsService,
         {
           provide: PrismaService,
-          useValue: db, // Gunakan mock
+          useValue: dbMock, // Gunakan mock, bukan PrismaService asli
         },
       ],
     }).compile();
 
     service = module.get<AssetsService>(AssetsService);
     prisma = module.get<PrismaService>(PrismaService);
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+    
+    // Reset semua mock sebelum setiap tes
+    jest.clearAllMocks();
   });
 
   describe('findAll', () => {
-    it('should return an array of assets', async () => {
+    it('harus mengembalikan array berisi aset', async () => {
       const mockAssets = [{ id: 'AST-001', name: 'Test Asset' }];
-      db.asset.findMany.mockResolvedValue(mockAssets);
+      dbMock.asset.findMany.mockResolvedValue(mockAssets);
 
       const assets = await service.findAll();
+      
       expect(assets).toEqual(mockAssets);
       expect(prisma.asset.findMany).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('create', () => {
-    it('should create and return an asset', async () => {
-      const dto: CreateAssetDto = { 
+    it('harus membuat dan mengembalikan sebuah aset', async () => {
+      const dto = { 
         id: 'AST-002', 
         name: 'New Asset', 
         condition: AssetCondition.BRAND_NEW,
@@ -199,12 +145,136 @@ describe('AssetsService', () => {
       };
       const mockCreatedAsset = { ...dto, createdAt: new Date(), updatedAt: new Date() };
       
-      db.asset.create.mockResolvedValue(mockCreatedAsset);
+      dbMock.asset.create.mockResolvedValue(mockCreatedAsset);
 
       const newAsset = await service.create(dto);
+      
       expect(newAsset).toEqual(mockCreatedAsset);
       expect(prisma.asset.create).toHaveBeenCalledWith({ data: dto });
     });
+  });
+});
+```
+
+### Contoh 3: Tes Integrasi Endpoint NestJS (Backend)
+
+Menggunakan `@nestjs/testing` dan `supertest` untuk menguji endpoint `GET /api/assets` secara menyeluruh, dari HTTP request hingga (mock) database.
+
+**File**: `src/assets/assets.controller.integration.spec.ts`
+```typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import * as request from 'supertest';
+import { AppModule } from '../app.module';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { PrismaService } from '../shared/prisma/prisma.service';
+
+// Mock database untuk tes integrasi
+const dbMock = {
+  asset: {
+    findMany: jest.fn().mockResolvedValue([{ id: 'AST-INT-001', name: 'Integration Asset' }]),
+  },
+};
+
+describe('AssetsController (Integration)', () => {
+  let app: INestApplication;
+  let jwtToken: string; // Token dummy untuk tes
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+    .overrideProvider(PrismaService) // Ganti PrismaService asli dengan mock
+    .useValue(dbMock)
+    .compile();
+
+    app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    await app.init();
+    
+    // Dapatkan token dummy. Di dunia nyata, ini akan memanggil auth service.
+    // Di sini kita asumsikan auth service bekerja.
+    // Ini adalah contoh token JWT yang sudah di-decode, untuk simplicity.
+    const { JwtService } = await import('@nestjs/jwt');
+    const jwtService = app.get<JwtService>(JwtService);
+    jwtToken = jwtService.sign({ sub: 1, email: 'test@admin.com', role: 'SuperAdmin' });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('GET /api/assets - harus mengembalikan array aset jika token valid', () => {
+    return request(app.getHttpServer())
+      .get('/api/assets')
+      .set('Authorization', `Bearer ${jwtToken}`) 
+      .expect(200)
+      .expect((res) => {
+        expect(Array.isArray(res.body)).toBe(true);
+        expect(res.body.length).toBe(1);
+        expect(res.body[0].id).toBe('AST-INT-001');
+      });
+  });
+
+  it('GET /api/assets - harus gagal dengan status 401 jika tidak ada token', () => {
+    return request(app.getHttpServer())
+      .get('/api/assets')
+      .expect(401);
+  });
+});
+```
+
+### Contoh 4: End-to-End Test dengan Cypress (Frontend)
+
+Tes ini mensimulasikan pengguna nyata yang mencoba login ke aplikasi. Ini adalah level pengujian tertinggi.
+
+**Prasyarat**: Cypress harus diinstal di `frontend/`: `pnpm add -D cypress` dan `npx cypress open`.
+
+**File**: `frontend/cypress/e2e/login.cy.ts`
+```typescript
+describe('Alur Login Pengguna', () => {
+  it('harus berhasil login dengan kredensial yang valid dan diarahkan ke dashboard', () => {
+    // 1. Kunjungi halaman utama aplikasi
+    cy.visit('http://localhost:5173');
+
+    // 2. Cari elemen input email dan ketikkan email yang valid
+    // cy.get() mencari elemen berdasarkan selector CSS.
+    cy.get('input[name="email"]')
+      .should('be.visible')
+      .type('super.admin@triniti.com');
+
+    // 3. Cari elemen input password dan ketikkan password yang valid
+    cy.get('input[name="password"]')
+      .should('be.visible')
+      .type('password123');
+
+    // 4. Klik tombol "Masuk"
+    // cy.contains() mencari elemen berdasarkan teksnya.
+    cy.contains('button', 'Masuk').click();
+    
+    // 5. Verifikasi bahwa URL telah berubah ke halaman dashboard
+    // URL mungkin tidak berubah di SPA, jadi kita cek elemen di dashboard.
+    cy.url().should('include', '/'); // Asumsi path root setelah login
+
+    // 6. Verifikasi bahwa elemen dari halaman dashboard muncul
+    // Ini adalah bukti paling kuat bahwa login berhasil.
+    cy.contains('h1', 'Dashboard').should('be.visible');
+    
+    // 7. Verifikasi bahwa nama pengguna yang login ditampilkan
+    cy.contains('span', 'John Doe').should('be.visible');
+  });
+
+  it('harus menampilkan pesan error dengan kredensial yang tidak valid', () => {
+    cy.visit('http://localhost:5173');
+
+    cy.get('input[name="email"]').type('email.salah@triniti.com');
+    cy.get('input[name="password"]').type('password.salah');
+    cy.contains('button', 'Masuk').click();
+
+    // Verifikasi bahwa pesan error muncul
+    cy.contains('Email atau kata sandi yang Anda masukkan salah').should('be.visible');
+
+    // Verifikasi bahwa kita masih berada di halaman login
+    cy.contains('h2', 'Selamat Datang').should('be.visible');
   });
 });
 ```

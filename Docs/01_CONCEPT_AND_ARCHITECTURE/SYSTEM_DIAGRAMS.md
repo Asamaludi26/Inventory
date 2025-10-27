@@ -1,180 +1,88 @@
-# Panduan Diagram Sistem
+# Diagram Sistem
 
-Dokumen ini berfungsi sebagai referensi pusat untuk semua jenis diagram yang digunakan selama siklus hidup pengembangan (Software Development Life Cycle - SDLC) Aplikasi Inventori Aset. Setiap diagram memiliki tujuan spesifik, menargetkan audiens tertentu, dan berfungsi sebagai bahasa visual bersama untuk memastikan semua pemangku kepentingan memiliki pemahaman yang sama.
+Dokumen ini adalah repositori visual untuk semua diagram arsitektur utama yang digunakan dalam proyek Aplikasi Inventori Aset. Diagram-diagram ini dibuat menggunakan sintaks Mermaid untuk memastikan dokumentasi tetap "hidup" dan mudah diperbarui seiring dengan evolusi kode.
 
-## Ringkasan Diagram Berdasarkan Fase Pengembangan
+## 1. Diagram C4 - Level 1 (System Context)
 
-Tabel berikut memetakan setiap fase pengembangan ke diagram yang relevan, menjelaskan tujuan utamanya, dan mengidentifikasi pengguna utama dari diagram tersebut.
-
-| Fase Pengembangan                | Nama Diagram         | Tujuan Utama                                                              | Pengguna Utama                                                         |
-| -------------------------------- | -------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Analisis Kebutuhan**           | **Use Case Diagram** | Mendefinisikan fungsionalitas sistem dari sudut pandang pengguna.           | Analis Bisnis, Manajer Produk, Klien                                   |
-|                                  | **BPMN Diagram**     | Memodelkan alur kerja bisnis (*business process*) secara detail.          | Analis Bisnis, Ahli Proses                                             |
-| **Perancangan Sistem (Struktural)** | **ERD**              | Merancang skema dan struktur logis database.                              | Arsitek Database, Pengembang Backend                                   |
-|                                  | **Class Diagram**    | Merancang struktur kode, atribut, metode, dan hubungan antar objek.       | Arsitek Perangkat Lunak, Pengembang                                    |
-| **Perancangan Sistem (Perilaku)**  | **Sequence Diagram** | Menggambarkan interaksi dan urutan pesan antar komponen/objek.            | Pengembang, Arsitek Perangkat Lunak                                    |
-|                                  | **Activity Diagram** | Memodelkan alur logika yang kompleks atau algoritma (seperti *flowchart*). | Pengembang, Analis Bisnis                                              |
-| **Perancangan UI & Infra**       | **Wireframe/Mockup** | Merancang tata letak visual dan alur interaksi antarmuka pengguna (UI).   | Desainer UI/UX, Pengembang Frontend, Manajer Produk                    |
-|                                  | **Deployment Diagram**| Merancang arsitektur fisik (server, jaringan) dan penempatan komponen.    | Tim Infrastruktur (DevOps), Arsitek Sistem                             |
-
----
-
-## Contoh Implementasi Diagram
-
-Bagian ini menyediakan contoh visual konkret untuk diagram-diagram utama yang disebutkan di atas.
-
-### Contoh 1: Use Case Diagram - Interaksi Pengguna Utama
-Diagram ini menunjukkan fungsionalitas utama yang dapat diakses oleh setiap peran pengguna (aktor) dalam sistem.
-
-```mermaid
-graph LR
-    %% Aktor Pengguna
-    Staff["Staff / Leader"]
-    AdminL["Admin Logistik"]
-    AdminP["Admin Purchase"]
-    SuperAdmin["Super Admin"]
-
-    subgraph "Aplikasi Inventori Aset"
-        direction TB
-        subgraph " "
-            UC1(Membuat Request Aset)
-            UC2(Melihat Aset Pribadi)
-            UC3(Melaporkan Kerusakan)
-        end
-        subgraph " "
-            UC4(Mencatat Aset Baru)
-            UC5(Mengelola Handover/Dismantle)
-            UC6(Mengelola Perbaikan Aset)
-        end
-        subgraph " "
-            UC7(Menyetujui Request)
-            UC8(Mengisi Detail Pembelian)
-        end
-        subgraph " "
-            UC9(Mengelola Pengguna & Divisi)
-            UC10(Memberi Persetujuan Final)
-        end
-    end
-    
-    %% Relasi Pewarisan (Generalisasi)
-    AdminL -- "mewarisi hak" --> Staff
-    AdminP -- "mewarisi hak" --> Staff
-    SuperAdmin -- "mewarisi hak" --> AdminL
-    SuperAdmin -- "mewarisi hak" --> AdminP
-
-    %% Relasi Asosiasi (Tugas Utama)
-    Staff --- UC1 & UC2 & UC3
-    AdminL --- UC4 & UC5 & UC6
-    AdminP --- UC7 & UC8
-    SuperAdmin --- UC9 & UC10
-```
-
-### Contoh 2: BPMN Diagram - Alur Kerja Permintaan Aset
-Diagram ini (disimulasikan menggunakan Flowchart dengan *swimlane*) memodelkan alur kerja bisnis yang krusial dari awal permintaan aset hingga selesai.
+Diagram ini menunjukkan gambaran besar: bagaimana sistem "AssetFlow" berinteraksi dengan pengguna dan sistem eksternal lainnya. Tujuannya adalah untuk audiens non-teknis dan teknis agar memahami batasan dan dependensi utama sistem.
 
 ```mermaid
 graph TD
-    subgraph "Staff / Leader"
-        A[Mulai] --> B{Membuat Request Aset};
+    subgraph "Pengguna Internal"
+        A[<b>Staff / Leader</b><br>Karyawan yang membuat<br>request dan menggunakan aset]
+        B[<b>Admin / Super Admin</b><br>Tim yang mengelola inventori<br>dan sistem]
     end
 
-    subgraph "Admin Logistik"
-        B --> C{Review Request Awal};
-        C -- Disetujui --> D[Update Status: LOGISTIC_APPROVED];
-        C -- Ditolak --> E[Update Status: REJECTED & Notifikasi];
-        E --> X[Selesai];
-    end
+    C(<b>Aplikasi Inventori Aset</b><br>Sistem terpusat untuk melacak<br>seluruh siklus hidup aset.)
+
+    D[<b>Layanan Email Eksternal</b><br>Sistem pengiriman email<br>untuk notifikasi penting.]
+
+    A -- "Menggunakan (via Web Browser)" --> C
+    B -- "Mengelola (via Web Browser)" --> C
+    C -- "Mengirim Notifikasi via SMTP" --> D
     
-    subgraph "Admin Purchase"
-        D --> F{Isi Detail Pembelian};
-        F --> G{Cek Nilai Total};
-        G -- "Nilai > 10 Juta" --> H[Update Status: AWAITING_CEO_APPROVAL];
-        G -- "Nilai <= 10 Juta" --> I[Update Status: APPROVED & Notifikasi];
-    end
-
-    subgraph "Super Admin"
-        H --> J{Review Final};
-        J -- Disetujui --> I;
-        J -- Ditolak --> E;
-    end
-
-    subgraph "Proses Pengadaan"
-       I --> K[Proses Pembelian];
-       K --> L[Barang Tiba];
-       L --> M[Aset Dicatat];
-       M --> X;
-    end
+    style A fill:#9f7aea,stroke:#333,stroke-width:2px
+    style B fill:#9f7aea,stroke:#333,stroke-width:2px
+    style C fill:#4299e1,stroke:#333,stroke-width:2px
+    style D fill:#6B7280,stroke:#333,stroke-width:2px
 ```
 
-### Contoh 3: Sequence Diagram - Alur Laporan Kerusakan Aset
-Diagram ini menggambarkan urutan pesan dan interaksi antar komponen sistem ketika seorang pengguna melaporkan kerusakan aset.
+## 2. Diagram C4 - Level 2 (Containers)
+
+Diagram ini memperbesar sistem "AssetFlow" untuk menunjukkan komponen-komponen teknis utama (kontainer) yang dapat di-deploy secara terpisah.
+
+```mermaid
+graph TD
+    A["<b>Pengguna</b><br>(Staff/Admin)<br><br>Mengakses aplikasi<br>melalui browser."]
+
+    subgraph "Infrastruktur Server Produksi"
+        B["<b>Aplikasi Frontend</b><br>[React Single-Page App]<br><br>Bertanggung jawab atas semua<br>antarmuka pengguna. Berjalan<br>di browser pengguna."]
+        
+        C["<b>API Backend</b><br>[Server NestJS]<br><br>Menyediakan REST API. Menangani<br>logika bisnis, autentikasi, &<br>validasi data."]
+        
+        D["<b>Database</b><br>[PostgreSQL]<br><br>Penyimpanan data persisten untuk<br>semua entitas: aset, pengguna, dll."]
+    end
+
+    A -- "Mengakses via HTTPS" --> B
+    B -- "Memanggil API via HTTPS<br>[Payload JSON]" --> C
+    C -- "Membaca/Menulis Data<br>[TCP/IP]" --> D
+
+    style B fill:#63b3ed,stroke:#333,stroke-width:2px
+    style C fill:#4299e1,stroke:#333,stroke-width:2px
+    style D fill:#3182ce,stroke:#333,stroke-width:2px
+```
+
+## 3. Diagram Alur Data (Data Flow) - Pembaruan Aset
+
+Diagram ini menggambarkan bagaimana data mengalir melalui sistem saat seorang Admin memperbarui informasi sebuah aset. Ini berguna untuk pengembang dalam memahami interaksi antar komponen.
 
 ```mermaid
 sequenceDiagram
-    participant Staff
+    participant Admin
     participant Frontend
     participant Backend
-    participant Notifikasi
-    participant AdminL as Admin Logistik
+    participant Database
 
-    Staff->>Frontend: Mengisi & Kirim Form Lapor Rusak
-    Frontend->>Backend: PATCH /api/assets/:id/report-damage
+    Admin->>Frontend: Mengisi form & klik "Simpan Perubahan"
+    Frontend->>Backend: PATCH /api/assets/:id (data pembaruan)
     activate Backend
-    Backend->>Backend: Validasi data
-    Backend->>Backend: Update status aset menjadi 'DAMAGED'
-    Backend->>Notifikasi: Buat notifikasi untuk Admin Logistik
-    activate Notifikasi
-    Notifikasi-->>AdminL: Kirim notifikasi "Aset Rusak Dilaporkan"
-    deactivate Notifikasi
-    Backend-->>Frontend: Response 200 OK
+    
+    Backend->>Backend: Validasi data (DTO)
+    Backend->>Backend: Cek otorisasi (apakah user boleh mengedit?)
+    
+    Backend->>Database: UPDATE assets SET ... WHERE id = :id
+    activate Database
+    Database-->>Backend: Hasil update (1 baris terpengaruh)
+    deactivate Database
+
+    Backend->>Database: INSERT INTO activity_log (...)
+    activate Database
+    Database-->>Backend: Log tersimpan
+    deactivate Database
+    
+    Backend-->>Frontend: Response 200 OK (data aset yang sudah diperbarui)
     deactivate Backend
-    Frontend-->>Staff: Tampilkan "Laporan berhasil dikirim"
+    
+    Frontend->>Admin: Tampilkan notifikasi "Aset berhasil diperbarui"
+    Frontend->>Admin: Perbarui data di tabel UI
 ```
-
-### Contoh 4: Deployment Diagram - Arsitektur Produksi
-Diagram ini memberikan gambaran arsitektur fisik tentang bagaimana komponen aplikasi akan di-deploy di lingkungan produksi cloud.
-
-```mermaid
-graph TD
-    subgraph "Internet"
-        User[Pengguna]
-    end
-
-    subgraph "Cloud Provider (misal: GCP, AWS)"
-        LB(Load Balancer / CDN)
-
-        subgraph "Vercel / Netlify"
-            FE["Frontend Container\nReact SPA (Static Files)"]
-        end
-
-        subgraph "Cloud Run / App Runner"
-            BE["Backend Container\nNestJS API Server (Docker)"]
-        end
-
-        subgraph "Managed Database Service"
-            DB["Database Server\nPostgreSQL"]
-        end
-    end
-
-    User -- HTTPS --> LB
-    LB -- "Routes to" --> FE
-    LB -- "'/api/*' proxy" --> BE
-    FE -- "API Calls" --> BE
-    BE -- "TCP/IP" --> DB
-```
-
----
-
-## Integrasi dengan Dokumentasi Proyek
-
-Diagram-diagram ini bukanlah artefak yang berdiri sendiri, melainkan konsep yang diwujudkan dalam berbagai dokumen di dalam proyek ini:
-
--   **Use Case & BPMN Diagram**: Konsep dari diagram-diagram ini diwujudkan dalam bentuk naratif di dalam [**Product Requirements Document (PRD)**](./PRODUCT_REQUIREMENTS.md) melalui *User Stories* dan *Business Rules*.
-
--   **ERD (Entity-Relationship Diagram)**: Implementasi konkret dari ERD dapat ditemukan dalam [**Dokumen Skema Database**](./DATABASE_SCHEMA.md), yang mencakup model data dan relasi dalam format `schema.prisma`.
-
--   **Class, Sequence, & Activity Diagram**: Prinsip-prinsip dari diagram-diagram ini dijelaskan dan diimplementasikan dalam [**Dokumen Arsitektur Sistem**](./ARCHITECTURE.md) dan [**Panduan Pengembangan Backend**](./../02_DEVELOPMENT_GUIDES/BACKEND_GUIDE.md), yang merinci bagaimana *Controllers*, *Services*, dan komponen lain berinteraksi.
-
--   **Wireframe/Mockup**: Konsep visual ini diwujudkan dalam [**Design System**](./../03_STANDARDS_AND_PROCEDURES/DESIGN_SYSTEM.md) dan direalisasikan dalam **prototipe fungsional** yang sedang berjalan.
-
--   **Deployment Diagram**: Rencana implementasi dari diagram ini dijelaskan secara rinci dalam [**Panduan Deployment**](./../04_OPERATIONS/DEPLOYMENT.md).
