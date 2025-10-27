@@ -1,4 +1,3 @@
-// FIX: Removed circular dependency by deleting the import of 'Page' from the same file.
 export type Page =
   | 'dashboard'
   | 'registration'
@@ -9,7 +8,12 @@ export type Page =
   | 'customers'
   | 'pengaturan-pengguna'
   | 'kategori'
-  | 'repair';
+  | 'repair'
+  | 'quotation'
+  | 'perjanjian'
+  | 'bak'
+  | 'request-stock'
+  | 'request-loan';
 
 export type PreviewData = {
     type: 'asset' | 'customer' | 'user' | 'request' | 'handover' | 'dismantle' | 'customerAssets' | 'stockItemAssets' | 'stockHistory';
@@ -18,7 +22,6 @@ export type PreviewData = {
 
 export interface ParsedScanResult {
     id?: string;
-    // FIX: Add name property to support displaying asset names from QR codes.
     name?: string;
     serialNumber?: string;
     macAddress?: string;
@@ -46,6 +49,7 @@ export interface Customer {
 export enum ItemStatus {
   PENDING = 'Menunggu Persetujuan',
   LOGISTIC_APPROVED = 'Disetujui Logistik',
+  AWAITING_CEO_APPROVAL = 'Menunggu Persetujuan CEO',
   APPROVED = 'Disetujui',
   PURCHASING = 'Proses Pengadaan',
   IN_DELIVERY = 'Dalam Pengiriman',
@@ -145,6 +149,17 @@ export interface OrderDetails {
     source?: 'STOCK' | 'PROCUREMENT';
 }
 
+export interface PurchaseDetails {
+  purchasePrice: number;
+  vendor: string;
+  poNumber: string;
+  invoiceNumber: string;
+  purchaseDate: string;
+  warrantyEndDate: string | null;
+  filledBy: string;
+  fillDate: string;
+}
+
 export interface Request {
   id: string;
   requester: string;
@@ -167,6 +182,7 @@ export interface Request {
   receivedBy?: string | null;
   partiallyRegisteredItems?: Record<number, number>; // { [requestItemId]: count }
   totalValue?: number;
+  purchaseDetails?: PurchaseDetails;
   isPrioritizedByCEO?: boolean;
   ceoDispositionDate?: string | null;
   progressUpdateRequest?: {
@@ -220,15 +236,9 @@ export interface Dismantle {
     attachments: Attachment[];
 }
 
-export interface ActivityLog {
-  id: number;
-  user: string;
-  action: string;
-  timestamp: string;
-}
-
 export type NotificationType =
   | 'REQUEST_CREATED'
+  | 'REQUEST_LOGISTIC_APPROVED'
   | 'REQUEST_AWAITING_FINAL_APPROVAL'
   | 'REQUEST_FULLY_APPROVED'
   | 'REQUEST_COMPLETED'
@@ -256,7 +266,7 @@ export interface Notification {
   message?: string; // Optional custom message for complex notifications
 }
 
-export type UserRole = 'Super Admin' | 'Procurement Admin' | 'Inventory Admin' | 'Manager' | 'Staff';
+export type UserRole = 'Super Admin' | 'Admin Purchase' | 'Admin Logistik' | 'Leader' | 'Staff';
 
 export interface User {
   id: number;

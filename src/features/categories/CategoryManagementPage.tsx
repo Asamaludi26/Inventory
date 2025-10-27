@@ -40,8 +40,7 @@ const CategoryManagementPage: React.FC<CategoryManagementProps> = ({ currentUser
     const addNotification = useNotification();
 
     // --- DERIVED STATE ---
-    // FIX: Use specific admin roles and 'Manager' role for this check to align with UserRole type.
-    const isManager = ['Inventory Admin', 'Procurement Admin', 'Super Admin', 'Manager'].includes(currentUser.role);
+    const isManager = ['Admin Logistik', 'Admin Purchase', 'Super Admin', 'Leader'].includes(currentUser.role);
     const divisionFilterOptions = useMemo(() => [
         { value: 'all', label: 'Semua Divisi' },
         ...divisions.map(d => ({ value: d.id.toString(), label: d.name }))

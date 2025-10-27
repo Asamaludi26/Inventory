@@ -20,18 +20,18 @@ export const DemoAccounts: React.FC = () => {
 
     const demoUsers: { role: UserRole, email: string, password: string }[] = [
         { role: 'Super Admin', email: 'super.admin@triniti.com', password: 'password123' },
-        { role: 'Procurement Admin', email: 'procurement.admin@triniti.com', password: 'password123' },
-        { role: 'Inventory Admin', email: 'inventory.admin@triniti.com', password: 'password123' },
-        { role: 'Manager', email: 'manager.noc@triniti.com', password: 'password123' },
+        { role: 'Admin Purchase', email: 'procurement.admin@triniti.com', password: 'password123' },
+        { role: 'Admin Logistik', email: 'inventory.admin@triniti.com', password: 'password123' },
+        { role: 'Leader', email: 'manager.noc@triniti.com', password: 'password123' },
         { role: 'Staff', email: 'citra.lestari0@triniti.com', password: 'password123' },
     ];
 
     const getRoleClass = (role: string) => {
         switch(role) {
             case 'Super Admin': return 'bg-purple-100 text-purple-800';
-            case 'Procurement Admin': return 'bg-teal-100 text-teal-800';
-            case 'Inventory Admin': return 'bg-info-light text-info-text';
-            case 'Manager': return 'bg-sky-100 text-sky-800';
+            case 'Admin Purchase': return 'bg-teal-100 text-teal-800';
+            case 'Admin Logistik': return 'bg-info-light text-info-text';
+            case 'Leader': return 'bg-sky-100 text-sky-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     }

@@ -69,6 +69,64 @@
         page-break-before: auto;
       }
 
+     /* ====== Professional Sub-Steps/Details List ====== */
+      .step-details-list {
+        list-style: none;
+        padding-left: 0;
+        margin-top: 1.5em;
+        display: flex;
+        flex-direction: column;
+        gap: 1em; /* Spasi vertikal antar item */
+      }
+
+      .step-details-item {
+        position: relative;
+        padding-left: 42px; /* Ruang untuk ikon (lebar 28px + jarak 14px) */
+        min-height: 28px;
+        padding-top: 2px;
+        padding-bottom: 2px;
+      }
+
+      .step-details-item::before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        top: 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background-color: var(--primary-light);
+        color: var(--primary-color);
+        font-size: 12pt;
+        font-weight: 700;
+      }
+
+      .step-details-item .content {
+        line-height: 1.6;
+        font-size: 10.5pt;
+        color: var(--text-normal);
+      }
+
+      .step-details-item .content .title {
+        display: block;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 2px;
+      }
+
+      /* Override styles from parent list */
+      .next-steps-list .step-details-item {
+          margin-bottom: 0;
+          padding-left: 42px;
+      }
+
+      .next-steps-list .step-details-item::before {
+          content: '✓';
+      }
+
       /* ====== Typography ====== */
       h1,
       h2,
@@ -139,13 +197,6 @@
         left: 0;
         color: var(--success-color);
         font-weight: 900;
-      }
-      .ul-numeric {
-        list-style-type: decimal;
-        padding-left: 20px;
-      }
-      .ul-numeric li::before {
-        content: "";
       }
 
       /* ====== Cover Page Specifics ====== */
@@ -336,69 +387,91 @@
         color: var(--text-dark);
       }
 
-      /* ====== Investment Packages ====== */
+      /* ====== Investment Packages (New Vertical Layout) ====== */
       .package-container {
-        display: flex;
-        gap: 25px;
-        margin-top: 25px;
-        align-items: stretch;
+        display: grid;
+        gap: 2rem;
+        margin-top: 2rem;
       }
+
       .package {
-        flex: 1;
+        display: grid;
+        grid-template-columns: 3fr 1fr;
         border: 1px solid var(--border-color);
         border-radius: 10px;
-        display: flex;
-        flex-direction: column;
+        overflow: hidden;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         position: relative;
-        overflow: hidden;
       }
+
       .package:hover {
         transform: translateY(-6px);
         box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
       }
-      .package-header {
-        padding: 20px 25px;
-        border-bottom: 1px solid var(--border-color);
-      }
-      .package-header h3 {
-        margin: 0;
-        font-size: 17pt;
-      }
-      .package-header p {
-        margin: 5px 0 0;
-        font-size: 10pt;
-        color: var(--text-light);
-        line-height: 1.5;
-      }
-      .package-body {
-        padding: 25px;
-        flex-grow: 1;
-      }
-      .package-body ul {
-        font-size: 10pt;
-      }
-      .package-footer {
-        padding: 20px 25px;
-        background: var(--background-light);
-        border-top: 1px solid var(--border-color);
-        text-align: center;
-      }
-      .package-price {
-        font-size: 20pt;
-        font-weight: 700;
-        color: var(--primary-color);
-        margin: 0;
-      }
-      .package-timeline {
-        font-size: 9pt;
-        color: var(--text-light);
-        margin-top: 5px;
-      }
+
       .package.recommended {
         border-width: 2px;
         border-color: var(--primary-color);
       }
+
+      .package-main-content {
+        padding: 25px 30px;
+      }
+
+      .package-main-content h3 {
+        margin: 0 0 5px 0;
+        font-size: 17pt;
+      }
+
+      .package-main-content .package-description {
+        margin: 0 0 20px 0;
+        font-size: 10pt;
+        color: var(--text-light);
+        line-height: 1.5;
+      }
+
+      .package-main-content h5 {
+        font-size: 11pt;
+        margin: 0 0 10px 0;
+        font-weight: 600;
+        color: var(--text-dark);
+      }
+
+      .package-main-content ul {
+        font-size: 10pt;
+        padding-left: 20px;
+        margin: 0;
+      }
+      
+      .package-main-content ul li {
+        margin-bottom: 0.6em;
+      }
+
+      .package-pricing-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: var(--background-light);
+        border-left: 1px solid var(--border-color);
+        padding: 20px 25px;
+        text-align: center;
+      }
+
+      .package-price {
+        font-size: 22pt;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin: 0;
+        line-height: 1.2;
+      }
+
+      .package-timeline {
+        font-size: 10pt;
+        color: var(--text-light);
+        margin-top: 8px;
+      }
+      
       .recommended-ribbon {
         position: absolute;
         top: 22px;
@@ -514,6 +587,48 @@
       .appendix-section ul li::before {
         content: "";
       }
+
+      @media print {
+        @page {
+          size: A4;
+          margin: 2cm;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            font-size: 10pt;
+        }
+        .page {
+            margin: 0;
+            padding: 50px 65px;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            max-width: 100%;
+            min-height: auto;
+            page-break-after: always;
+        }
+        .page:last-of-type {
+            page-break-after: auto;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            break-after: avoid;
+        }
+        table, .package-container, .timeline, .next-steps-list {
+            break-inside: avoid;
+        }
+        a {
+            color: #111827;
+            text-decoration: none;
+        }
+        *,
+        *::before,
+        *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+      }
     </style>
   </head>
   <body>
@@ -552,7 +667,7 @@
         <h2 class="subtitle">Transformasi Manajemen Aset Digital</h2>
         <div class="prepared-for">
           <span>Dipersiapkan Secara Khusus Untuk</span>
-          <p><strong>Manajemen PT.TRINITY MEDIA INDONESIA</strong></p>
+          <p><strong>PT. TRINITI MEDIA INDONESIA</strong></p>
         </div>
       </div>
       <div class="meta-info">
@@ -640,7 +755,7 @@
         Digital
       </h3>
       <p>
-        <strong>Kepada Yth,</strong><br />Bapak/Ibu Pimpinan PT.TRINITY MEDIA INDONESIA
+        Kepada Yth,<br />Bapak/Ibu Pimpinan PT.TRINITY MEDIA INDONESIA
       </p>
       <p>Dengan hormat,</p>
       <p>
@@ -654,20 +769,20 @@
         akurat.
       </p>
       <p>
-        Ini adalah <strong>gesekan operasional</strong> yang secara diam-diam
+        Ini adalah gesekan operasional yang secara diam-diam
         menghambat profitabilitas dan agilitas perusahaan Anda. Oleh karena itu,
         kami tidak menawarkan sekadar perangkat lunak, melainkan sebuah
-        <strong>kemitraan strategis</strong> untuk menghilangkan gesekan
+        kemitraan strategis untuk menghilangkan gesekan
         tersebut.
       </p>
       <p>
         Kami mengusulkan pembangunan
-        <strong>Platform Manajemen Aset Digital</strong> yang dirancang khusus
+        Platform Manajemen Aset Digital yang dirancang khusus
         untuk alur kerja Anda. Solusi ini bukan biaya, melainkan
         <strong>investasi pada efisiensi</strong>, dengan model
         <strong>jual putus (outright ownership)</strong> yang akan menjadikannya
         aset intelektual berharga milik perusahaan Anda sepenuhnya. Platform ini
-        akan memberikan visibilitas <strong>real-time</strong>, mengotomatisasi
+        akan memberikan visibilitas real-time, mengotomatisasi
         tugas repetitif, dan memberdayakan tim Anda dengan data yang akurat.
       </p>
       <p>
@@ -693,7 +808,7 @@
       <p>
         Proposal ini menguraikan penawaran untuk merancang, mengembangkan, dan
         mengimplementasikan sebuah
-        <strong>Platform Manajemen Aset Digital</strong> yang dibuat khusus
+        Platform Manajemen Aset Digital yang dibuat khusus
         untuk PT.TRINITY MEDIA INDONESIA, menggantikan proses manual berbasis
         spreadsheet dengan ekosistem digital terpusat yang efisien, transparan,
         dan dapat diskalakan.
@@ -718,7 +833,7 @@
           <li>
             <strong>Mempercepat Pengambilan Keputusan hingga 60%:</strong>
             Menyajikan data aset yang akurat dan
-            <strong>real-time</strong> melalui dashboard analitis, memungkinkan
+            real-time melalui dashboard analitis, memungkinkan
             perencanaan pengadaan yang proaktif dan berbasis data.
           </li>
         </ul>
@@ -728,7 +843,7 @@
         Kami menawarkan model
         <strong>investasi jual putus (one-time purchase)</strong>, yang
         memberikan PT.TRINITY MEDIA INDONESIA
-        <strong>kepemilikan 100% atas kode sumber (source code)</strong>. Ini
+        kepemilikan 100% atas kode sumber (source code). Ini
         menghilangkan biaya lisensi berulang dan menjadikan platform ini aset
         intelektual milik perusahaan yang dapat dikembangkan lebih lanjut. Untuk
         memastikan keselarasan, kami menawarkan
@@ -746,7 +861,7 @@
         Meskipun sistem manual saat ini mungkin tampak "cukup baik", analisis
         mendalam mengungkapkan adanya biaya peluang dan inefisiensi signifikan
         yang menghambat potensi pertumbuhan. Ini adalah
-        <strong>pajak operasional</strong> yang dibayar setiap hari.
+        pajak operasional yang dibayar setiap hari.
       </p>
       <div class="warning-box">
         <h4>Biaya Inaction (The Cost of Inaction)</h4>
@@ -754,13 +869,13 @@
         <ul>
           <li>
             <strong>Kerugian Produktivitas:</strong> Diperkirakan
-            <strong>10-15 jam kerja per minggu</strong> dihabiskan tim terkait
+            10-15 jam kerja per minggu dihabiskan tim terkait
             untuk tugas administratif (pencarian data, rekonsiliasi, pelaporan
             manual) yang dapat diotomatisasi.
           </li>
           <li>
             <strong>Risiko Finansial:</strong> Tanpa pelacakan
-            <strong>real-time</strong>, aset (terutama perangkat IT) berisiko
+            real-time, aset (terutama perangkat IT) berisiko
             tinggi hilang atau tidak terhitung, mengakibatkan kerugian langsung
             dan pembengkakan anggaran pengadaan.
           </li>
@@ -799,9 +914,8 @@
         4. Rincian Modul & Kebutuhan Pengguna yang Terjawab
       </h3>
       <p>
-        Setiap fitur yang kami usulkan adalah jawaban langsung atas kebutuhan
-        fungsional yang telah diidentifikasi dalam dokumen
-        <strong>Product Requirements Document (PRD)</strong>.
+        Setiap fitur yang diimplementasikan dalam prototipe ini adalah jawaban langsung atas kebutuhan
+        fungsional yang telah diidentifikasi.
       </p>
       <table>
         <thead>
@@ -813,43 +927,39 @@
         </thead>
         <tbody>
           <tr>
-            <td><strong>Dashboard Analitis Terpusat</strong></td>
+            <td><strong>Dashboard Analitis</strong></td>
             <td>
-              Mempercepat identifikasi masalah, meningkatkan visibilitas
-              operasional, dan menjadi dasar pengambilan keputusan berbasis
-              data.
+              Memberikan visibilitas operasional real-time dan menjadi dasar
+              pengambilan keputusan berbasis data.
             </td>
             <td>
-              Manajemen memerlukan ringkasan data visual yang cepat untuk
-              pengambilan keputusan strategis.
+              Manajemen memerlukan ringkasan visual (total aset, nilai stok, item perlu aksi) untuk keputusan strategis. Staf memerlukan ringkasan aset pribadi.
             </td>
           </tr>
           <tr>
             <td><strong>Manajemen Siklus Hidup Aset (End-to-End)</strong></td>
             <td>
-              Menyediakan jejak audit digital lengkap (Permintaan, Pencatatan,
-              Stok, Serah Terima, Penghapusan), menghilangkan ambiguitas, dan
+              Menyediakan jejak audit digital lengkap (Request, Register, Handover, Dismantle, Repair), menghilangkan ambiguitas, dan
               mengurangi kehilangan aset.
             </td>
             <td>
               Tim operasional perlu melacak setiap perpindahan aset secara
-              digital (serah terima, penarikan, dll.) untuk akuntabilitas.
+              digital untuk akuntabilitas penuh.
             </td>
           </tr>
           <tr>
             <td><strong>Manajemen Pengguna & Kontrol Akses (RBAC)</strong></td>
             <td>
-              Meningkatkan keamanan data, memastikan akuntabilitas, dan
-              menyederhanakan alur kerja sesuai peran (Staff, Manager, Admin,
-              Super Admin).
+              Meningkatkan keamanan, memastikan akuntabilitas, dan
+              menyederhanakan alur kerja sesuai peran (Staff, Manager, Inventory Admin, Procurement Admin, Super Admin).
             </td>
             <td>
-              Sistem harus mampu membatasi akses dan fitur sesuai dengan peran
-              dan tanggung jawab masing-masing pengguna demi keamanan.
+              Sistem harus membatasi akses fitur dan data sesuai
+              tanggung jawab masing-masing pengguna demi keamanan.
             </td>
           </tr>
           <tr>
-            <td><strong>Fitur Produktivitas Super</strong></td>
+            <td><strong>Fitur Produktivitas</strong></td>
             <td>
               Menghemat waktu admin secara signifikan melalui Aksi Massal,
               Ekspor ke CSV, pencarian cerdas, dan filter dinamis.
@@ -860,13 +970,12 @@
             </td>
           </tr>
           <tr>
-            <td><strong>Generasi & Pemindaian Kode QR/Barcode</strong></td>
+            <td><strong>Integrasi Kode QR/Barcode</strong></td>
             <td>
-              Mempercepat proses inventarisasi fisik hingga 70%, mengurangi
-              kesalahan input data, dan memudahkan pelacakan aset di lapangan.
+              Mempercepat proses inventarisasi, pencatatan, dan identifikasi aset hingga 70%, serta mengurangi kesalahan input data.
             </td>
             <td>
-              Tim lapangan membutuhkan cara instan untuk mengidentifikasi dan
+              Tim lapangan dan gudang membutuhkan cara instan untuk mengidentifikasi dan
               mengaudit aset fisik tanpa input manual.
             </td>
           </tr>
@@ -882,103 +991,88 @@
       <p>
         Kami menawarkan model <strong>kepemilikan penuh (jual putus)</strong>.
         Ini adalah investasi satu kali untuk sebuah
-        <strong>aset digital</strong> yang akan menjadi milik PT.TRINITY MEDIA INDONESIA selamanya. Berbeda dengan model berlangganan (SaaS),
+        aset digital yang akan menjadi milik PT.TRINITY MEDIA INDONESIA selamanya. Berbeda dengan model berlangganan (SaaS),
         pendekatan ini memberikan keuntungan strategis:
       </p>
       <ul>
         <li>
-          <strong>Tanpa Biaya Berulang:</strong> Hilangkan biaya lisensi bulanan
+          Tanpa Biaya Berulang: Hilangkan biaya lisensi bulanan
           atau tahunan yang tidak terduga.
         </li>
         <li>
-          <strong>Kontrol Penuh:</strong> Anda memiliki kebebasan penuh untuk
+          Kontrol Penuh: Anda memiliki kebebasan penuh untuk
           memodifikasi, mengintegrasikan, dan mengembangkan platform sesuai
           kebutuhan bisnis di masa depan.
         </li>
         <li>
-          <strong>Keamanan Data Maksimal:</strong> Data dan aplikasi berada
+          Keamanan Data Maksimal: Data dan aplikasi berada
           sepenuhnya di bawah kendali infrastruktur Anda.
         </li>
       </ul>
 
       <div class="package-container">
         <div class="package">
-          <div class="package-header">
-            <h3>UI/UX Blueprint</h3>
-            <p>
-              Fondasi visual & antarmuka interaktif yang siap dikembangkan lebih
-              lanjut.
+          <div class="package-main-content">
+            <h3>Functional Frontend Prototype</h3>
+            <p class="package-description">
+              Aplikasi frontend yang berfungsi penuh, merealisasikan seluruh UI/UX dan alur kerja dengan backend yang disimulasikan.
             </p>
-          </div>
-          <div class="package-body">
             <h5>Fokus Utama & Hasil:</h5>
             <ul>
-              <li>Mendapatkan desain antarmuka profesional yang sudah jadi.</li>
-              <li>Aset kode sumber (source code) frontend yang modern.</li>
-              <li>
-                Menjadi dasar (Fase 1) untuk pengembangan backend di masa depan.
-              </li>
+              <li>Aplikasi web interaktif yang siap didemonstrasikan.</li>
+              <li>Validasi penuh alur kerja pengguna dari sisi klien.</li>
+              <li>Aset kode sumber (source code) frontend yang modern dan siap diintegrasikan dengan backend.</li>
             </ul>
           </div>
-          <div class="package-footer">
+          <div class="package-pricing-info">
             <p class="package-price">Rp 8.500.000</p>
             <p class="package-timeline">
-              Waktu Penyerahan: <strong>2 Minggu</strong>
+              Penyerahan: <strong>2 Minggu</strong>
             </p>
           </div>
         </div>
+        
         <div class="package">
-          <div class="package-header">
+          <div class="package-main-content">
             <h3>Growth Foundation</h3>
-            <p>
+            <p class="package-description">
               Solusi esensial untuk mendigitalkan dan memusatkan operasional
-              inti Anda.
+              inti Anda dengan backend dan database nyata.
             </p>
-          </div>
-          <div class="package-body">
             <h5>Fokus Utama & Hasil:</h5>
             <ul>
-              <li>Transformasi dari spreadsheet ke sistem terpusat.</li>
-              <li>Pelacakan aset dasar (pencatatan, status, lokasi).</li>
-              <li>Alur kerja permintaan dan persetujuan yang terstruktur.</li>
+              <li>Transformasi dari prototipe ke sistem produksi.</li>
+              <li>Implementasi database dan API backend untuk semua fitur esensial.</li>
               <li>Fondasi yang solid untuk skalabilitas di masa depan.</li>
             </ul>
           </div>
-          <div class="package-footer">
+          <div class="package-pricing-info">
             <p class="package-price">Rp 14.000.000</p>
             <p class="package-timeline">
-              Estimasi Pengerjaan: <strong>5 Minggu</strong>
+              Estimasi: <strong>5 Minggu</strong>
             </p>
           </div>
         </div>
+
         <div class="package recommended">
           <div class="recommended-ribbon">Direkomendasikan</div>
-          <div class="package-header">
-            <h3><strong>Enterprise Accelerator</strong></h3>
-            <p>
-              Solusi komprehensif yang dirancang untuk efisiensi maksimal dan
+          <div class="package-main-content">
+            <h3>Enterprise Accelerator</h3>
+            <p class="package-description">
+              Solusi *full-stack* komprehensif yang dirancang untuk efisiensi maksimal dan
               keunggulan kompetitif.
             </p>
-          </div>
-          <div class="package-body">
             <h5>Fokus Utama & Hasil:</h5>
             <ul>
-              <li>Otomatisasi penuh siklus hidup aset (end-to-end).</li>
-              <li>
-                Peningkatan produktivitas drastis dengan fitur-fitur canggih.
-              </li>
-              <li>
-                Visibilitas operasional mendalam melalui dashboard analitis.
-              </li>
-              <li>
-                Kontrol keamanan granular dengan hak akses berbasis peran.
-              </li>
+                <li>Implementasi *full-stack* untuk semua fitur, termasuk yang canggih.</li>
+                <li>Visibilitas operasional mendalam melalui dashboard analitis.</li>
+                <li>Kontrol keamanan granular dengan hak akses berbasis peran (RBAC) di sisi server.</li>
             </ul>
           </div>
-          <div class="package-footer">
+          <div class="package-pricing-info">
             <p class="package-price">Rp 25.000.000</p>
             <p class="package-timeline">
-              Estimasi Pengerjaan: <strong>10 Minggu</strong>
+              Estimasi: <strong>10 Minggu</strong>
             </p>
           </div>
         </div>
@@ -989,7 +1083,7 @@
         <thead>
           <tr>
             <th style="text-align: left; width: 34%">Fitur</th>
-            <th>UI/UX Blueprint</th>
+            <th>Functional Prototype</th>
             <th>Growth Foundation</th>
             <th>Enterprise Accelerator</th>
           </tr>
@@ -999,13 +1093,13 @@
             <td colspan="4"><strong>Antarmuka & Desain (Frontend)</strong></td>
           </tr>
           <tr>
-            <td>Desain UI/UX Profesional</td>
+            <td>Desain UI/UX Profesional & Interaktif</td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
           <tr>
-            <td>Semua Komponen Antarmuka</td>
+            <td>Semua Komponen Antarmuka Fungsional</td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
@@ -1017,20 +1111,20 @@
             </td>
           </tr>
           <tr>
-            <td>Fungsionalitas Penuh</td>
-            <td><span class="cross-icon">✗</span></td>
+            <td>Fungsionalitas Alur Kerja</td>
+            <td>Simulasi</td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
           <tr>
-            <td>Database & API</td>
-            <td><span class="cross-icon">✗</span></td>
+            <td>Database & API Persisten</td>
+            <td><span class="cross-icon">✗</span> (Mock API)</td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
           <tr>
             <td>Manajemen Siklus Hidup Aset</td>
-            <td><span class="cross-icon">✗</span></td>
+            <td>Simulasi</td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
@@ -1040,19 +1134,19 @@
           </tr>
           <tr>
             <td>Manajemen Pengguna & Divisi</td>
-            <td><span class="cross-icon">✗</span></td>
+            <td>Simulasi</td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
           <tr>
             <td>Role-Based Access Control (RBAC)</td>
-            <td><span class="cross-icon">✗</span></td>
+            <td>Frontend</td>
             <td>Dasar</td>
-            <td><span class="check-icon">✓</span> (Custom Roles)</td>
+            <td><span class="check-icon">✓</span> (Server-side)</td>
           </tr>
           <tr>
             <td>Log Aktivitas Pengguna</td>
-            <td><span class="cross-icon">✗</span></td>
+            <td>Simulasi</td>
             <td><span class="cross-icon">✗</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
@@ -1061,33 +1155,33 @@
             <td colspan="4"><strong>Produktivitas & Otomatisasi</strong></td>
           </tr>
           <tr>
-            <td>Pencarian Cerdas & Filter</td>
-            <td>Tampilan</td>
+            <td>Pencarian Cerdas & Filter Dinamis</td>
             <td><span class="check-icon">✓</span></td>
-            <td><span class="check-icon">✓</span> (Filter Lanjutan)</td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span> (Lanjutan)</td>
           </tr>
           <tr>
-            <td>Generasi & Cetak Kode QR Individual</td>
-            <td>Tampilan</td>
+            <td>Generasi & Cetak Kode QR</td>
+            <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
           <tr>
             <td>Ekspor Data ke CSV/Excel</td>
-            <td><span class="cross-icon">✗</span></td>
-            <td><span class="cross-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
           <tr>
             <td>Aksi Massal (Bulk Actions)</td>
-            <td><span class="cross-icon">✗</span></td>
-            <td><span class="cross-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
           <tr>
             <td>Pemindai Kode QR/Barcode Terintegrasi</td>
-            <td><span class="cross-icon">✗</span></td>
-            <td><span class="cross-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
             <td><span class="check-icon">✓</span></td>
           </tr>
 
@@ -1108,193 +1202,11 @@
           </tr>
           <tr>
             <td>Dokumentasi Desain & Teknis</td>
-            <td>Dasar</td>
+            <td>Lengkap</td>
             <td>Lengkap</td>
             <td><span class="check-icon">✓</span> (Komprehensif)</td>
           </tr>
         </tbody>
-      </table>
-
-      <h3>Rincian Alokasi Biaya Investasi (UI/UX Blueprint)</h3>
-      <p>
-        Nilai investasi sebesar <strong>Rp 8.500.000</strong> mencakup alokasi
-        sumber daya untuk menghasilkan aset frontend yang berkualitas tinggi:
-      </p>
-      <table class="investment-table">
-        <thead>
-          <tr>
-            <th>Fase Penyerahan</th>
-            <th style="width: 20%">Estimasi Waktu</th>
-            <th style="width: 25%">Investasi (Rp)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <strong>Desain UI/UX & Prototipe</strong><br /><small
-                >Desain high-fidelity dan pembuatan prototipe interaktif.</small
-              >
-            </td>
-            <td>1 Minggu</td>
-            <td>4.500.000</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Pengembangan Komponen Frontend</strong><br /><small
-                >Implementasi desain menjadi komponen React yang siap
-                pakai.</small
-              >
-            </td>
-            <td>1 Minggu</td>
-            <td>4.000.000</td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2">Total Estimasi Investasi</td>
-            <td>Rp 8.500.000</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <h3>Rincian Alokasi Biaya Investasi (Growth Foundation)</h3>
-      <p>
-        Nilai investasi sebesar <strong>Rp 14.000.000</strong> mencakup alokasi
-        sumber daya profesional di seluruh siklus pengembangan esensial:
-      </p>
-      <table class="investment-table">
-        <thead>
-          <tr>
-            <th>Fase Pengembangan</th>
-            <th style="width: 20%">Estimasi Waktu</th>
-            <th style="width: 25%">Investasi (Rp)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <strong>Perencanaan & Desain UI/UX</strong><br /><small
-                >Workshop kebutuhan, pemetaan alur kerja inti, dan desain
-                antarmuka.</small
-              >
-            </td>
-            <td>1 Minggu</td>
-            <td>2.100.000</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Pengembangan Backend Inti</strong><br /><small
-                >Pembangunan API dasar, logika bisnis esensial, dan struktur
-                database.</small
-              >
-            </td>
-            <td>2 Minggu</td>
-            <td>5.600.000</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Pengembangan Frontend Inti</strong><br /><small
-                >Implementasi fitur-fitur utama pada antarmuka pengguna.</small
-              >
-            </td>
-            <td>1.5 Minggu</td>
-            <td>4.900.000</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Pengujian & Peluncuran</strong><br /><small
-                >Pengujian fungsional dasar, deployment, dan sesi serah
-                terima.</small
-              >
-            </td>
-            <td>0.5 Minggu</td>
-            <td>1.400.000</td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2">Total Estimasi Investasi</td>
-            <td>Rp 14.000.000</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <h3>Rincian Alokasi Biaya Investasi (Enterprise Accelerator)</h3>
-      <p>
-        Nilai investasi sebesar <strong>Rp 25.000.000</strong> mencakup alokasi
-        sumber daya profesional di seluruh siklus pengembangan komprehensif:
-      </p>
-      <table class="investment-table">
-        <thead>
-          <tr>
-            <th>Fase Pengembangan</th>
-            <th style="width: 20%">Estimasi Waktu</th>
-            <th style="width: 25%">Investasi (Rp)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <strong>Fase 1: Penemuan & Perencanaan Strategis</strong
-              ><br /><small
-                >Workshop kebutuhan, pemetaan proses, dan perancangan
-                arsitektur.</small
-              >
-            </td>
-            <td>1 Minggu</td>
-            <td>2.500.000</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Fase 2: Desain UI/UX & Prototipe Interaktif</strong
-              ><br /><small
-                >Wireframing, desain high-fidelity, dan pembuatan
-                prototipe.</small
-              >
-            </td>
-            <td>1 Minggu</td>
-            <td>3.750.000</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Fase 3: Pengembangan Backend & Database</strong
-              ><br /><small
-                >Pembangunan API, logika bisnis, skema database, autentikasi,
-                dan keamanan.</small
-              >
-            </td>
-            <td>4 Minggu</td>
-            <td>8.750.000</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Fase 4: Pengembangan Frontend & Integrasi</strong
-              ><br /><small
-                >Implementasi UI, pengembangan komponen interaktif, dan
-                integrasi API.</small
-              >
-            </td>
-            <td>3 Minggu</td>
-            <td>7.500.000</td>
-          </tr>
-          <tr>
-            <td>
-              <strong>Fase 5: Pengujian, Peluncuran & Pelatihan</strong
-              ><br /><small
-                >QA, UAT, deployment, sesi pelatihan, dan serah terima kode
-                sumber.</small
-              >
-            </td>
-            <td>1 Minggu</td>
-            <td>2.500.000</td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2">Total Estimasi Investasi</td>
-            <td>Rp 25.000.000</td>
-          </tr>
-        </tfoot>
       </table>
     </div>
 
@@ -1312,13 +1224,13 @@
         <h4>Janji Ketenangan Pikiran Anda (Peace of Mind Guarantee)</h4>
         <ul>
           <li>
-            <strong>Investasi dengan Harga Tetap (Fixed Price):</strong> Nilai
+            <strong>Investasi dengan Harga Tetap:</strong> Nilai
             investasi yang tertera adalah final untuk ruang lingkup yang
             disepakati. Tidak ada biaya tersembunyi atau biaya tak terduga.
           </li>
           <li>
             <strong>Transparansi Penuh Selama Proses:</strong> Anda akan
-            menerima laporan kemajuan mingguan dan memiliki akses ke sesi umpan
+            memiliki akses ke sesi umpan
             balik di setiap fase penting untuk memastikan hasil akhir selaras
             dengan visi Anda.
           </li>
@@ -1330,7 +1242,7 @@
           <li>
             <strong>Garansi Purna-Jual:</strong> Kami memberikan garansi
             perbaikan bug selama 90 hari setelah serah terima untuk memastikan
-            transisi yang mulus dan bebas masalah ke lingkungan produksi.
+            transisi yang mulus dan bebas masalah.
           </li>
         </ul>
       </div>
@@ -1439,8 +1351,8 @@
         kita melakukan perencanaan besar di awal untuk menentukan lingkup dan
         arsitektur secara matang, namun eksekusi pengembangan dilakukan dalam
         "sprint" pendek yang memungkinkan Anda untuk memberikan masukan dan
-        melihat kemajuan secara berkala. Pendekatan ini memberikan <b>kepastian
-        jadwal</b> dari metode tradisional sekaligus <b>fleksibilitas<b> dari metode
+        melihat kemajuan secara berkala. Pendekatan ini memberikan kepastian jadwal
+        dari metode tradisional sekaligus fleksibilitas dari metode
         Agile.
       </p>
 
@@ -1452,7 +1364,7 @@
             Selesai)
           </h4>
           <p>
-            <strong>Aktivitas Kunci:</strong> Sesi pendalaman kebutuhan,
+            Sesi pendalaman kebutuhan,
             pemetaan alur kerja detail, dan finalisasi arsitektur teknis telah
             diselesaikan dalam meeting kita pada
             <strong>Selasa, 14 Oktober 2025</strong>.
@@ -1466,7 +1378,7 @@
         <div class="timeline-item completed">
           <h4>Fase 2: Desain UI/UX & Prototipe (Minggu 2: ✅ Telah Selesai)</h4>
           <p>
-            <strong>Aktivitas Kunci:</strong> Pembuatan wireframe, desain
+            Pembuatan wireframe, desain
             antarmuka visual (high-fidelity), dan pengembangan prototipe
             interaktif telah kami serahkan pada
             <strong>Jumat, 17 Oktober 2025</strong>.
@@ -1487,7 +1399,7 @@
         <div class="timeline-item">
           <h4>Fase 3: Pengembangan Backend & Database (Minggu 3-6)</h4>
           <p>
-            <strong>Aktivitas Kunci:</strong> Pembangunan struktur database,
+            Pembangunan struktur database,
             pengembangan API endpoints, implementasi logika bisnis inti, dan
             sistem autentikasi & otorisasi.
           </p>
@@ -1500,7 +1412,7 @@
         <div class="timeline-item">
           <h4>Fase 4: Pengembangan Frontend & Integrasi (Minggu 7-9)</h4>
           <p>
-            <strong>Aktivitas Kunci:</strong> Implementasi desain UI menjadi
+            Implementasi desain UI menjadi
             komponen React, menghubungkan antarmuka dengan API backend, dan
             pengembangan fitur-fitur interaktif.
           </p>
@@ -1510,7 +1422,7 @@
         <div class="timeline-item">
           <h4>Fase 5: Pengujian, Peluncuran & Pelatihan (Minggu 10)</h4>
           <p>
-            <strong>Aktivitas Kunci:</strong> Pengujian jaminan kualitas (QA),
+            Pengujian jaminan kualitas (QA),
             User Acceptance Test (UAT) oleh tim Anda, perbaikan bug final,
             deployment ke server, dan sesi pelatihan.
           </p>
@@ -1522,113 +1434,14 @@
         </div>
       </div>
 
-      <h4 style="margin-top: 2.5em">
-        Proyeksi Jadwal untuk Paket Growth Foundation (5 Minggu)
-      </h4>
-      <div class="timeline">
-        <div class="timeline-item completed">
-          <h4>
-            Fase 1: Perencanaan & Desain Cepat (Minggu 1: ✅ Telah Selesai)
-          </h4>
-          <p>
-            <strong>Aktivitas Kunci:</strong> Pemetaan alur kerja esensial dan
-            desain antarmuka (UI) telah didiskusikan (14 Okt) dan
-            didemonstrasikan melalui prototipe (17 Okt).
-          </p>
-          <span class="output-label">Output Utama:</span>
-          <p>
-            Desain antarmuka pengguna (UI) final dan rencana proyek yang
-            disetujui.
-          </p>
-        </div>
-        <div class="value-box" style="padding: 15px 20px; margin: 30px 0">
-          <p style="margin: 0; font-size: 10.5pt">
-            <strong>Langkah Berikutnya:</strong> Finalisasi kemitraan dalam
-            pertemuan kita pada <strong>Sabtu, 25 Oktober 2025</strong> untuk
-            memulai fase pengembangan selanjutnya.
-          </p>
-        </div>
-        <div class="timeline-item">
-          <h4>Fase 2: Pengembangan Fitur Inti (Minggu 2-4)</h4>
-          <p>
-            <strong>Aktivitas Kunci:</strong> Pembangunan struktur database,
-            pengembangan API & logika bisnis esensial, serta implementasi
-            antarmuka pengguna (frontend) untuk fitur-fitur utama.
-          </p>
-          <span class="output-label">Output Utama:</span>
-          <p>
-            Aplikasi web fungsional versi beta yang mencakup semua fitur inti
-            dan siap untuk diuji.
-          </p>
-        </div>
-        <div class="timeline-item">
-          <h4>Fase 3: Pengujian Final & Peluncuran (Minggu 5)</h4>
-          <p>
-            <strong>Aktivitas Kunci:</strong> Pengujian jaminan kualitas (QA),
-            User Acceptance Test (UAT) oleh tim Anda, perbaikan bug final,
-            deployment ke server, dan sesi serah terima.
-          </p>
-          <span class="output-label">Output Utama:</span>
-          <p>
-            Aplikasi yang telah ter-deploy, laporan hasil UAT, dan dokumentasi
-            dasar.
-          </p>
-        </div>
-      </div>
-
-      <h4 style="margin-top: 2.5em">
-        Proyeksi Jadwal untuk Paket UI/UX Blueprint (2 Minggu)
-      </h4>
-      <div class="timeline">
-        <div class="timeline-item completed">
-          <h4>Fase 1: Desain UI/UX & Prototipe (Minggu 1: ✅ Telah Selesai)</h4>
-          <p>
-            <strong>Aktivitas Kunci:</strong> Pembuatan desain antarmuka visual
-            (high-fidelity) dan pengembangan prototipe interaktif telah
-            diserahkan pada <strong>Jumat, 17 Oktober 2025</strong>.
-          </p>
-          <span class="output-label">Output Utama:</span>
-          <p>
-            Purwarupa (prototype) interaktif yang telah diterima dan diuji coba.
-          </p>
-        </div>
-        <div class="value-box" style="padding: 15px 20px; margin: 30px 0">
-          <p style="margin: 0; font-size: 10.5pt">
-            <strong>Langkah Berikutnya:</strong> Finalisasi kemitraan dalam
-            pertemuan kita pada <strong>Sabtu, 25 Oktober 2025</strong> untuk
-            memulai fase implementasi.
-          </p>
-        </div>
-        <div class="timeline-item">
-          <h4>Fase 2: Implementasi Frontend & Penyerahan (Minggu 2)</h4>
-          <p>
-            <strong>Aktivitas Kunci:</strong> Implementasi desain menjadi
-            komponen React yang bersih dan terdokumentasi, serta finalisasi kode
-            untuk penyerahan.
-          </p>
-          <span class="output-label">Output Utama:</span>
-          <p>
-            Seluruh kode sumber (source code) frontend, dokumentasi komponen
-            dasar, dan file build statis yang siap di-deploy.
-          </p>
-        </div>
-      </div>
-
-      <h4>Komunikasi & Keterlibatan Anda</h4>
+      <h4 style="margin-top: 2.5em">Komunikasi & Keterlibatan Anda</h4>
       <p>
         Kemitraan adalah kunci. Kami akan menjaga transparansi penuh selama
         proyek melalui:
       </p>
       <ul>
         <li>
-          <strong>Laporan Kemajuan Mingguan:</strong> Setiap akhir minggu, Anda
-          akan menerima email ringkasan yang merinci apa yang telah diselesaikan
-          dan rencana untuk minggu berikutnya.
-        </li>
-        <li>
-          <strong>Sesi Umpan Balik (Feedback Session):</strong> Sesi khusus akan
-          dijadwalkan setelah fase desain (Fase 2) dan sebelum peluncuran (Fase
-          5) untuk memastikan solusi selaras dengan ekspektasi Anda.
+          <strong>Komunikasi Langsung & Sesi Umpan Balik:</strong> Kami akan menjaga komunikasi harian yang aktif dengan PIC yang ditunjuk melalui kanal khusus (misal: WhatsApp). Sesi demo dan umpan balik akan diadakan secara berkala di setiap pencapaian penting untuk memastikan solusi selaras dengan ekspektasi Anda.
         </li>
         <li>
           <strong>User Acceptance Testing (UAT):</strong> Di akhir pengembangan,
@@ -1642,13 +1455,13 @@
     <!--            PAGE 11: LONG-TERM PARTNERSHIP & ROADMAP                 -->
     <!-- =================================================================== -->
     <div class="page" id="kemitraan">
-      <h2>9. Kemitraan Jangka Panjang: Dukungan & Peta Jalan Produk</h2>
+      <h2>9. Kemitraan Jangka Panjang: Dukungan</h2>
       <p>
         Peluncuran aplikasi adalah awal dari perjalanan. Kami melihat diri kami
         sebagai mitra jangka panjang yang berkomitmen untuk memastikan platform
         ini terus memberikan nilai seiring pertumbuhan bisnis Anda.
       </p>
-      <h4>Paket Dukungan & Pemeliharaan (Opsional setelah 3 bulan garansi)</h4>
+      <h4>Paket Dukungan & Pemeliharaan (Opsional setelah 90 hari garansi)</h4>
       <p>
         Untuk ketenangan pikiran dan memastikan platform Anda selalu dalam
         kondisi prima, kami menawarkan paket retainer bulanan.
@@ -1688,27 +1501,6 @@
           </tr>
         </tbody>
       </table>
-      <h4>Visi & Peta Jalan Produk Masa Depan (Strategic Roadmap)</h4>
-      <p>
-        Platform ini dibangun dengan fondasi yang dapat dikembangkan. Berikut
-        adalah beberapa potensi evolusi di masa depan:
-      </p>
-      <ul>
-        <li>
-          <strong>Fase 2 - Intelijen Keuangan:</strong> Modul untuk menghitung
-          depresiasi aset, melacak biaya pemeliharaan (OPEX), dan analisis Total
-          Cost of Ownership (TCO).
-        </li>
-        <li>
-          <strong>Fase 3 - Mobilitas Lapangan:</strong> Aplikasi Mobile (PWA)
-          untuk teknisi agar dapat memperbarui status aset, mengunggah foto, dan
-          melakukan serah terima langsung dari perangkat seluler.
-        </li>
-        <li>
-          <strong>Fase 4 - Integrasi Ekosistem:</strong> API untuk terhubung
-          dengan sistem akuntansi (misalnya, Jurnal, Accurate) atau sistem HRIS.
-        </li>
-      </ul>
     </div>
 
     <!-- =================================================================== -->
@@ -1790,8 +1582,7 @@
               untuk melanjutkan diskusi investasi yang belum tuntas karena
               keterbatasan waktu dalam pertemuan kita sebelumnya. Pertemuan ini
               akan menjadi kesempatan untuk membahas secara rinci justifikasi
-              nilai di balik harga yang ditawarkan (mulai dari Rp 25.000.000)
-              dan memastikan paket yang dipilih selaras sempurna dengan tujuan
+              nilai di balik harga yang ditawarkan dan memastikan paket yang dipilih selaras sempurna dengan tujuan
               strategis PT.TRINITY MEDIA INDONESIA.
             </p>
           </div>
@@ -1811,30 +1602,26 @@
             <h4>Aktivasi & Onboarding Proyek (24-48 Jam Setelah Perjanjian)</h4>
             <p>
               Segera setelah perjanjian ditandatangani, kami akan langsung
-              memulai proses aktivasi yang terstruktur:
+              memulai proses aktivasi yang terstruktur melalui langkah-langkah berikut:
             </p>
-            <ul
-              class="ul-numeric"
-              style="
-                margin-left: 20px;
-                font-size: 10.5pt;
-                color: var(--text-light);
-              "
-            >
-              <li style="margin-bottom: 0.5em">
-                <strong>Langkah 3a (Administratif):</strong> Penerbitan kuitansi
-                bermeterai untuk pembayaran uang muka sebesar 50%.
+            <ul class="step-details-list">
+              <li class="step-details-item">
+                <div class="content">
+                  <span class="title">Langkah Administratif</span>
+                  Penerbitan bukti pembayaran untuk uang muka sebesar 50%, diikuti dengan invoice final setelah serah terima proyek.
+                </div>
               </li>
-              <li style="margin-bottom: 0.5em">
-                <strong>Langkah 3b (Komunikasi):</strong> Pembuatan kanal
-                komunikasi khusus (misalnya: grup WhatsApp) untuk koordinasi
-                harian dan laporan kemajuan.
+              <li class="step-details-item">
+                <div class="content">
+                  <span class="title">Pengaturan Komunikasi</span>
+                  Pembuatan kanal komunikasi khusus (misalnya: grup WhatsApp) untuk koordinasi harian dan laporan kemajuan.
+                </div>
               </li>
-              <li style="margin-bottom: 0.5em">
-                <strong>Langkah 3c (Penjadwalan):</strong> Penjadwalan sesi
-                kick-off proyek resmi untuk memfinalisasi timeline, menentukan
-                PIC dari kedua belah pihak, dan memulai fase pengembangan
-                pertama.
+              <li class="step-details-item">
+                <div class="content">
+                  <span class="title">Penjadwalan Kick-off</span>
+                  Penjadwalan sesi kick-off proyek resmi untuk memfinalisasi timeline, menentukan PIC dari kedua belah pihak, dan memulai fase pengembangan pertama.
+                </div>
               </li>
             </ul>
           </div>
@@ -1862,8 +1649,7 @@
         <h4>A. Ruang Lingkup & Hasil Proyek (Deliverables)</h4>
         <ul>
           <li>
-            Hasil akhir proyek meliputi: (a) Seluruh kode sumber (frontend dan
-            backend), (b) Dokumentasi teknis dan pengguna, dan (c) Satu sesi
+            Hasil akhir proyek meliputi: (a) Seluruh kode sumber (frontend), (b) Dokumentasi teknis dan pengguna, dan (c) Satu sesi
             pelatihan.
           </li>
           <li>
@@ -1883,17 +1669,12 @@
           </li>
           <li>
             Pembayaran dapat dilakukan ke:
-            <strong
-              >Bank BCA, No. Rek: 391-022-4823 a.n. Angga Samuludi
-              Septiawan.</strong
-            >
+            <strong>Bank BCA, No. Rek: 391-022-4823 a.n. Angga Samuludi Septiawan.</strong>
           </li>
           <li>
             <strong>Catatan Penting:</strong> Sebagai pengembang perorangan
             (individu), PIHAK KEDUA tidak dapat menerbitkan Faktur Pajak.
-            Sebagai bukti pembayaran yang sah, akan diterbitkan
-            <strong>kuitansi resmi bermeterai</strong> untuk setiap termin
-            pembayaran.
+            Sebagai bukti, akan diterbitkan **bukti pembayaran** untuk uang muka, dan sebuah **invoice final** yang merangkum seluruh biaya akan diserahkan pada akhir proyek.
           </li>
         </ul>
       </div>

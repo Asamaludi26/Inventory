@@ -37,14 +37,14 @@ Halaman Dashboard memberikan gambaran umum kondisi inventori dan tugas-tugas yan
 
 ## 3. Fitur Utama (Berdasarkan Peran)
 
-### 3.1. Untuk Semua Pengguna (Staff & Manajer)
+### 3.1. Untuk Semua Pengguna (Staff & Leader)
 
 #### Membuat Request Aset
 Ini adalah fitur untuk mengajukan permintaan pengadaan barang/aset baru.
 1.  Buka halaman **Manajemen Aset > Request Aset**.
 2.  Klik tombol **"Buat Request Baru"**.
 3.  Isi detail formulir:
-    - **Tanggal & Tipe Order**: Pilih tipe order. Jika Anda seorang **Manajer**, Anda dapat memilih `Urgent` atau `Project Based` dan wajib mengisi justifikasi/nama proyek.
+    - **Tanggal & Tipe Order**: Pilih tipe order. Jika Anda seorang **Leader**, Anda dapat memilih `Urgent` atau `Project Based` dan wajib mengisi justifikasi/nama proyek.
     - **Detail Permintaan Barang**: Klik **"Tambah Item"** untuk menambahkan barang yang diminta. Pilih Kategori, Tipe, dan Model. Jumlah stok yang tersedia akan muncul otomatis.
     > **Catatan**: Pilihan Kategori Aset yang tersedia akan disesuaikan dengan divisi Anda.
 4.  Setelah semua item terisi, klik **"Ajukan Permintaan"**.
@@ -63,9 +63,9 @@ Jika request Anda belum diproses, Anda dapat mengirim notifikasi pengingat kepad
 3.  Isi formulir laporan kerusakan dengan detail masalah dan lampirkan foto jika perlu.
 4.  Kirim laporan. Tim Admin akan menerima notifikasi dan menindaklanjuti.
 
-### 3.2. Untuk Admin & Super Admin
+### 3.2. Untuk Admin (Admin Logistik & Admin Purchase) & Super Admin
 
-#### Mengelola Request Aset
+#### Mengelola Request Aset (Utama untuk Admin Purchase)
 1.  Buka halaman **Manajemen Aset > Request Aset**.
 2.  Request yang memerlukan persetujuan akan muncul di bagian atas atau dapat difilter.
 3.  Klik pada sebuah request untuk melihat detailnya.
@@ -76,7 +76,7 @@ Jika request Anda belum diproses, Anda dapat mengirim notifikasi pengingat kepad
 
 `[Screenshot: Modal detail request dengan tombol 'Setujui' dan 'Tolak' disorot]`
 
-#### Mencatat Aset Baru
+#### Mencatat Aset Baru (Utama untuk Admin Logistik)
 Fitur ini digunakan untuk mendaftarkan barang yang telah tiba ke dalam sistem sebagai aset.
 1.  **Dari Request**: Di halaman **Request Aset**, cari request yang statusnya **"Telah Tiba"**. Klik tombol **"Catat Aset"**.
 2.  **Manual**: Buka halaman **Manajemen Aset > Catat Aset** dan klik **"Catat Aset Baru"**.
@@ -91,20 +91,20 @@ Buka **Manajemen Aset > Stok Aset** untuk melihat ringkasan semua tipe aset yang
 -   Filter berdasarkan kategori, brand, atau status stok (misal: "Stok Menipis").
 -   Mulai permintaan baru langsung dari item yang stoknya habis.
 
-#### Mengelola Handover (Serah Terima Internal)
+#### Mengelola Handover (Serah Terima Internal) (Utama untuk Admin Logistik)
 Fitur ini mencatat perpindahan aset dari satu staf/divisi ke staf/divisi lain.
 1.  Buka halaman **Manajemen Aset > Handover Aset**.
 2.  Klik **"Buat Handover Baru"**.
 3.  Isi formulir Berita Acara: pilih aset dari gudang dan pihak yang terlibat.
 4.  Klik **"Proses Handover"**. Status aset akan otomatis berubah menjadi "Digunakan".
 
-#### Mengelola Dismantle (Penarikan Aset dari Pelanggan)
+#### Mengelola Dismantle (Penarikan Aset dari Pelanggan) (Utama untuk Admin Logistik)
 1.  Buka halaman **Daftar Pelanggan** atau **Catat Aset**.
 2.  Dari detail pelanggan atau detail aset, klik tombol **"Tarik dari Pelanggan"**.
 3.  Lengkapi formulir Berita Acara Dismantle.
 4.  Setelah aset tiba di gudang, Admin Gudang harus membuka detail dismantle ini dan mengklik **"Acknowledge & Complete"** untuk mengembalikan aset ke stok.
 
-#### Mengelola Perbaikan Aset
+#### Mengelola Perbaikan Aset (Utama untuk Admin Logistik)
 1.  Buka **Manajemen Aset > Perbaikan Aset**.
 2.  Halaman ini menampilkan semua aset yang dilaporkan rusak atau sedang dalam perbaikan.
 3.  Klik **"Mulai Perbaikan"** pada aset yang rusak untuk mencatat teknisi/vendor dan estimasi selesai.

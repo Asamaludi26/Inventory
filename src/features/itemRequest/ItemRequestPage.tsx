@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole } from '../../types';
+import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails } from '../../types';
 import Modal from '../../components/ui/Modal';
 import { CloseIcon } from '../../components/icons/CloseIcon';
 import DatePicker from '../../components/ui/DatePicker';
@@ -40,8 +40,11 @@ import { InfoIcon } from '../../components/icons/InfoIcon';
 import { BellIcon } from '../../components/icons/BellIcon';
 import { MegaphoneIcon } from '../../components/icons/MegaphoneIcon';
 import { ExportIcon } from '../../components/icons/ExportIcon';
+import { DollarIcon } from '../../components/icons/DollarIcon';
+import { PencilIcon } from '../../components/icons/PencilIcon';
+import { RequestStatusIndicator, OrderIndicator } from './components/RequestStatus';
 
-const canViewPrice = (role: UserRole) => ['Procurement Admin', 'Super Admin'].includes(role);
+const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].includes(role);
 
 interface ItemRequestPageProps {
     currentUser: User;
@@ -62,70 +65,6 @@ interface ItemRequestPageProps {
     addNotification: (notification: Partial<Notification> & { recipientId: number, actorName: string, type: Notification['type'], referenceId: string }) => void;
     markNotificationsAsRead: (referenceId: string) => void;
 }
-
-export const getStatusClass = (status: ItemStatus) => {
-    switch (status) {
-        case ItemStatus.PENDING:
-            return 'bg-warning-light text-warning-text';
-        case ItemStatus.LOGISTIC_APPROVED:
-            return 'bg-info-light text-info-text';
-        case ItemStatus.APPROVED:
-            return 'bg-sky-100 text-sky-700';
-        case ItemStatus.PURCHASING:
-            return 'bg-blue-100 text-blue-700';
-        case ItemStatus.IN_DELIVERY:
-            return 'bg-purple-100 text-purple-700';
-        case ItemStatus.ARRIVED:
-            return 'bg-teal-100 text-teal-700';
-        case ItemStatus.COMPLETED:
-            return 'bg-success-light text-success-text';
-        case ItemStatus.REJECTED:
-            return 'bg-danger-light text-danger-text';
-        case ItemStatus.CANCELLED:
-            return 'bg-gray-200 text-gray-700';
-        case ItemStatus.IN_PROGRESS:
-             return 'bg-gray-200 text-gray-800';
-        default:
-            return 'bg-gray-100 text-gray-800';
-    }
-};
-
-export const RequestStatusIndicator: React.FC<{ status: ItemStatus }> = ({ status }) => {
-    const statusDetails = useMemo(() => {
-        switch (status) {
-            case ItemStatus.PENDING:
-                return { Icon: BsClock, label: 'Menunggu', className: 'bg-warning-light text-warning-text' };
-            case ItemStatus.LOGISTIC_APPROVED:
-                return { Icon: BsPatchCheck, label: 'Logistik OK', className: 'bg-info-light text-info-text' };
-            case ItemStatus.APPROVED:
-                return { Icon: BsClipboardCheck, label: 'Disetujui', className: 'bg-sky-100 text-sky-700' };
-            case ItemStatus.PURCHASING:
-                return { Icon: ShoppingCartIcon, label: 'Pengadaan', className: 'bg-blue-100 text-blue-700' };
-            case ItemStatus.IN_DELIVERY:
-                return { Icon: TruckIcon, label: 'Dikirim', className: 'bg-purple-100 text-purple-700' };
-            case ItemStatus.ARRIVED:
-                return { Icon: ArchiveBoxIcon, label: 'Telah Tiba', className: 'bg-teal-100 text-teal-700' };
-            case ItemStatus.COMPLETED:
-                return { Icon: BsCheckCircleFill, label: 'Selesai', className: 'bg-success-light text-success-text' };
-            case ItemStatus.REJECTED:
-                return { Icon: BsXCircleFill, label: 'Ditolak', className: 'bg-danger-light text-danger-text' };
-            case ItemStatus.CANCELLED:
-                return { Icon: BsSlashCircle, label: 'Dibatalkan', className: 'bg-gray-200 text-gray-700' };
-            case ItemStatus.IN_PROGRESS:
-                 return { Icon: SpinnerIcon, label: 'Diproses', className: 'bg-gray-200 text-gray-800' };
-            default:
-                return { Icon: InfoIcon, label: status, className: 'bg-gray-100 text-gray-800' };
-        }
-    }, [status]);
-
-    return (
-        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full ${statusDetails.className}`}>
-            <statusDetails.Icon className={`flex-shrink-0 w-3.5 h-3.5 ${status === ItemStatus.IN_PROGRESS ? 'animate-spin' : ''}`} />
-            <span className="leading-none">{statusDetails.label}</span>
-        </div>
-    );
-};
-
 
 const SortableHeader: React.FC<{
     children: React.ReactNode;
@@ -170,42 +109,6 @@ interface RequestTableProps {
     onFollowUpClick: (request: Request) => void;
 }
 
-export const OrderIndicator: React.FC<{ order: OrderDetails }> = ({ order }) => {
-    const details = useMemo(() => {
-        switch (order.type) {
-            case 'Urgent':
-                return { 
-                    label: 'Urgent',
-                    className: 'text-danger-text font-bold',
-                    dotClass: 'bg-danger',
-                    tooltip: `Urgent: ${order.justification || 'Membutuhkan penanganan segera.'}`,
-                };
-            case 'Project Based':
-                return { 
-                    label: 'Project Based',
-                    className: 'text-info-text font-medium',
-                    dotClass: 'bg-info',
-                    tooltip: `Project: ${order.project || 'Terkait proyek tertentu.'}`,
-                };
-            case 'Regular Stock':
-            default:
-                return { 
-                    label: 'Regular Stock',
-                    className: 'text-tm-secondary font-medium',
-                    dotClass: 'bg-tm-secondary',
-                    tooltip: 'Permintaan stok reguler',
-                };
-        }
-    }, [order]);
-
-    return (
-        <div title={details.tooltip} className="inline-flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${details.dotClass}`}></span>
-            <span className={`text-xs ${details.className}`}>{details.label}</span>
-        </div>
-    );
-};
-
 const RequestTable: React.FC<RequestTableProps> = ({ requests, currentUser, onDetailClick, onDeleteClick, onOpenStaging, sortConfig, requestSort, selectedRequestIds, onSelectOne, onSelectAll, isBulkSelectMode, onEnterBulkMode, notifications, onFollowUpClick }) => {
     const longPressHandlers = useLongPress(onEnterBulkMode, 500);
 
@@ -247,7 +150,7 @@ const RequestTable: React.FC<RequestTableProps> = ({ requests, currentUser, onDe
                     requests.map((req) => {
                         const relevantNotifs = notifications.filter(n => n.recipientId === currentUser.id && n.referenceId === req.id);
                         const hasUnreadNotif = relevantNotifs.some(n => !n.isRead);
-                        const isApprover = ['Procurement Admin', 'Inventory Admin', 'Super Admin'].includes(currentUser.role);
+                        const isApprover = ['Admin Purchase', 'Admin Logistik', 'Super Admin'].includes(currentUser.role);
                         const showHighlight = hasUnreadNotif && isApprover;
 
                         const unreadNotifTypes = new Set(relevantNotifs.filter(n => !n.isRead).map(n => n.type));
@@ -328,7 +231,7 @@ const RequestTable: React.FC<RequestTableProps> = ({ requests, currentUser, onDe
                             </td>
                             <td className="px-6 py-4 text-sm font-medium text-right lg:whitespace-nowrap">
                                 <div className="flex items-center justify-end space-x-2">
-                                    {(currentUser.role === 'Staff' || currentUser.role === 'Manager') && (req.status === ItemStatus.PENDING || req.status === ItemStatus.LOGISTIC_APPROVED) && (
+                                    {(currentUser.role === 'Staff' || currentUser.role === 'Leader') && (req.status === ItemStatus.PENDING || req.status === ItemStatus.LOGISTIC_APPROVED) && (
                                         <Tooltip text={followUpTooltip} position="left">
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); onFollowUpClick(req); }}
@@ -342,7 +245,7 @@ const RequestTable: React.FC<RequestTableProps> = ({ requests, currentUser, onDe
                                         </Tooltip>
                                     )}
                                     
-                                    {req.status === ItemStatus.ARRIVED && !req.isRegistered && (currentUser.role === 'Inventory Admin' || currentUser.role === 'Super Admin') ? (
+                                    {req.status === ItemStatus.ARRIVED && !req.isRegistered && (currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin') ? (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); onOpenStaging(req); }}
                                             className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
@@ -360,7 +263,7 @@ const RequestTable: React.FC<RequestTableProps> = ({ requests, currentUser, onDe
                                           <EyeIcon className="w-5 h-5"/>
                                         </button>
                                     )}
-                                    {(currentUser.role === 'Procurement Admin' || currentUser.role === 'Super Admin') && (
+                                    {(currentUser.role === 'Admin Purchase' || currentUser.role === 'Super Admin') && (
                                         <button onClick={(e) => { e.stopPropagation(); onDeleteClick(req.id); }} className="flex items-center justify-center w-8 h-8 text-gray-500 transition-colors bg-gray-100 rounded-full hover:bg-danger-light hover:text-danger-text" title="Hapus">
                                           <TrashIcon className="w-5 h-5"/>
                                         </button>
@@ -893,7 +796,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
     const divisionOptions = divisions.map(d => ({ value: d.name, label: d.name }));
 
     const sendProgressFeedbackNotification = (request: Request) => {
-        if (currentUser.role !== 'Procurement Admin') return null;
+        if (currentUser.role !== 'Admin Purchase') return null;
     
         const wasPrioritized = request.isPrioritizedByCEO && !request.ceoDispositionFeedbackSent;
         const wasUpdateRequested = request.progressUpdateRequest && !request.progressUpdateRequest.feedbackSent;
@@ -1021,10 +924,10 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             .filter(req => {
                 if (!filters.status) return true;
                 if (filters.status === 'awaiting-approval') {
-                    return [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(req.status);
+                    return [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL].includes(req.status);
                 }
                 if (filters.status === 'urgent-awaiting-approval') {
-                    return req.order.type === 'Urgent' && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(req.status);
+                    return req.order.type === 'Urgent' && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL].includes(req.status);
                 }
                 return req.status === filters.status;
             })
@@ -1032,13 +935,12 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             .filter(req => filters.orderType ? req.order.type === filters.orderType : true);
         
         // Staff can only see their own requests
-        if (currentUser.role === 'Staff') {
+        if (currentUser.role === 'Staff' || currentUser.role === 'Leader') {
             tempRequests = tempRequests.filter(req => req.requester === currentUser.name);
         }
 
-
         // Prioritize requests for Admins and Super Admins based on unread notifications
-        if (['Inventory Admin', 'Procurement Admin', 'Super Admin'].includes(currentUser.role)) {
+        if (['Admin Logistik', 'Admin Purchase', 'Super Admin'].includes(currentUser.role)) {
             const getPriorityScore = (req: Request): number => {
                 const unreadNotifs = notifications.filter(n => n.recipientId === currentUser.id && n.referenceId === req.id && !n.isRead);
                 if (unreadNotifs.length === 0) return 0;
@@ -1075,12 +977,12 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         const selected = requests.filter(r => selectedRequestIds.includes(r.id));
         
         const canApprove = (req: Request) => 
-            (req.status === ItemStatus.PENDING && (currentUser.role === 'Procurement Admin' || currentUser.role === 'Super Admin')) ||
+            (req.status === ItemStatus.PENDING && (currentUser.role === 'Admin Purchase' || currentUser.role === 'Super Admin')) ||
             (req.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Super Admin');
 
         const canReject = (req: Request) => 
             (req.status === ItemStatus.PENDING || req.status === ItemStatus.LOGISTIC_APPROVED) &&
-            (currentUser.role === 'Procurement Admin' || currentUser.role === 'Super Admin');
+            (currentUser.role === 'Admin Purchase' || currentUser.role === 'Super Admin');
 
         return {
             approveCount: selected.filter(canApprove).length,
@@ -1161,8 +1063,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         };
         setRequests(prev => [newRequest, ...prev]);
 
-        const procurementAndSuperAdmins = users.filter(u => u.role === 'Procurement Admin' || u.role === 'Super Admin');
-        procurementAndSuperAdmins.forEach(admin => {
+        const logisticAndSuperAdmins = users.filter(u => u.role === 'Admin Logistik' || u.role === 'Super Admin');
+        logisticAndSuperAdmins.forEach(admin => {
             addNotification({
                 recipientId: admin.id,
                 actorName: currentUser.name,
@@ -1180,84 +1082,109 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         }
     };
 
-    const handleApproval = (requestId: string) => {
+    const handleLogisticApproval = (requestId: string) => {
         setIsLoading(true);
-        setTimeout(() => { // Simulate API Call
+        setTimeout(() => {
             const today = new Date().toISOString();
             let approved = false;
-            let finalStatus: ItemStatus | null = null;
-            let errorMessage: string | null = null;
-            let updatedRequestForModal: Partial<Request> | null = null;
+            setRequests(prev => prev.map(req => {
+                if (req.id === requestId && req.status === ItemStatus.PENDING) {
+                    if (['Admin Logistik', 'Super Admin'].includes(currentUser.role)) {
+                        approved = true;
+                        
+                        const purchaseAdmins = users.filter(u => u.role === 'Admin Purchase');
+                        purchaseAdmins.forEach(admin => {
+                            addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_LOGISTIC_APPROVED', referenceId: req.id });
+                        });
 
-            setRequests(prevRequests =>
-                prevRequests.map(req => {
-                    if (req.id !== requestId) return req;
-
-                    const canApproveFirst = ['Procurement Admin', 'Super Admin'].includes(currentUser.role);
-                    const canApproveFinal = currentUser.role === 'Super Admin';
-                    
-                    if (req.status === ItemStatus.PENDING) {
-                        if (canApproveFirst) {
-                            approved = true;
-                            // Super Admin can one-step approve
-                            finalStatus = currentUser.role === 'Super Admin' ? ItemStatus.APPROVED : ItemStatus.LOGISTIC_APPROVED;
-                            
-                            if (finalStatus === ItemStatus.APPROVED) {
-                                updatedRequestForModal = { status: ItemStatus.APPROVED, logisticApprover: currentUser.name, logisticApprovalDate: today, finalApprover: currentUser.name, finalApprovalDate: today, };
-                                const procurementAdmins = users.filter(u => u.role === 'Procurement Admin' && u.id !== currentUser.id);
-                                procurementAdmins.forEach(admin => {
-                                    addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_FULLY_APPROVED', referenceId: req.id });
-                                });
-                            } else {
-                                updatedRequestForModal = { status: ItemStatus.LOGISTIC_APPROVED, logisticApprover: currentUser.name, logisticApprovalDate: today };
-                                const superAdmins = users.filter(u => u.role === 'Super Admin');
-                                superAdmins.forEach(sa => {
-                                    addNotification({ recipientId: sa.id, actorName: currentUser.name, type: 'REQUEST_AWAITING_FINAL_APPROVAL', referenceId: req.id });
-                                });
-                            }
-                            return { ...req, ...updatedRequestForModal };
-                        }
+                        return { ...req, status: ItemStatus.LOGISTIC_APPROVED, logisticApprover: currentUser.name, logisticApprovalDate: today };
                     }
-
-                    if (req.status === ItemStatus.LOGISTIC_APPROVED) {
-                        if (canApproveFinal) {
-                            approved = true;
-                            finalStatus = ItemStatus.APPROVED;
-                            updatedRequestForModal = { status: ItemStatus.APPROVED, finalApprover: currentUser.name, finalApprovalDate: today };
-                            
-                            const procurementAdmins = users.filter(u => u.role === 'Procurement Admin');
-                            procurementAdmins.forEach(admin => {
-                                addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_FULLY_APPROVED', referenceId: req.id });
-                            });
-                            return { ...req, ...updatedRequestForModal };
-                        } else {
-                            errorMessage = 'Hanya Super Admin yang dapat memberikan persetujuan final.';
-                            return req;
-                        }
-                    }
-                    
-                    return req;
-                })
-            );
-
-            if (errorMessage) {
-                addNotificationUI(errorMessage, 'error');
-            } else if (approved && finalStatus) {
-                const originalRequest = requests.find(r => r.id === requestId);
-                const requesterUser = users.find(u => u.name === originalRequest?.requester);
-                if (requesterUser) {
-                    addNotification({ recipientId: requesterUser.id, actorName: currentUser.name, type: 'REQUEST_APPROVED', referenceId: requestId });
                 }
-                addNotificationUI(`Request berhasil disetujui. Status: ${finalStatus}`, 'success');
-                if (updatedRequestForModal) {
-                    setSelectedRequest(prev => {
-                        if (!prev || prev.id !== requestId) return prev;
-                        return { ...prev, ...updatedRequestForModal } as Request;
-                    });
-                }
+                return req;
+            }));
+
+            if(approved) {
+                addNotificationUI('Request disetujui oleh Logistik dan diteruskan ke Purchase.', 'success');
+                handleCloseDetailModal();
+            } else {
+                 addNotificationUI('Aksi tidak diizinkan.', 'error');
             }
             setIsLoading(false);
-        }, 1000);
+        }, 800);
+    };
+    
+    const handleSubmitForCeoApproval = (requestId: string, purchaseData: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => {
+        setIsLoading(true);
+        setTimeout(() => {
+            const today = new Date().toISOString();
+            let submitted = false;
+            setRequests(prev => prev.map(req => {
+                 if (req.id === requestId && req.status === ItemStatus.LOGISTIC_APPROVED) {
+                    if (currentUser.role === 'Admin Purchase') {
+                        submitted = true;
+                        const superAdmins = users.filter(u => u.role === 'Super Admin');
+                        superAdmins.forEach(sa => {
+                            addNotification({ recipientId: sa.id, actorName: currentUser.name, type: 'REQUEST_AWAITING_FINAL_APPROVAL', referenceId: req.id });
+                        });
+                        return { 
+                            ...req, 
+                            status: ItemStatus.AWAITING_CEO_APPROVAL,
+                            purchaseDetails: {
+                                ...purchaseData,
+                                filledBy: currentUser.name,
+                                fillDate: today
+                            }
+                        };
+                    }
+                }
+                return req;
+            }));
+
+            if (submitted) {
+                addNotificationUI('Detail pembelian disimpan dan permintaan diteruskan ke CEO.', 'success');
+                handleCloseDetailModal();
+            } else {
+                addNotificationUI('Aksi tidak diizinkan.', 'error');
+            }
+            setIsLoading(false);
+        }, 800);
+    };
+
+    const handleFinalCeoApproval = (requestId: string) => {
+         setIsLoading(true);
+        setTimeout(() => {
+            const today = new Date().toISOString();
+            let approved = false;
+
+            setRequests(prev => prev.map(req => {
+                 if (req.id === requestId && req.status === ItemStatus.AWAITING_CEO_APPROVAL) {
+                    if (currentUser.role === 'Super Admin') {
+                        approved = true;
+
+                        const purchaseAdmins = users.filter(u => u.role === 'Admin Purchase');
+                        purchaseAdmins.forEach(admin => {
+                            addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_FULLY_APPROVED', referenceId: req.id });
+                        });
+                        
+                        const requesterUser = users.find(u => u.name === req.requester);
+                        if (requesterUser) {
+                            addNotification({ recipientId: requesterUser.id, actorName: currentUser.name, type: 'REQUEST_APPROVED', referenceId: req.id });
+                        }
+
+                        return { ...req, status: ItemStatus.APPROVED, finalApprover: currentUser.name, finalApprovalDate: today };
+                    }
+                 }
+                 return req;
+            }));
+
+            if(approved) {
+                addNotificationUI('Persetujuan final diberikan. Tim Purchase akan melanjutkan proses.', 'success');
+                handleCloseDetailModal();
+            } else {
+                addNotificationUI('Aksi tidak diizinkan.', 'error');
+            }
+            setIsLoading(false);
+        }, 800);
     };
     
     const handleOpenFollowUpModal = (request: Request) => {
@@ -1293,7 +1220,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             
             setRequests(prev => prev.map(r => r.id === followUpRequest.id ? { ...r, lastFollowUpAt: now.toISOString() } : r));
 
-            const admins = users.filter(u => u.role === 'Procurement Admin');
+            const admins = users.filter(u => u.role === 'Admin Logistik');
             admins.forEach(admin => {
                 addNotification({
                     recipientId: admin.id,
@@ -1302,7 +1229,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                     referenceId: followUpRequest.id
                 });
             });
-            addNotificationUI(`Notifikasi follow-up untuk #${followUpRequest.id} telah dikirim ke Admin.`, 'success');
+            addNotificationUI(`Notifikasi follow-up untuk #${followUpRequest.id} telah dikirim ke Admin Logistik.`, 'success');
 
             setIsLoading(false);
             setFollowUpRequest(null);
@@ -1354,7 +1281,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             setRequests(prev => prev.map(r => r.id === requestId ? updatedRequest : r));
             setSelectedRequest(updatedRequest); // Update modal state immediately
             
-            users.filter(u => u.role === 'Procurement Admin').forEach(admin => {
+            users.filter(u => u.role === 'Admin Purchase' || u.role === 'Admin Logistik').forEach(admin => {
                 addNotification({
                     recipientId: admin.id,
                     actorName: currentUser.name,
@@ -1362,7 +1289,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                     referenceId: requestId,
                 });
             });
-            addNotificationUI(`Disposisi prioritas untuk ${requestId} telah dikirim ke tim Procurement.`, 'success');
+            addNotificationUI(`Disposisi prioritas untuk ${requestId} telah dikirim ke tim terkait.`, 'success');
             setIsLoading(false);
         }, 1000);
     };
@@ -1384,7 +1311,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             setRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updatedRequestPartial } : r));
             setSelectedRequest(prev => prev ? { ...prev, ...updatedRequestPartial } : null);
             
-            users.filter(u => u.role === 'Procurement Admin').forEach(admin => {
+            users.filter(u => u.role === 'Admin Purchase').forEach(admin => {
                 addNotification({
                     recipientId: admin.id,
                     actorName: currentUser.name,
@@ -1398,7 +1325,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
     };
 
     const handleAcknowledgeProgressUpdate = () => {
-        if (!selectedRequest || currentUser.role !== 'Procurement Admin') return;
+        if (!selectedRequest || currentUser.role !== 'Admin Purchase') return;
         const requestId = selectedRequest.id;
     
         setIsLoading(true);
@@ -1480,7 +1407,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 });
             }
             
-            const adminsAndSuperAdmins = users.filter(u => (u.role === 'Procurement Admin' || u.role === 'Super Admin') && u.id !== currentUser.id);
+            const adminsAndSuperAdmins = users.filter(u => (u.role === 'Admin Purchase' || u.role === 'Super Admin') && u.id !== currentUser.id);
             adminsAndSuperAdmins.forEach(admin => {
                 addNotification({
                     recipientId: admin.id,
@@ -1504,7 +1431,11 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             return;
         }
 
-        const canReject = (selectedRequest.status === ItemStatus.PENDING && (currentUser.role === 'Procurement Admin' || currentUser.role === 'Super Admin')) || (selectedRequest.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Super Admin');
+        const canReject = 
+            (currentUser.role === 'Admin Logistik' && selectedRequest.status === ItemStatus.PENDING) ||
+            (currentUser.role === 'Admin Purchase' && selectedRequest.status === ItemStatus.LOGISTIC_APPROVED) ||
+            (currentUser.role === 'Super Admin' && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL].includes(selectedRequest.status));
+
         if (!canReject) {
             addNotificationUI('Anda tidak memiliki izin untuk menolak permintaan pada status ini.', 'error');
             return;
@@ -1513,7 +1444,9 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         setIsLoading(true);
         setTimeout(() => { // Simulate API Call
             const today = new Date().toISOString().split('T')[0];
-            const rejectorDivision = currentUser.role === 'Super Admin' ? 'CEO / Super Admin' : 'Procurement';
+            const rejectorDivision = 
+                currentUser.role === 'Super Admin' ? 'Manajemen' : 
+                currentUser.role === 'Admin Purchase' ? 'Purchase' : 'Logistik';
 
             setRequests(prevRequests =>
                 prevRequests.map(req =>
@@ -1528,7 +1461,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 addNotification({ recipientId: requesterUser.id, actorName: currentUser.name, type: 'REQUEST_REJECTED', referenceId: selectedRequest.id });
             }
 
-            const adminsAndSuperAdmins = users.filter(u => (u.role === 'Procurement Admin' || u.role === 'Super Admin') && u.id !== currentUser.id);
+            const adminsAndSuperAdmins = users.filter(u => (u.role === 'Admin Purchase' || u.role === 'Admin Logistik' || u.role === 'Super Admin') && u.id !== currentUser.id);
             adminsAndSuperAdmins.forEach(admin => {
                 addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_REJECTED', referenceId: selectedRequest.id, message: `menolak request dengan alasan: "${rejectionReason.trim()}"` });
             });
@@ -1583,7 +1516,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             setRequests(prevRequests => {
                 return prevRequests.map(req => {
                     if (selectedRequestIds.includes(req.id)) {
-                        if (req.status === ItemStatus.PENDING && (currentUser.role === 'Procurement Admin' || currentUser.role === 'Super Admin')) {
+                        if (req.status === ItemStatus.PENDING && (currentUser.role === 'Admin Purchase' || currentUser.role === 'Super Admin')) {
                             approvedCount++;
                             return { ...req, status: ItemStatus.LOGISTIC_APPROVED, logisticApprover: currentUser.name, logisticApprovalDate: today };
                         }
@@ -1616,7 +1549,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         setIsLoading(true);
         setTimeout(() => {
             const today = new Date().toISOString().split('T')[0];
-            const rejectorDivision = currentUser.role === 'Super Admin' ? 'CEO / Super Admin' : 'Procurement';
+            const rejectorDivision = currentUser.role === 'Super Admin' ? 'CEO / Super Admin' : 'Purchase';
             let rejectedCount = 0;
 
             setRequests(prevRequests => {
@@ -1652,16 +1585,17 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
     const renderApprovalActions = () => {
         if (!selectedRequest) return null;
         
-        const canFirstApprove = selectedRequest.status === ItemStatus.PENDING && (currentUser.role === 'Procurement Admin' || currentUser.role === 'Super Admin');
-        const canFinalApprove = selectedRequest.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Super Admin';
+        const canLogisticApprove = selectedRequest.status === ItemStatus.PENDING && (currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin');
+        const canFillPurchase = selectedRequest.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Admin Purchase';
+        const canFinalApprove = selectedRequest.status === ItemStatus.AWAITING_CEO_APPROVAL && currentUser.role === 'Super Admin';
         
         const canReject = 
-            (currentUser.role === 'Procurement Admin' && selectedRequest.status === ItemStatus.PENDING) ||
-            (currentUser.role === 'Super Admin' && (selectedRequest.status === ItemStatus.PENDING || selectedRequest.status === ItemStatus.LOGISTIC_APPROVED));
+            (currentUser.role === 'Admin Logistik' && selectedRequest.status === ItemStatus.PENDING) ||
+            (currentUser.role === 'Admin Purchase' && selectedRequest.status === ItemStatus.LOGISTIC_APPROVED) ||
+            (currentUser.role === 'Super Admin' && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL].includes(selectedRequest.status));
 
-        const canCancel = selectedRequest.requester === currentUser.name && (selectedRequest.status === ItemStatus.PENDING || selectedRequest.status === ItemStatus.LOGISTIC_APPROVED);
-
-        const canFollowUp = (currentUser.role === 'Staff' || currentUser.role === 'Manager') && (selectedRequest.status === ItemStatus.PENDING || selectedRequest.status === ItemStatus.LOGISTIC_APPROVED);
+        const canCancel = selectedRequest.requester === currentUser.name && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(selectedRequest.status);
+        const canFollowUp = (currentUser.role === 'Staff' || currentUser.role === 'Leader') && (selectedRequest.status === ItemStatus.PENDING || selectedRequest.status === ItemStatus.LOGISTIC_APPROVED);
 
         const now = new Date();
         const lastFollowUpDate = selectedRequest.lastFollowUpAt ? new Date(selectedRequest.lastFollowUpAt) : null;
@@ -1677,7 +1611,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             }
         }
 
-        const canFollowUpCeo = currentUser.role === 'Procurement Admin' && selectedRequest.status === ItemStatus.LOGISTIC_APPROVED;
+        const canFollowUpCeo = currentUser.role === 'Admin Purchase' && selectedRequest.status === ItemStatus.LOGISTIC_APPROVED;
 
         let isCeoFollowUpDisabled = !!selectedRequest.ceoFollowUpSent;
         let ceoFollowUpTooltip = "Kirim notifikasi follow-up ke CEO untuk persetujuan final";
@@ -1687,10 +1621,10 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         
         // --- Role-Based Operational Actions ---
         const isApproved = [ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(selectedRequest.status);
-        const canStartProcurement = selectedRequest.status === ItemStatus.APPROVED && currentUser.role === 'Procurement Admin';
-        const canConfirmShipment = selectedRequest.status === ItemStatus.PURCHASING && currentUser.role === 'Procurement Admin';
-        const canConfirmArrival = selectedRequest.status === ItemStatus.IN_DELIVERY && currentUser.role === 'Procurement Admin';
-        const canRegister = selectedRequest.status === ItemStatus.ARRIVED && !selectedRequest.isRegistered && (currentUser.role === 'Inventory Admin' || currentUser.role === 'Super Admin');
+        const canStartProcurement = selectedRequest.status === ItemStatus.APPROVED && currentUser.role === 'Admin Purchase';
+        const canConfirmShipment = selectedRequest.status === ItemStatus.PURCHASING && currentUser.role === 'Admin Purchase';
+        const canConfirmArrival = selectedRequest.status === ItemStatus.IN_DELIVERY && currentUser.role === 'Admin Purchase';
+        const canRegister = selectedRequest.status === ItemStatus.ARRIVED && !selectedRequest.isRegistered && (currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin');
         
         const canPrioritize = currentUser.role === 'Super Admin' && selectedRequest.order.type === 'Urgent';
 
@@ -1764,37 +1698,44 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                         {selectedRequest.isPrioritizedByCEO ? 'Telah Didisposisikan' : 'Disposisi & Prioritaskan'}
                     </button>
                 )}
-                {canFirstApprove && currentUser.role === 'Procurement Admin' && (
-                    <button type="button" onClick={() => handleApproval(selectedRequest.id)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Setujui (Logistik)'}</button>
+                 {canLogisticApprove && (
+                    <button type="button" onClick={() => handleLogisticApproval(selectedRequest.id)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Setujui (Logistik)'}</button>
                 )}
-                {canFirstApprove && currentUser.role === 'Super Admin' && (
-                    <button type="button" onClick={() => handleApproval(selectedRequest.id)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Langsung Setujui Final'}</button>
+                {canFillPurchase && (
+                    <button type="button" onClick={handleStartProcurement} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Isi Detail Pembelian'}</button>
                 )}
                 {canFinalApprove && (
-                     <button type="button" onClick={() => handleApproval(selectedRequest.id)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Setujui Final'}</button>
+                     <button type="button" onClick={() => handleFinalCeoApproval(selectedRequest.id)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Setujui Final'}</button>
                 )}
             </div>
         );
     };
     
+    const showProcurement = selectedRequest && [ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(selectedRequest.status);
+
+    // FIX: Define renderContent function to switch between list and form views.
     const renderContent = () => {
         if (view === 'form') {
             return (
                 <div className="p-4 sm:p-6 md:p-8">
                     <div className="flex items-center justify-between mb-6">
-                        <h1 className="text-3xl font-bold text-tm-dark">Buat Request Baru</h1>
-                        <button
-                            onClick={() => {
-                                setView('list');
-                                setItemToPrefill(null);
-                            }}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent"
-                        >
+                        <h1 className="text-3xl font-bold text-tm-dark">Buat Request Aset Baru</h1>
+                        <button onClick={() => setView('list')} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">
                             Kembali ke Daftar
                         </button>
                     </div>
-                    <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md pb-24">
-                        <RequestForm currentUser={currentUser} assets={assets} assetCategories={assetCategories} divisions={divisions} onCreateRequest={handleCreateRequest} prefillItem={itemToPrefill} openModelModal={openModelModal} openTypeModal={openTypeModal} setActivePage={setActivePage} />
+                    <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md">
+                        <RequestForm
+                            currentUser={currentUser}
+                            assets={assets}
+                            assetCategories={assetCategories}
+                            divisions={divisions}
+                            onCreateRequest={handleCreateRequest}
+                            prefillItem={itemToPrefill}
+                            openModelModal={openModelModal}
+                            openTypeModal={openTypeModal}
+                            setActivePage={setActivePage}
+                        />
                     </div>
                 </div>
             );
@@ -1803,39 +1744,31 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         return (
             <div className="p-4 sm:p-6 md:p-8">
                 <div className="flex flex-col items-start justify-between gap-4 mb-6 md:flex-row md:items-center">
-                    <h1 className="text-3xl font-bold text-tm-dark">Daftar Request Barang</h1>
-                     <div className="flex items-center space-x-2">
-                        <button
-                            onClick={handleExport}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 bg-white border rounded-lg shadow-sm hover:bg-gray-50"
-                        >
-                            <ExportIcon className="w-4 h-4"/>
-                            Export CSV
+                    <h1 className="text-3xl font-bold text-tm-dark">Daftar Request Aset</h1>
+                    <div className="flex items-center space-x-2">
+                        <button onClick={handleExport} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border rounded-lg shadow-sm hover:bg-gray-50">
+                            <ExportIcon className="w-4 h-4"/> Export CSV
                         </button>
-                        <button
-                            onClick={() => setView('form')}
-                            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent"
-                        >
+                        <button onClick={() => setView('form')} className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover">
                             Buat Request Baru
                         </button>
                     </div>
                 </div>
 
-                {/* Toolbar */}
                 <div className="p-4 mb-4 bg-white border border-gray-200/80 rounded-xl shadow-md">
                     <div className="flex flex-wrap items-center gap-4">
                         <div className="relative flex-grow">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <SearchIcon className="w-5 h-5 text-gray-400" />
                             </div>
-                            <input 
+                            <input
                                 type="text"
-                                placeholder="Cari ID, Pemohon, Divisi..."
+                                placeholder="Cari ID, pemohon, atau divisi..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 className="w-full h-10 py-2 pl-10 pr-10 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent"
                             />
-                             {searchQuery && (
+                            {searchQuery && (
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                                     <button
                                         type="button"
@@ -1848,7 +1781,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                                 </div>
                             )}
                         </div>
-                        
                         <div className="relative" ref={filterPanelRef}>
                             <button
                                 onClick={() => {
@@ -1885,8 +1817,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                                                 <CustomSelect options={[{value: '', label: 'Semua Divisi'}, ...divisionOptions]} value={tempFilters.division} onChange={v => setTempFilters(f => ({...f, division: v}))} />
                                             </div>
                                             <div>
-                                                <label htmlFor="projectFilter" className="block text-sm font-semibold text-gray-700 mb-2">Nama Proyek</label>
-                                                <input type="text" id="projectFilter" value={tempFilters.project} onChange={e => setTempFilters(f => ({...f, project: e.target.value}))} className="block w-full px-3 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" placeholder="Cari nama proyek..." />
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Proyek</label>
+                                                <input type="text" placeholder="Cari nama proyek..." value={tempFilters.project} onChange={e => setTempFilters(f => ({...f, project: e.target.value}))} className="w-full h-10 py-2 px-4 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent" />
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between p-4 bg-gray-50 border-t">
@@ -1898,23 +1830,15 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                             )}
                         </div>
                     </div>
-                    
-                    {activeFilterCount > 0 && (
-                        <div className="pt-4 mt-4 border-t border-gray-200">
-                           <p className="text-sm text-gray-600">
-                               Menampilkan <span className="font-semibold text-tm-dark">{sortedRequests.length}</span> dari <span className="font-semibold text-tm-dark">{requests.length}</span> total request yang cocok.
-                           </p>
-                        </div>
-                    )}
                 </div>
 
                 {isBulkSelectMode && (
-                     <div className="p-4 mb-4 bg-blue-50 border-l-4 border-tm-accent rounded-r-lg">
-                        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="p-4 mb-4 bg-blue-50 border-l-4 border-tm-accent rounded-r-lg">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                             {selectedRequestIds.length > 0 ? (
                                 <div className="flex flex-wrap items-center gap-3">
                                     <span className="text-sm font-medium text-tm-primary">{selectedRequestIds.length} item terpilih</span>
-                                    <div className="hidden h-5 border-l border-gray-300 sm:block"></div>
+                                    <div className="h-5 border-l border-gray-300"></div>
                                     <button
                                         onClick={() => setBulkApproveConfirmation(true)}
                                         disabled={actionableCounts.approveCount === 0}
@@ -1925,14 +1849,14 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                                     <button
                                         onClick={() => setBulkRejectConfirmation(true)}
                                         disabled={actionableCounts.rejectCount === 0}
-                                        className="px-3 py-1.5 text-sm font-semibold text-warning-text bg-warning-light rounded-md hover:bg-amber-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                        className="px-3 py-1.5 text-sm font-semibold text-danger-text bg-danger-light rounded-md hover:bg-red-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                                     >
                                         Tolak {actionableCounts.rejectCount > 0 ? `(${actionableCounts.rejectCount})` : ''}
                                     </button>
                                     <button
                                         onClick={() => setBulkDeleteConfirmation(true)}
                                         disabled={actionableCounts.deleteCount === 0}
-                                        className="px-3 py-1.5 text-sm font-semibold text-danger-text bg-danger-light rounded-md hover:bg-red-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                        className="px-3 py-1.5 text-sm font-semibold text-red-600 bg-red-100 rounded-md hover:bg-red-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                                     >
                                         Hapus {actionableCounts.deleteCount > 0 ? `(${actionableCounts.deleteCount})` : ''}
                                     </button>
@@ -1944,29 +1868,29 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                                 Batal
                             </button>
                         </div>
-                     </div>
+                    </div>
                 )}
                 
                 <div className="overflow-hidden bg-white border border-gray-200/80 rounded-xl shadow-md">
                     <div className="overflow-x-auto custom-scrollbar">
-                       <RequestTable 
-                            requests={paginatedRequests} 
+                        <RequestTable
+                            requests={paginatedRequests}
                             currentUser={currentUser}
-                            onDetailClick={handleShowDetails} 
-                            onDeleteClick={setRequestToDeleteId} 
+                            onDetailClick={handleShowDetails}
+                            onDeleteClick={setRequestToDeleteId}
                             onOpenStaging={setStagingRequest}
-                            sortConfig={sortConfig} 
+                            sortConfig={sortConfig}
                             requestSort={requestSort}
                             selectedRequestIds={selectedRequestIds}
-                            onSelectAll={handleSelectAll}
                             onSelectOne={handleSelectOne}
+                            onSelectAll={handleSelectAll}
                             isBulkSelectMode={isBulkSelectMode}
                             onEnterBulkMode={() => setIsBulkSelectMode(true)}
                             notifications={notifications}
                             onFollowUpClick={handleOpenFollowUpModal}
                         />
                     </div>
-                     <PaginationControls
+                    <PaginationControls
                         currentPage={currentPage}
                         totalPages={totalPages}
                         totalItems={totalItems}
@@ -1980,8 +1904,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             </div>
         );
     };
-
-    const showProcurement = selectedRequest && [ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(selectedRequest.status);
 
     return (
         <div className={view === 'form' ? 'pb-24' : ''}>
@@ -2056,7 +1978,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                             </div>
                         )}
                         
-                        {selectedRequest.progressUpdateRequest && !selectedRequest.progressUpdateRequest.isAcknowledged && currentUser.role === 'Procurement Admin' && (
+                        {selectedRequest.progressUpdateRequest && !selectedRequest.progressUpdateRequest.isAcknowledged && currentUser.role === 'Admin Purchase' && (
                             <div className="mb-6 p-4 flex items-start gap-4 text-sm bg-blue-50 border border-blue-200 rounded-md text-blue-800">
                                 <InfoIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
                                 <div>
@@ -2099,14 +2021,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                                         <PreviewItem label="Nama Proyek" value={selectedRequest.order.project} />
                                     )}
                                 </dl>
-                                {selectedRequest.order.type === 'Urgent' && selectedRequest.status === ItemStatus.PENDING && (currentUser.role === 'Procurement Admin' || currentUser.role === 'Super Admin') && (
-                                    <div className="mt-4 p-3 flex items-start gap-3 text-sm bg-blue-50 border border-blue-200 rounded-md text-blue-800">
-                                        <InfoIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                        <p>
-                                            Ini adalah permintaan <strong>Urgent</strong>. Persetujuan Anda akan langsung memindahkan status ke "Disetujui" dan mempercepat proses ke tahap pengadaan.
-                                        </p>
-                                    </div>
-                                )}
                                 {selectedRequest.order.type === 'Urgent' && (
                                     <div className="mt-4">
                                         <PreviewItem label="Justifikasi Urgent" fullWidth>
@@ -2154,6 +2068,17 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                                     </table>
                                 </div>
                             </section>
+                            
+                             {/* Section for Purchase Details Form */}
+                            {selectedRequest.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Admin Purchase' && (
+                                <PurchaseDetailsForm request={selectedRequest} onSubmit={handleSubmitForCeoApproval} />
+                            )}
+
+                             {/* Section to view Purchase Details */}
+                            {selectedRequest.purchaseDetails && canViewPrice(currentUser.role) && (
+                                <PurchaseDetailsView details={selectedRequest.purchaseDetails} />
+                            )}
+
 
                             {/* Section III: Progres Pengadaan (if applicable) */}
                             {showProcurement && (
@@ -2199,18 +2124,14 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                                     </div>
                                 ) : (
                                     (() => {
-                                        // Check if the same approver signed off on logistic and final steps, indicating a direct CEO approval.
-                                        const isCeoOneStepApproval = selectedRequest.logisticApprover && selectedRequest.finalApprover && selectedRequest.logisticApprover === selectedRequest.finalApprover;
-                                        
                                         return (
                                             <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-3 sm:gap-x-4">
                                                 <ApprovalBox title="Request" signer={selectedRequest.requester} date={selectedRequest.requestDate} division={selectedRequest.division} isSigned={true} />
                                                 <ApprovalBox 
-                                                    title="Procurement" 
+                                                    title="Logistik" 
                                                     signer={selectedRequest.logisticApprover} 
                                                     date={selectedRequest.logisticApprovalDate} 
-                                                    // If it's a one-step CEO approval, show the CEO's division (Manajemen) instead of the default 'Inventori'
-                                                    division={isCeoOneStepApproval ? "Manajemen" : "Procurement"} 
+                                                    division={"Logistik"} 
                                                     isSigned={!!selectedRequest.logisticApprover} 
                                                 />
                                                 <ApprovalBox 
@@ -2529,7 +2450,7 @@ const ProcurementTimeline: React.FC<{ request: Request }> = ({ request }) => {
 };
 
 const ApprovalBox: React.FC<{title: string; signer: string | null; date: string | null; division: string; isSigned: boolean}> = ({ title, signer, date, division, isSigned }) => {
-    const isApprovalStep = title === 'Procurement' || title === 'CEO / Approval';
+    const isApprovalStep = title === 'Logistik' || title === 'CEO / Approval';
     
     return (
         <div>
@@ -2620,5 +2541,99 @@ const RegistrationStagingModal: React.FC<{
     );
 }
 
+const PurchaseDetailsView: React.FC<{ details: PurchaseDetails }> = ({ details }) => (
+    <section>
+        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">Detail Pembelian (Rahasia)</h4>
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3 text-sm">
+            <PreviewItem label="Harga Beli" value={`Rp ${details.purchasePrice.toLocaleString('id-ID')}`} />
+            <PreviewItem label="Vendor" value={details.vendor} />
+            <PreviewItem label="Tanggal Beli" value={new Date(details.purchaseDate).toLocaleDateString('id-ID')} />
+            <PreviewItem label="No. PO" value={details.poNumber} />
+            <PreviewItem label="No. Faktur" value={details.invoiceNumber} />
+            <PreviewItem label="Akhir Garansi" value={details.warrantyEndDate ? new Date(details.warrantyEndDate).toLocaleDateString('id-ID') : '-'} />
+            <PreviewItem label="Diisi oleh" value={`${details.filledBy} pada ${new Date(details.fillDate).toLocaleString('id-ID')}`} fullWidth />
+        </dl>
+    </section>
+);
+
+const PurchaseDetailsForm: React.FC<{
+    request: Request;
+    onSubmit: (requestId: string, data: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => void;
+}> = ({ request, onSubmit }) => {
+    const [formData, setFormData] = useState<Omit<PurchaseDetails, 'filledBy' | 'fillDate'>>({
+        purchasePrice: request.totalValue || 0,
+        vendor: '',
+        poNumber: request.id.replace('REQ', 'PO'),
+        invoiceNumber: '',
+        purchaseDate: new Date().toISOString().split('T')[0],
+        warrantyEndDate: null,
+    });
+    const [warrantyPeriod, setWarrantyPeriod] = useState<number | ''>('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleDateChange = (date: Date | null) => {
+        setFormData(prev => ({ ...prev, purchaseDate: date ? date.toISOString().split('T')[0] : '' }));
+    };
+
+    useEffect(() => {
+        if (formData.purchaseDate && warrantyPeriod) {
+            const purchaseD = new Date(formData.purchaseDate);
+            const newWarrantyDate = new Date(purchaseD.setMonth(purchaseD.getMonth() + Number(warrantyPeriod)));
+            setFormData(prev => ({ ...prev, warrantyEndDate: newWarrantyDate.toISOString().split('T')[0] }));
+        } else {
+            setFormData(prev => ({ ...prev, warrantyEndDate: null }));
+        }
+    }, [formData.purchaseDate, warrantyPeriod]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        // Simulate API delay
+        setTimeout(() => {
+            onSubmit(request.id, formData);
+            setIsLoading(false);
+        }, 800);
+    };
+
+    return (
+        <section>
+            <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">III. Form Detail Pembelian</h4>
+            <form onSubmit={handleSubmit} className="p-4 space-y-4 bg-blue-50/50 border border-blue-200 rounded-lg">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600">Harga Beli Aktual (Rp)</label>
+                        <input type="number" value={formData.purchasePrice} onChange={e => setFormData(p => ({...p, purchasePrice: Number(e.target.value)}))} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
+                    </div>
+                     <div>
+                        <label className="block text-xs font-medium text-gray-600">Vendor / Toko</label>
+                        <input type="text" value={formData.vendor} onChange={e => setFormData(p => ({...p, vendor: e.target.value}))} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
+                    </div>
+                     <div>
+                        <label className="block text-xs font-medium text-gray-600">Nomor PO</label>
+                        <input type="text" value={formData.poNumber} onChange={e => setFormData(p => ({...p, poNumber: e.target.value}))} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
+                    </div>
+                     <div>
+                        <label className="block text-xs font-medium text-gray-600">Nomor Faktur</label>
+                        <input type="text" value={formData.invoiceNumber} onChange={e => setFormData(p => ({...p, invoiceNumber: e.target.value}))} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
+                    </div>
+                     <div>
+                        <label className="block text-xs font-medium text-gray-600">Tanggal Pembelian</label>
+                        <DatePicker id="purchase-date-form" selectedDate={new Date(formData.purchaseDate)} onDateChange={handleDateChange} />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600">Masa Garansi (bulan)</label>
+                        <input type="number" value={warrantyPeriod} onChange={e => setWarrantyPeriod(e.target.value === '' ? '' : Number(e.target.value))} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
+                    </div>
+                </div>
+                 <div className="flex justify-end pt-2">
+                    <button type="submit" disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
+                        {isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}
+                        Submit untuk Persetujuan CEO
+                    </button>
+                </div>
+            </form>
+        </section>
+    );
+};
 
 export default ItemRequestPage;

@@ -36,16 +36,16 @@ interface AccountsPageProps {
 const getRoleClass = (role: UserRole) => {
     switch (role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        // FIX: Replaced 'Admin' with specific admin roles to align with UserRole type.
-        case 'Inventory Admin': return 'bg-info-light text-info-text';
-        case 'Procurement Admin': return 'bg-teal-100 text-teal-800';
-        case 'Manager': return 'bg-sky-100 text-sky-800';
+        // FIX: Replaced incorrect role names with 'Admin Logistik', 'Admin Purchase', and 'Leader' to align with UserRole type.
+        case 'Admin Logistik': return 'bg-info-light text-info-text';
+        case 'Admin Purchase': return 'bg-teal-100 text-teal-800';
+        case 'Leader': return 'bg-sky-100 text-sky-800';
         default: return 'bg-gray-100 text-gray-800';
     }
 };
 
-// FIX: Replaced 'Admin' with specific admin roles to align with UserRole type.
-const userRoles: UserRole[] = ['Staff', 'Manager', 'Inventory Admin', 'Procurement Admin', 'Super Admin'];
+// FIX: Replaced incorrect role names with 'Admin Logistik', 'Admin Purchase', and 'Leader' to align with UserRole type.
+const userRoles: UserRole[] = ['Staff', 'Leader', 'Admin Logistik', 'Admin Purchase', 'Super Admin'];
 
 
 const UserForm: React.FC<{ 
@@ -61,7 +61,8 @@ const UserForm: React.FC<{
     const [isSubmitting, setIsSubmitting] = useState(false);
     const addNotification = useNotification();
     
-    const inventoryDivisionId = divisions.find(d => d.name === 'Inventori')?.id.toString();
+    // FIX: Corrected division name from 'Inventori' to 'Logistik' to match mock data.
+    const inventoryDivisionId = divisions.find(d => d.name === 'Logistik')?.id.toString();
 
     useEffect(() => {
         if (editingUser) {
@@ -78,15 +79,15 @@ const UserForm: React.FC<{
     }, [editingUser, divisions]);
 
     useEffect(() => {
-        // FIX: This comparison appears to be unintentional because the types 'UserRole' and '"Admin"' have no overlap.
-        if (selectedRole === 'Inventory Admin' && inventoryDivisionId) {
+        // FIX: Use 'Admin Logistik' to match UserRole type and corrected division name logic.
+        if (selectedRole === 'Admin Logistik' && inventoryDivisionId) {
             setSelectedDivisionId(inventoryDivisionId);
         }
     }, [selectedRole, inventoryDivisionId]);
 
     const handleDivisionChange = (divisionId: string) => {
-        // FIX: This comparison appears to be unintentional because the types 'UserRole' and '"Admin"' have no overlap.
-        if (divisionId !== inventoryDivisionId && selectedRole === 'Inventory Admin') {
+        // FIX: Use 'Admin Logistik' to match UserRole type.
+        if (divisionId !== inventoryDivisionId && selectedRole === 'Admin Logistik') {
             setSelectedRole('Staff');
         }
         setSelectedDivisionId(divisionId);
@@ -129,19 +130,19 @@ const UserForm: React.FC<{
                     <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
                     <div className="mt-1">
                         <CustomSelect
-                            // FIX: Replaced 'Admin' option with specific admin roles to align with UserRole type.
+                            // FIX: Replaced incorrect role options to align with UserRole type.
                              options={[
                                 { value: 'Staff', label: 'Staff' },
-                                { value: 'Manager', label: 'Manager' },
-                                { value: 'Inventory Admin', label: 'Inventory Admin' },
-                                { value: 'Procurement Admin', label: 'Procurement Admin' },
+                                { value: 'Leader', label: 'Leader' },
+                                { value: 'Admin Logistik', label: 'Admin Logistik' },
+                                { value: 'Admin Purchase', label: 'Admin Purchase' },
                                 { value: 'Super Admin', label: 'Super Admin' },
                             ]}
                              value={selectedRole}
                              onChange={(value) => setSelectedRole(value as UserRole)}
                         />
                     </div>
-                    {selectedRole === 'Inventory Admin' && <p className="mt-2 text-xs text-gray-500">Role Admin hanya berlaku untuk Divisi Inventori.</p>}
+                    {selectedRole === 'Admin Logistik' && <p className="mt-2 text-xs text-gray-500">Role Admin Logistik hanya berlaku untuk Divisi Logistik.</p>}
                 </div>
                 <div>
                     <label htmlFor="division" className="block text-sm font-medium text-gray-700">Divisi</label>
@@ -153,8 +154,8 @@ const UserForm: React.FC<{
                             }
                              value={selectedDivisionId}
                             onChange={handleDivisionChange}
-                            // FIX: This comparison appears to be unintentional because the types 'UserRole' and '"Admin"' have no overlap.
-                            disabled={selectedRole === 'Super Admin' || selectedRole === 'Inventory Admin'}
+                            // FIX: Use 'Admin Logistik' to match UserRole type.
+                            disabled={selectedRole === 'Super Admin' || selectedRole === 'Admin Logistik'}
                             placeholder="Pilih Divisi"
                         />
                     </div>
@@ -513,9 +514,9 @@ const AccountsPage: React.FC<AccountsPageProps> = ({ currentUser, users, setUser
                     const updatedUser = { ...u, role: targetRole };
                     if (targetRole === 'Super Admin') {
                         updatedUser.divisionId = null;
-                    // FIX: This comparison appears to be unintentional because the types 'UserRole' and '"Admin"' have no overlap.
-                    } else if (targetRole === 'Inventory Admin') {
-                        const inventoryDivision = divisions.find(d => d.name === 'Inventori');
+                    // FIX: Use 'Admin Logistik' to match UserRole type and corrected division name logic.
+                    } else if (targetRole === 'Admin Logistik') {
+                        const inventoryDivision = divisions.find(d => d.name === 'Logistik');
                         if (inventoryDivision) {
                             updatedUser.divisionId = inventoryDivision.id;
                         }

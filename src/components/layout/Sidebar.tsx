@@ -15,6 +15,9 @@ import { BoxIcon } from '../icons/BoxIcon';
 import { SettingsIcon } from '../icons/SettingsIcon';
 import { CategoryIcon } from '../icons/CategoryIcon';
 import { WrenchIcon } from '../icons/WrenchIcon';
+import { FileSignatureIcon } from '../icons/FileSignatureIcon';
+import { FileTextIcon } from '../icons/FileTextIcon';
+import { JournalCheckIcon } from '../icons/JournalCheckIcon';
 
 interface SidebarProps {
   currentUser: User;
@@ -41,23 +44,43 @@ const allMenuItems: MenuItem[] = [
     label: 'Manajemen Aset',
     icon: AssetIcon,
     children: [
-      { id: 'registration', label: 'Catat Aset', icon: RegisterIcon, roles: ['Inventory Admin', 'Super Admin'] },
+      { id: 'registration', label: 'Catat Aset', icon: RegisterIcon, roles: ['Admin Logistik', 'Super Admin'] },
       { id: 'stock', label: 'Stok Aset', icon: BoxIcon },
-      { id: 'request', label: 'Request Aset', icon: RequestIcon },
-      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon, roles: ['Inventory Admin', 'Super Admin'] },
-      { id: 'dismantle', label: 'Dismantle Aset', icon: DismantleIcon, roles: ['Inventory Admin', 'Super Admin'] },
-      { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Inventory Admin', 'Super Admin'] },
+      {
+        id: 'request-parent',
+        label: 'Request Aset',
+        icon: RequestIcon,
+        children: [
+          { id: 'request-new', page: 'request', label: 'Request Baru', icon: RequestIcon },
+          { id: 'request-stock', page: 'request-stock', label: 'Request Stok', icon: BoxIcon },
+          { id: 'request-loan', page: 'request-loan', label: 'Request Pinjam', icon: HandoverIcon },
+        ],
+      },
+      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon, roles: ['Admin Logistik', 'Super Admin'] },
+      { id: 'dismantle', label: 'Dismantle Aset', icon: DismantleIcon, roles: ['Admin Logistik', 'Super Admin'] },
+      { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Admin Logistik', 'Super Admin'] },
     ],
   },
-  { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Inventory Admin', 'Procurement Admin', 'Super Admin'] },
+  {
+    id: 'documents',
+    label: 'Dokumen Penting',
+    icon: FileSignatureIcon,
+    roles: ['Leader', 'Admin Purchase', 'Super Admin'],
+    children: [
+        { id: 'doc-quotation', page: 'quotation', label: 'Proposal Penawaran', icon: FileTextIcon },
+        { id: 'doc-perjanjian', page: 'perjanjian', label: 'Perjanjian Kerja', icon: FileSignatureIcon },
+        { id: 'doc-bak', page: 'bak', label: 'Berita Acara Kerjasama', icon: JournalCheckIcon },
+    ]
+  },
+  { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'] },
   {
     id: 'settings',
     label: 'Pengaturan',
     icon: SettingsIcon,
-    roles: ['Super Admin', 'Inventory Admin', 'Procurement Admin'],
+    roles: ['Super Admin', 'Admin Logistik', 'Admin Purchase'],
     children: [
         { id: 'settings-pengguna', page: 'pengaturan-pengguna', label: 'Akun & Divisi', icon: UsersIcon, roles: ['Super Admin'] },
-        { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon, roles: ['Inventory Admin', 'Procurement Admin', 'Super Admin'] },
+        { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon, roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'] },
     ]
   },
 ];
@@ -119,6 +142,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                         return child.roles.includes(currentUser.role);
                     }
                     return true;
+                }).map(child => { // Recursive check for grandchildren
+                    if (child.children) {
+                        const visibleGrandchildren = child.children.filter(grandchild => {
+                            if (grandchild.roles) {
+                                return grandchild.roles.includes(currentUser.role);
+                            }
+                            return true;
+                        });
+                        return { ...child, children: visibleGrandchildren };
+                    }
+                    return child;
                 });
                 return { ...item, children: visibleChildren };
             }
@@ -130,9 +164,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
     useEffect(() => {
         allMenuItems.forEach(item => {
             if (item.children) {
-                const childPages = item.children.map(c => c.page || c.id);
+                const childPages = item.children.flatMap(c => c.children ? c.children.map(gc => gc.page || gc.id) : [c.page || c.id]);
                 if (childPages.includes(activePage)) {
                     setOpenMenus(prev => ({...prev, [item.id]: true}));
+                    const parentOfActive = item.children.find(c => c.children?.some(gc => (gc.page || gc.id) === activePage));
+                    if(parentOfActive) {
+                         setOpenMenus(prev => ({...prev, [parentOfActive.id]: true}));
+                    }
                 }
             }
         });
@@ -158,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                     <CloseIcon />
                 </button>
             </div>
-            <nav className="flex-1 p-3 overflow-y-auto custom-scrollbar">
+            <nav className="flex-1 p-3 overflow-y-auto dark-scrollbar">
                 {menuItems.map((item) => {
                     if (!item.children || item.children.length === 0) {
                         return (
@@ -171,7 +209,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                         );
                     }
 
-                    const isParentActive = item.children?.some(child => (child.page || child.id) === activePage);
+                    const isParentActive = item.children?.some(child => 
+                        (child.page || child.id) === activePage || 
+                        child.children?.some(gc => (gc.page || gc.id) === activePage)
+                    );
 
                     return (
                         <div key={item.id}>
@@ -187,15 +228,49 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                             </button>
                             <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openMenus[item.id] ? 'max-h-96' : 'max-h-0'}`}>
                                 <div className="pt-1 pb-1 pl-6">
-                                    {item.children.map((child) => (
-                                        <NavLink
-                                            key={child.id}
-                                            item={child as any}
-                                            activePage={activePage}
-                                            onClick={() => handleNavClick((child.page || child.id) as Page, child.filter)}
-                                            isSubmenu={true}
-                                        />
-                                    ))}
+                                    {item.children.map((child) => {
+                                        if (!child.children || child.children.length === 0) {
+                                            return (
+                                                <NavLink
+                                                    key={child.id}
+                                                    item={child as any}
+                                                    activePage={activePage}
+                                                    onClick={() => handleNavClick((child.page || child.id) as Page, child.filter)}
+                                                    isSubmenu={true}
+                                                />
+                                            );
+                                        }
+
+                                        const isChildParentActive = child.children?.some(gc => (gc.page || gc.id) === activePage);
+                                        
+                                        return (
+                                            <div key={child.id}>
+                                                <button
+                                                    onClick={() => setOpenMenus(prev => ({...prev, [child.id]: !prev[child.id]}))}
+                                                    className={`flex items-center justify-between w-full px-4 py-2.5 my-1 rounded-md text-sm font-medium transition-colors duration-200 group focus:outline-none ${isChildParentActive ? 'text-white' : 'text-gray-400'} hover:bg-gray-700/40 hover:text-white`}
+                                                >
+                                                    <div className="flex items-center">
+                                                        <child.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isChildParentActive ? 'text-white' : 'text-gray-500'}`} />
+                                                        <span>{child.label}</span>
+                                                    </div>
+                                                    <ChevronDownIcon className={`w-5 h-5 transform transition-transform duration-200 ${openMenus[child.id] ? 'rotate-180' : 'rotate-0'}`} />
+                                                </button>
+                                                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openMenus[child.id] ? 'max-h-96' : 'max-h-0'}`}>
+                                                    <div className="pt-1 pb-1 pl-6">
+                                                        {child.children.map((grandchild) => (
+                                                             <NavLink
+                                                                key={grandchild.id}
+                                                                item={grandchild as any}
+                                                                activePage={activePage}
+                                                                onClick={() => handleNavClick((grandchild.page || grandchild.id) as Page, grandchild.filter)}
+                                                                isSubmenu={true}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
                                 </div>
                             </div>
                         </div>

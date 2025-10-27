@@ -20,7 +20,7 @@
 
 # Ringkasan Eksekutif
 
-Laporan ini menandai penyelesaian dan serah terima resmi dari proyek pengembangan **Aplikasi Inventori Aset** untuk PT. Triniti Media Indonesia. Proyek ini telah berhasil dilaksanakan sesuai dengan seluruh ruang lingkup, jadwal, dan tujuan yang telah disepakati dalam [Proposal Penawaran (Q-INV/AS/VIII/2024/001)](./Business/quotation.md) dan dikukuhkan dalam [Perjanjian Kerja (001/SPK-DEV/TMI-AS/X/2025)](./Business/perjanjian.md).
+Laporan ini menandai penyelesaian dan serah terima resmi dari proyek pengembangan **Aplikasi Inventori Aset** untuk PT. Triniti Media Indonesia. Proyek ini telah berhasil dilaksanakan sesuai dengan seluruh ruang lingkup, jadwal, dan tujuan yang telah disepakati dalam [Proposal Penawaran (Q-INV/AS/VIII/2024/001)](./Business/quotation.html) dan dikukuhkan dalam [Perjanjian Kerja (001/SPK-DEV/TMI-AS/X/2025)](./Business/perjanjian.html).
 
 Hasil akhir yang diserahkan adalah sebuah **Prototipe Frontend Fungsional Penuh (*High-Fidelity Functional Frontend Prototype*)**. Aplikasi ini secara komprehensif merealisasikan seluruh antarmuka pengguna (UI/UX) dan alur kerja sisi klien dari sistem manajemen aset yang dirancang. Sistem ini secara spesifik mengatasi tantangan operasional PT. Triniti Media Indonesia dengan mendigitalkan seluruh siklus hidup aset—mulai dari proses permintaan barang, persetujuan multi-level, pencatatan aset baru, serah terima internal, instalasi di lokasi pelanggan, hingga proses penarikan kembali (*dismantle*) dan perbaikan aset.
 
@@ -87,6 +87,7 @@ Laporan ini berfungsi sebagai dokumen warisan (*legacy document*) yang merangkum
 - **LAMPIRAN**
     - [Lampiran A: Salinan Proposal Penawaran](#lampiran-a-salinan-proposal-penawaran)
     - [Lampiran B: Salinan Perjanjian Kerja](#lampiran-b-salinan-perjanjian-kerja)
+    - [Lampiran C: Salinan Berita Acara Kerjasama](#lampiran-c-salinan-berita-acara-kerjasama)
 
 <div style="page-break-after: always;"></div>
 
@@ -139,21 +140,19 @@ Ruang lingkup proyek ini didefinisikan secara cermat untuk memastikan fokus dan 
 -   Aplikasi mobile native (meskipun desainnya responsif untuk akses mobile web).
 
 ### 1.5. Target Pengguna dan Peran (User Persona)
-Aplikasi ini dirancang untuk empat persona utama, masing-masing dengan hak akses yang berbeda.
+Aplikasi ini dirancang untuk lima persona utama, masing-masing dengan hak akses yang berbeda.
 
-| Peran         | Deskripsi                                                                               | Tanggung Jawab Utama dalam Aplikasi                                                                                                                                                                                                                            |
-| ------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Staff**     | Karyawan umum dari berbagai divisi (misal: Engineer Lapangan, NOC).                      | - Membuat permintaan aset untuk kebutuhan reguler.<br>- Melakukan *follow-up* atas status permintaan.<br>- Melihat daftar aset yang sedang ia pegang.<br>- Melaporkan kerusakan pada aset yang dipegang.                                                    |
-| **Manager**   | Supervisor atau Kepala Divisi.                                                          | - Semua hak akses Staff.<br>- Membuat permintaan aset untuk kebutuhan mendesak (*Urgent*) atau berbasis proyek (*Project Based*).                                                                                                                     |
-| **Admin**     | Staf dari Divisi Inventori yang mengelola operasional gudang dan aset.                  | - Mengelola seluruh siklus hidup permintaan aset (menyetujui, menolak, memproses).<br>- Mencatat aset baru ke dalam sistem.<br>- Mengelola serah terima internal dan penarikan dari pelanggan.<br>- Mengelola alur perbaikan aset.<br>- Mengelola data master (pelanggan, kategori). |
-| **Super Admin** | Pimpinan perusahaan atau Kepala Divisi IT dengan otoritas penuh.                        | - Memiliki semua hak akses Admin.<br>- Mengelola akun pengguna dan struktur divisi.<br>- Memberikan persetujuan final untuk permintaan bernilai tinggi.<br>- Mengakses semua data dan laporan analitik.<br>- Melakukan disposisi & meminta update progres. |
+| Peran              | Deskripsi                                                                               | Tanggung Jawab Utama dalam Aplikasi                                                                                                                                                                                                                            |
+| ------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Staff**          | Karyawan umum dari berbagai divisi (misal: Teknisi, CS).                                | - Membuat permintaan aset untuk kebutuhan reguler.<br>- Melakukan *follow-up* atas status permintaan.<br>- Melihat daftar aset yang sedang ia pegang.<br>- Melaporkan kerusakan pada aset yang dipegang.                                                    |
+| **Leader**         | Supervisor atau Kepala Divisi.                                                          | - Semua hak akses Staff.<br>- Membuat permintaan aset untuk kebutuhan mendesak (*Urgent*) atau berbasis proyek (*Project Based*).                                                                                                                     |
+| **Admin Logistik** | Staf dari Divisi Logistik yang mengelola operasional gudang dan aset.                   | - Mengelola alur permintaan (persetujuan awal).<br>- Mencatat aset baru ke dalam sistem.<br>- Mengelola serah terima internal dan penarikan dari pelanggan.<br>- Mengelola alur perbaikan aset.<br>- Mengelola data master (pelanggan, kategori). |
+| **Admin Purchase** | Staf yang bertanggung jawab atas proses pengadaan dan persetujuan.                      | - Mengelola alur permintaan (persetujuan, pengadaan).<br>- Mengisi detail pembelian pada request.<br>- Mengelola data master (pelanggan, kategori).                                                                                                     |
+| **Super Admin**    | Pimpinan perusahaan atau manajer senior dengan otoritas penuh.                            | - Memiliki semua hak akses Admin.<br>- Mengelola akun pengguna dan struktur divisi.<br>- Memberikan persetujuan final untuk permintaan bernilai tinggi.<br>- Mengakses semua data dan laporan analitik.<br>- Melakukan disposisi & meminta update progres. |
 
 ### 1.6. Definisi dan Istilah
--   **Aset**: Setiap barang fisik milik perusahaan yang dicatat dan dilacak oleh sistem.
--   **Request**: Pengajuan resmi untuk pengadaan aset baru.
--   **Handover**: Proses serah terima aset dari satu pengguna ke pengguna lain secara internal.
--   **Dismantle**: Proses penarikan kembali aset yang sebelumnya terpasang di lokasi pelanggan.
--   **Kode QR**: Kode matriks yang dicetak pada label aset untuk identifikasi cepat.
+Untuk daftar lengkap istilah yang digunakan dalam proyek, silakan merujuk ke dokumen:
+-   [**Glosarium Istilah**](./GLOSARIUM.md)
 
 <div style="page-break-after: always;"></div>
 
@@ -168,7 +167,7 @@ Berikut adalah rincian kebutuhan fungsional yang diimplementasikan, berdasarkan 
 | ---------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------- | ----------- |
 | **Request Aset**       | US-1    | Pengguna dapat mengisi form request dengan memilih item dari daftar standar.                                           | ✅ **Selesai** |
 |                        | US-2    | Pengguna dapat melihat riwayat dan status semua request yang pernah diajukan.                                          | ✅ **Selesai** |
-|                        | US-3    | Manajer dapat membuat request 'Urgent' dengan menyertakan justifikasi.                                                 | ✅ **Selesai** |
+|                        | US-3    | Leader dapat membuat request 'Urgent' dengan menyertakan justifikasi.                                                  | ✅ **Selesai** |
 |                        | US-4    | Admin menerima notifikasi untuk request baru.                                                                          | ✅ **Selesai** |
 |                        | US-5    | Admin dapat menyetujui atau menolak request dengan memberikan catatan.                                                 | ✅ **Selesai** |
 |                        | US-6    | Super Admin harus memberikan persetujuan final untuk request bernilai tinggi.                                          | ✅ **Selesai** |
@@ -181,6 +180,8 @@ Berikut adalah rincian kebutuhan fungsional yang diimplementasikan, berdasarkan 
 | **Pelaporan & Pencarian**| US-13   | Super Admin dapat melihat dashboard ringkasan inventori.                                                               | ✅ **Selesai** |
 |                        | US-14   | Pengguna dapat mencari aset berdasarkan ID, nama, SN, atau dengan memindai Kode QR.                                     | ✅ **Selesai** |
 |                        | US-15   | Admin dapat mengekspor data ke format CSV.                                                                             | ✅ **Selesai** |
+| **Manajemen Perbaikan**| US-16   | Staff dapat melaporkan kerusakan pada aset yang sedang ia gunakan.                                                     | ✅ **Selesai** |
+|                        | US-17   | Admin Logistik dapat mengelola alur perbaikan aset dari awal hingga selesai.                                           | ✅ **Selesai** |
 
 ### 2.2. Kebutuhan Non-Fungsional
 -   **Keamanan**: Sistem login aman dan hak akses berbasis peran (RBAC) (✅ **Terpenuhi**).
@@ -199,7 +200,7 @@ Aplikasi ini menggunakan arsitektur **Client-Server** yang terpisah.
 ```mermaid
 graph TD
     subgraph "PT. Triniti Media Indonesia"
-        A[Staff / Manajer]
+        A[Staff / Leader]
         B[Admin / Super Admin]
     end
 
@@ -297,10 +298,10 @@ Bab ini menguraikan implementasi dari setiap modul fungsional utama dalam aplika
 -   **Fitur Utama**:
     -   Formulir pembuatan request yang dinamis.
     -   Dukungan untuk tipe order `Regular`, `Urgent`, dan `Project Based`.
-    -   Alur persetujuan multi-level (Logistik/Admin, Final/Super Admin).
+    -   Alur persetujuan multi-level (Logistik, Purchase, Final/Super Admin).
     -   Sistem notifikasi untuk setiap perubahan status, *follow-up*, dan disposisi.
     -   Fitur aksi massal (*bulk actions*) untuk menyetujui, menolak, atau menghapus banyak request sekaligus.
--   **Alur Kerja**: Staff/Manajer membuat request -> Admin menerima notifikasi -> Admin melakukan persetujuan logistik -> Jika nilai tinggi, Super Admin memberikan persetujuan final -> Status diperbarui secara otomatis.
+-   **Alur Kerja**: Staff/Leader membuat request -> Admin menerima notifikasi -> Admin melakukan persetujuan -> Jika nilai tinggi, Super Admin memberikan persetujuan final -> Status diperbarui secara otomatis.
 
 ### 3.3. Modul Manajemen Pencatatan Aset (Registration)
 -   **Tujuan**: Memastikan setiap aset fisik tercatat secara akurat dalam sistem.
@@ -318,7 +319,7 @@ Bab ini menguraikan implementasi dari setiap modul fungsional utama dalam aplika
     -   Tabel agregat yang menampilkan jumlah stok per tipe barang (di gudang, digunakan, rusak).
     -   Indikator visual dan filter untuk stok yang menipis atau habis.
     -   Perhitungan otomatis total nilai aset yang ada di gudang.
--   **Alur Kerja**: Admin/Manajer membuka halaman Stok -> Melihat daftar aset dan jumlahnya -> Mengidentifikasi item yang perlu di-restock -> Membuat permintaan baru.
+-   **Alur Kerja**: Admin/Leader membuka halaman Stok -> Melihat daftar aset dan jumlahnya -> Mengidentifikasi item yang perlu di-restock -> Membuat permintaan baru.
 
 ### 3.5. Modul Manajemen Serah Terima (Handover)
 -   **Tujuan**: Mencatat secara resmi perpindahan tanggung jawab aset antar karyawan internal.
@@ -457,7 +458,7 @@ Bab ini adalah ringkasan dari [Panduan Pengguna](./05_USER_DOCUMENTATION/USER_GU
 -   **Dashboard**: Halaman utama yang menampilkan ringkasan dan tugas penting.
 
 ### 6.2. Panduan untuk Peran Staff & Manajer
--   **Membuat Request Aset**: Buka `Manajemen Aset > Request Aset`, klik "Buat Request Baru", isi formulir, dan ajukan. Manajer memiliki opsi tambahan untuk tipe order `Urgent` dan `Project Based`.
+-   **Membuat Request Aset**: Buka `Manajemen Aset > Request Aset`, klik "Buat Request Baru", isi formulir, dan ajukan. Leader memiliki opsi tambahan untuk tipe order `Urgent` dan `Project Based`.
 -   **Melakukan Follow-up**: Klik tombol "Follow Up" pada request yang berstatus `Menunggu Persetujuan` untuk mengirim notifikasi ke Admin.
 -   **Melihat Aset Pribadi**: Halaman `Stok Aset` akan menampilkan daftar aset yang sedang dipegang.
 
@@ -489,7 +490,7 @@ Dengan selesainya laporan ini, item-item berikut secara resmi diserahterimakan k
 | **Dokumen Bisnis**      | Proposal Penawaran dan Perjanjian Kerja.                           | File di dalam folder `/Business`.                         |
 
 ### 7.2. Masa Garansi dan Dukungan Teknis
-Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.md) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
+Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.html) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
 
 ### 7.3. Rekomendasi Pengembangan Lanjutan
 Aplikasi ini memiliki fondasi yang kuat untuk dikembangkan lebih lanjut. Berikut adalah beberapa rekomendasi fitur untuk masa depan:
@@ -516,8 +517,12 @@ Berikut adalah contoh peta jalan pengembangan yang dapat diadopsi.
 
 ### Lampiran A: Salinan Proposal Penawaran
 Dokumen proposal penawaran asli yang merinci lingkup, fitur, dan investasi proyek dapat diakses pada file berikut:
--   [**Dokumen Proposal Penawaran**](./Business/quotation.md)
+-   [**Dokumen Proposal Penawaran**](./Business/quotation.html)
 
 ### Lampiran B: Salinan Perjanjian Kerja
 Dokumen legal yang mengikat perjanjian pelaksanaan pekerjaan antara pengembang dan klien dapat diakses pada file berikut:
--   [**Dokumen Perjanjian Kerja**](./Business/perjanjian.md)
+-   [**Dokumen Perjanjian Kerja**](./Business/perjanjian.html)
+
+### Lampiran C: Salinan Berita Acara Kerjasama
+Dokumen berita acara yang merangkum poin-poin kesepakatan kerjasama teknis dan operasional.
+-   [**Dokumen Berita Acara Kerjasama**](./Business/bak.html)

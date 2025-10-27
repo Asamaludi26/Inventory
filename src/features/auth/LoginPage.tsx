@@ -3,9 +3,7 @@ import { TrinitiLogoIcon } from '../../components/icons/TrinitiLogoIcon';
 import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
 import { User } from '../../types';
 import Modal from '../../components/ui/Modal';
-import { InfoIcon } from '../../components/icons/InfoIcon';
 import { UsersIcon } from '../../components/icons/UsersIcon';
-import { useNotification } from '../../providers/NotificationProvider';
 import { DemoAccounts } from './components/DemoAccounts';
 
 interface LoginPageProps {
@@ -18,7 +16,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const [rememberMe, setRememberMe] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
     const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
     useEffect(() => {
@@ -27,34 +24,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             setEmail(rememberedEmail);
             setRememberMe(true);
         }
-
-        const hasSeenNotice = sessionStorage.getItem('hasSeenLoginNotice');
-        if (!hasSeenNotice) {
-            setIsNoticeModalOpen(true);
-        }
     }, []);
-
-    const handleCloseNoticeModal = () => {
-        sessionStorage.setItem('hasSeenLoginNotice', 'true');
-        setIsNoticeModalOpen(false);
-    };
-
-    const demoStartDate = new Date('2025-10-17T00:00:00Z'); // Jumat, 17 Oktober 2025
-    const demoEndDate = new Date(demoStartDate);
-    demoEndDate.setDate(demoStartDate.getDate() + 7);
-
-    const formattedStartDate = new Intl.DateTimeFormat('id-ID', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-    }).format(demoStartDate);
-
-    const formattedEndDate = new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-    }).format(demoEndDate);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -93,39 +63,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
     return (
         <>
-            <Modal
-                isOpen={isNoticeModalOpen}
-                onClose={handleCloseNoticeModal}
-                title="Pemberitahuan Penting: Versi Demo Aplikasi"
-                size="md"
-                hideDefaultCloseButton
-                footerContent={
-                    <button
-                        onClick={handleCloseNoticeModal}
-                        className="w-full px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tm-accent"
-                    >
-                        Saya Mengerti
-                    </button>
-                }
-            >
-                <div className="space-y-4 text-sm text-gray-700">
-                    <div className="flex items-start gap-3 p-3 text-blue-800 bg-blue-50/70 rounded-lg border border-blue-200/50">
-                        <InfoIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                        <p>
-                            Selamat datang di aplikasi Inventori Aset. Perlu kami sampaikan bahwa versi yang sedang Anda akses saat ini adalah <strong>purwarupa (prototype)</strong> yang ditujukan untuk keperluan demonstrasi.
-                        </p>
-                    </div>
-                    <p>
-                        Aplikasi ini masih dalam tahap pengembangan aktif. Fitur dan alur kerja yang ada saat ini memerlukan riset lebih lanjut serta penyempurnaan signifikan untuk dapat memenuhi standar operasional perusahaan secara penuh.
-                    </p>
-                    <p>
-                        Link demo ini diserahkan pada hari <strong>{formattedStartDate}</strong>. Masa uji coba untuk versi demo ini akan berakhir <strong>7 hari</strong> setelahnya, yaitu pada tanggal <strong>{formattedEndDate}</strong>. Setelah tanggal tersebut, akses akan ditutup.
-                    </p>
-                    <p className="pt-2 font-semibold text-gray-800">
-                        Terima kasih atas pengertian Anda. Silakan lanjutkan untuk menjelajahi fungsionalitas yang tersedia.
-                    </p>
-                </div>
-            </Modal>
              <Modal
                 isOpen={isDemoModalOpen}
                 onClose={() => setIsDemoModalOpen(false)}

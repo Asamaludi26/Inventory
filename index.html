@@ -72,6 +72,29 @@
         scrollbar-color: #9CA3AF #F3F4F6; /* thumb color track color */
       }
 
+      /* Custom scrollbar for dark backgrounds like the sidebar */
+      .dark-scrollbar::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+      }
+      .dark-scrollbar::-webkit-scrollbar-track {
+        background: #1F2937; /* A slightly lighter dark gray than tm-dark (gray-800) */
+        border-radius: 10px;
+      }
+      .dark-scrollbar::-webkit-scrollbar-thumb {
+        background: #4B5563; /* A neutral gray-600 */
+        border-radius: 10px;
+        border: 2px solid #1F2937; /* Padding matches the track color */
+      }
+      .dark-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #3B82F6; /* tm-accent on hover */
+      }
+      /* For Firefox */
+      .dark-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #4B5563 #1F2937; /* thumb color track color */
+      }
+
       /* Hide the default spinners on number inputs for a cleaner look */
       input[type=number]::-webkit-inner-spin-button,
       input[type=number]::-webkit-outer-spin-button {
@@ -176,6 +199,8 @@
     <div id="root"></div>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

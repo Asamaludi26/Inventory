@@ -39,22 +39,22 @@ const ISP_PACKAGES = ['Home 30Mbps', 'Home 50Mbps', 'Home 100Mbps', 'Business 20
 
 // 1. DIVISIONS
 export const mockDivisions: Division[] = [
-    { id: 1, name: 'Logistik' },
-    { id: 2, name: 'NOC' },
-    { id: 3, name: 'Engineer Lapangan' },
-    { id: 4, name: 'Sales & Marketing' },
-    { id: 5, name: 'Finance & Billing' },
-    { id: 6, name: 'Manajemen' },
+    { id: 1, name: 'NOC' },
+    { id: 2, name: 'Customer Service' },
+    { id: 3, name: 'Teknisi' },
+    { id: 4, name: 'Logistik' },
+    { id: 5, name: 'Administrasi' },
+    { id: 6, name: 'Finance' },
 ];
 
 // 2. USERS
 const generateMockUsers = (): User[] => {
     const users: User[] = [
-        { id: 1, name: 'Alice Johnson', email: 'inventory.admin@triniti.com', divisionId: 1, role: 'Inventory Admin' },
-        { id: 2, name: 'Brian Adams', email: 'procurement.admin@triniti.com', divisionId: 5, role: 'Procurement Admin' },
-        { id: 99, name: 'John Doe', email: 'super.admin@triniti.com', divisionId: 6, role: 'Super Admin' },
-        { id: 101, name: 'Manager NOC', email: 'manager.noc@triniti.com', divisionId: 2, role: 'Manager' },
-        { id: 102, name: 'Citra Lestari', email: 'citra.lestari0@triniti.com', divisionId: 3, role: 'Staff' }
+        { id: 1, name: 'Alice Johnson', email: 'inventory.admin@triniti.com', divisionId: 4, role: 'Admin Logistik' }, // Logistik
+        { id: 2, name: 'Brian Adams', email: 'procurement.admin@triniti.com', divisionId: 6, role: 'Admin Purchase' }, // Finance
+        { id: 99, name: 'John Doe', email: 'super.admin@triniti.com', divisionId: 5, role: 'Super Admin' }, // Administrasi
+        { id: 101, name: 'Manager NOC', email: 'manager.noc@triniti.com', divisionId: 1, role: 'Leader' }, // NOC
+        { id: 102, name: 'Citra Lestari', email: 'citra.lestari0@triniti.com', divisionId: 3, role: 'Staff' } // Teknisi
     ];
     let userIdCounter = 3;
 
@@ -65,12 +65,12 @@ const generateMockUsers = (): User[] => {
         const name = `${firstName} ${lastName}`;
         const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${Math.floor(userIdCounter / 10)}@triniti.com`;
 
-        // Prevent duplicate Admin in Inventory
-        if (division.id === 1 && users.some(u => u.divisionId === 1 && u.role === 'Inventory Admin')) {
+        // Prevent duplicate Admin in Logistik
+        if (division.id === 4 && users.some(u => u.divisionId === 4 && u.role === 'Admin Logistik')) {
              users.push({ id: userIdCounter, name, email, divisionId: division.id, role: 'Staff' });
         } else {
-            // Assign Manager role to every 5th staff in non-special divisions
-            let role: UserRole = (userIdCounter % 5 === 0 && division.id !== 1 && division.id !== 6) ? 'Manager' : 'Staff';
+            // Assign Leader role to every 5th staff in non-special divisions (not Logistik or Administrasi)
+            let role: UserRole = (userIdCounter % 5 === 0 && division.id !== 4 && division.id !== 5) ? 'Leader' : 'Staff';
             users.push({ id: userIdCounter, name, email, divisionId: division.id, role: role });
         }
         userIdCounter++;
@@ -115,7 +115,7 @@ const ispAssetCategories: Record<string, { types: Partial<AssetType>[], isCustom
             { name: 'Switch Distribusi', standardItems: [{ id: 3, name: 'CRS326-24G-2S+RM', brand: 'Mikrotik' }] },
             { name: 'OLT', standardItems: [{ id: 4, name: 'OLT EPON 8 Port', brand: 'Huawei' }, { id: 5, name: 'OLT GPON 16 Port', brand: 'ZTE' }] },
         ],
-        associatedDivisions: [2, 3] // NOC, Engineer
+        associatedDivisions: [1, 3] // NOC, Teknisi
     },
     'Perangkat Pelanggan (CPE)': {
         types: [
@@ -123,7 +123,7 @@ const ispAssetCategories: Record<string, { types: Partial<AssetType>[], isCustom
             { name: 'Router WiFi', standardItems: [{ id: 8, name: 'Router WiFi Archer C6', brand: 'TP-Link' }, { id: 9, name: 'Router WiFi AX10', brand: 'TP-Link' }] },
         ],
         isCustomerInstallable: true,
-        associatedDivisions: [3] // Engineer
+        associatedDivisions: [3] // Teknisi
     },
     'Infrastruktur Fiber Optik': {
         types: [
@@ -132,7 +132,7 @@ const ispAssetCategories: Record<string, { types: Partial<AssetType>[], isCustom
             { name: 'Konektor', trackingMethod: 'bulk', unitOfMeasure: 'pack', baseUnitOfMeasure: 'pcs', quantityPerUnit: 100, standardItems: [{ id: 12, name: 'Konektor Fast Connector SC', brand: 'Generic' }] },
             { name: 'ODP', standardItems: [{ id: 13, name: 'ODP 16 Core', brand: 'Generic' }] },
         ],
-        associatedDivisions: [3] // Engineer
+        associatedDivisions: [3] // Teknisi
     },
     'Alat Kerja Lapangan': {
         types: [
@@ -141,7 +141,7 @@ const ispAssetCategories: Record<string, { types: Partial<AssetType>[], isCustom
             { name: 'Power Meter', standardItems: [{ id: 16, name: 'Optical Power Meter', brand: 'Joinwit' }] },
             { name: 'Laptop Teknisi', standardItems: [{ id: 17, name: 'Laptop ThinkPad T480', brand: 'Lenovo' }] },
         ],
-        associatedDivisions: [3] // Engineer
+        associatedDivisions: [3] // Teknisi
     },
     'Aset Kantor': {
         types: [
@@ -192,9 +192,9 @@ const generateMockAssets = () => {
         assetTemplates.push({ category: cat.name, type: type.name, ...item, price });
     })));
 
-    const engineerUsers = initialMockUsers.filter(u => u.divisionId === 3).map(u => u.name);
-    const nocUsers = initialMockUsers.filter(u => u.divisionId === 2).map(u => u.name);
-    const salesUsers = initialMockUsers.filter(u => u.divisionId === 4).map(u => u.name);
+    const engineerUsers = initialMockUsers.filter(u => u.divisionId === 3).map(u => u.name); // Teknisi
+    const nocUsers = initialMockUsers.filter(u => u.divisionId === 1).map(u => u.name); // NOC
+    const csUsers = initialMockUsers.filter(u => u.divisionId === 2).map(u => u.name); // Customer Service
     const activeCustomers = mockCustomers.filter(c => c.status === CustomerStatus.ACTIVE);
 
     for (let i = 0; i < ASSET_COUNT; i++) {
@@ -237,8 +237,8 @@ const generateMockAssets = () => {
             } else if (template.category === 'Alat Kerja Lapangan' && engineerUsers.length > 0) {
                 currentUser = engineerUsers[i % engineerUsers.length];
                 location = `Digunakan oleh ${currentUser}`;
-            } else if (template.category === 'Aset Kantor' && (nocUsers.length > 0 || salesUsers.length > 0)) {
-                currentUser = i % 2 === 0 ? nocUsers[i % nocUsers.length] : salesUsers[i % salesUsers.length];
+            } else if (template.category === 'Aset Kantor' && (nocUsers.length > 0 || csUsers.length > 0)) {
+                currentUser = i % 2 === 0 ? nocUsers[i % nocUsers.length] : csUsers[i % csUsers.length];
                 location = `Digunakan oleh ${currentUser}`;
             }
              // For IN_USE assets assigned to staff, create a handover record
@@ -311,7 +311,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
     const division = mockDivisions.find(d => d.id === user.divisionId)?.name || 'N/A';
     const requestDate = new Date(new Date(NOW).setHours(NOW.getHours() - ((REQUEST_COUNT - i) * 3) ));
     
-    const statuses = [ItemStatus.APPROVED, ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.REJECTED, ItemStatus.COMPLETED, ItemStatus.PENDING, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED];
+    const statuses = [ItemStatus.APPROVED, ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.REJECTED, ItemStatus.COMPLETED, ItemStatus.PENDING, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED];
     const status = statuses[i % statuses.length];
 
     const requestedModelTemplate = assetTemplates[i % assetTemplates.length];
@@ -360,25 +360,34 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
 
 
     const approvalDate = new Date(new Date(requestDate).setDate(requestDate.getDate() + 1));
-    if ([ItemStatus.LOGISTIC_APPROVED, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
-        request.logisticApprover = 'Brian Adams';
+    const purchaseFillDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 1));
+
+    if ([ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
+        request.logisticApprover = 'Alice Johnson';
         request.logisticApprovalDate = approvalDate.toISOString().split('T')[0];
     }
+    if ([ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
+        request.purchaseDetails = {
+            purchasePrice: totalValue,
+            vendor: VENDORS[i % VENDORS.length],
+            poNumber: `PO-${String(REQUEST_COUNT - i).padStart(3, '0')}`,
+            invoiceNumber: `INV/${VENDORS[i % VENDORS.length].slice(0, 3).toUpperCase()}/${purchaseFillDate.getFullYear()}/${i + 1}`,
+            purchaseDate: purchaseFillDate.toISOString().split('T')[0],
+            warrantyEndDate: new Date(new Date(purchaseFillDate).setFullYear(purchaseFillDate.getFullYear() + 1)).toISOString().split('T')[0],
+            filledBy: 'Brian Adams',
+            fillDate: purchaseFillDate.toISOString()
+        };
+    }
     if ([ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
-        // High value requests can only be approved by Super Admin
-        if (request.totalValue && request.totalValue > 10000000) {
-             request.finalApprover = 'John Doe';
-        } else {
-             request.finalApprover = 'John Doe';
-        }
-        request.finalApprovalDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 1)).toISOString().split('T')[0];
+        request.finalApprover = 'John Doe';
+        request.finalApprovalDate = new Date(new Date(purchaseFillDate).setDate(purchaseFillDate.getDate() + 1)).toISOString().split('T')[0];
     }
     if ([ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(status)) {
         request.estimatedDeliveryDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 7)).toISOString().split('T')[0];
     }
     if ([ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(status)) {
         request.arrivalDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 6)).toISOString().split('T')[0];
-        request.receivedBy = 'Bob Williams';
+        request.receivedBy = 'Alice Johnson';
     }
     if (status === ItemStatus.COMPLETED) {
         request.isRegistered = true;
@@ -387,7 +396,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
         request.rejectedBy = 'Brian Adams';
         request.rejectionDate = approvalDate.toISOString().split('T')[0];
         request.rejectionReason = 'Stok tidak mencukupi dan pengadaan tidak disetujui.';
-        request.rejectedByDivision = 'Procurement';
+        request.rejectedByDivision = 'Purchase';
     }
 
     // Add specific examples for new disposition features
@@ -436,7 +445,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
 export const mockNotifications: Notification[] = [
     {
         id: 'notif-1',
-        recipientId: 2, // Brian Adams (Procurement Admin)
+        recipientId: 2, // Brian Adams (Admin Purchase)
         actorName: 'Citra Lestari',
         type: 'FOLLOW_UP',
         isRead: false,
@@ -445,7 +454,7 @@ export const mockNotifications: Notification[] = [
     },
     {
         id: 'notif-2',
-        recipientId: 2, // Brian Adams (Procurement Admin)
+        recipientId: 2, // Brian Adams (Admin Purchase)
         actorName: 'John Doe',
         type: 'CEO_DISPOSITION',
         isRead: false,
@@ -464,7 +473,7 @@ export const mockNotifications: Notification[] = [
     },
     {
         id: 'notif-4',
-        recipientId: 2, // Brian Adams (Procurement Admin)
+        recipientId: 2, // Brian Adams (Admin Purchase)
         actorName: 'John Doe',
         type: 'PROGRESS_UPDATE_REQUEST',
         isRead: false,

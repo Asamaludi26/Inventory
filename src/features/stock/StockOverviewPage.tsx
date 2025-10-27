@@ -344,7 +344,8 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
     
         let relevantAssets: Asset[];
     
-        if (currentUser.role === 'Manager' && currentUser.divisionId) {
+        // FIX: Changed role from 'Manager' to 'Leader' to match the UserRole type.
+        if (currentUser.role === 'Leader' && currentUser.divisionId) {
             const userDivisionId = currentUser.divisionId;
             const allowedCategoryNames = new Set(
                 assetCategories
@@ -675,11 +676,9 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-{/* FIX: Changed prop 'requestSort' to 'requestStockSort' for consistency. */}
                                 <StockSortableHeader columnKey="name" sortConfig={stockSortConfig} requestStockSort={requestStockSort}>Nama Aset</StockSortableHeader>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Ambang Batas</th>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Di Gudang</th>
-{/* FIX: Changed prop 'requestSort' to 'requestStockSort' for consistency. */}
                                 <StockSortableHeader columnKey="valueInStorage" sortConfig={stockSortConfig} requestStockSort={requestStockSort} className="text-right">Nilai Stok (Rp)</StockSortableHeader>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Digunakan</th>
                                 <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-center text-gray-500">Rusak</th>

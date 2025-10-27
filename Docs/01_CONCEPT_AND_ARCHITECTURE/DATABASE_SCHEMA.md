@@ -181,3 +181,125 @@ Mencatat semua histori penting yang terjadi pada sebuah aset.
 | `action`      | VARCHAR(100)      | Jenis aksi (misal: 'Aset Dicatat', 'Serah Terima').|
 | `details`     | TEXT              | Deskripsi detail dari aksi yang dilakukan.         |
 | `referenceId` | VARCHAR(50)       | ID dokumen terkait (misal: ID Handover, Request).  |
+
+## 3. Implementasi Skema Prisma (schema.prisma)
+
+Berikut adalah contoh implementasi skema database menggunakan sintaks Prisma. File ini akan menjadi sumber kebenaran tunggal untuk model data dan relasi.
+
+```prisma
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  name       String
+  email      String    @unique
+  password   String
+  role       UserRole
+  divisionId Int?
+  division   Division? @relation(fields: [divisionId], references: [id])
+  requests   Request[]
+}
+
+model Division {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+}
+
+model Asset {
+  id               String       @id
+  name             String
+  category         String
+  type             String
+  brand            String
+  serialNumber     String?      @unique
+  macAddress       String?
+  registrationDate DateTime
+  recordedBy       String
+  purchaseDate     DateTime?
+  purchasePrice    Decimal?
+  vendor           String?
+  poNumber         String?
+  invoiceNumber    String?
+  warrantyEndDate  DateTime?
+  location         String?
+  locationDetail   String?
+  currentUser      String? // Nama user atau ID customer
+  status           AssetStatus
+  condition        AssetCondition
+  notes            String?
+  isDismantled     Boolean      @default(false)
+  
+  dismantle        Dismantle[]
+  activityLog      ActivityLog[]
+}
+
+model Request {
+  id                  String       @id
+  status              ItemStatus
+  requestDate         DateTime
+  items               Json // Menyimpan array RequestItem
+  order               Json // Menyimpan OrderDetails
+  totalValue          Decimal?
+  requesterId         Int
+  requester           User         @relation(fields: [requesterId], references: [id])
+  logisticApprover    String?
+  logisticApprovalDate DateTime?
+  finalApprover       String?
+  finalApprovalDate   DateTime?
+  rejectionReason     String?
+}
+
+// ... Tambahkan model lain seperti Customer, Handover, Dismantle, ActivityLog ...
+
+enum UserRole {
+  Staff
+  Leader
+  AdminLogistik
+  AdminPurchase
+  SuperAdmin
+}
+
+enum AssetStatus {
+  IN_USE
+  IN_STORAGE
+  UNDER_REPAIR
+  OUT_FOR_REPAIR
+  DAMAGED
+  DECOMMISSIONED
+}
+
+enum AssetCondition {
+  BRAND_NEW
+  GOOD
+  USED_OKAY
+  MINOR_DAMAGE
+  MAJOR_DAMAGE
+  FOR_PARTS
+}
+
+enum ItemStatus {
+  PENDING
+  LOGISTIC_APPROVED
+  AWAITING_CEO_APPROVAL
+  APPROVED
+  PURCHASING
+  IN_DELIVERY
+  ARRIVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+  IN_PROGRESS
+  AWAITING_HANDOVER
+}
+```

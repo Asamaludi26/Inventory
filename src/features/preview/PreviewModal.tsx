@@ -1,12 +1,17 @@
 
 
+
+
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus, PreviewData, ActivityLogEntry, AssetCategory, UserRole } from '../../types';
 import Modal from '../../components/ui/Modal';
 import { ClickableLink } from '../../components/ui/ClickableLink';
 import { ChevronLeftIcon } from '../../components/icons/ChevronLeftIcon';
 import { ChevronRightIcon } from '../../components/icons/ChevronRightIcon';
-import { getStatusClass as getRequestStatusClass } from '../itemRequest/ItemRequestPage';
+// FIX: Corrected the import path for getRequestStatusClass.
+import { getStatusClass as getRequestStatusClass } from '../itemRequest/components/RequestStatus';
 import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
 import { getStatusClass as getCustomerStatusClass } from '../customers/CustomerManagementPage';
 import { PencilIcon } from '../../components/icons/PencilIcon';
@@ -62,16 +67,16 @@ const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?:
     </div>
 );
 
-const canViewPrice = (role: UserRole) => ['Procurement Admin', 'Super Admin'].includes(role);
+const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].includes(role);
 
 // Local helper for role badge styling
 const getRoleClass = (role: User['role']) => {
     switch(role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        // FIX: Replaced 'Admin' with specific admin roles and added 'Manager' to align with UserRole type.
-        case 'Inventory Admin': return 'bg-info-light text-info-text';
-        case 'Procurement Admin': return 'bg-teal-100 text-teal-800';
-        case 'Manager': return 'bg-sky-100 text-sky-800';
+        // FIX: Replaced incorrect role names with 'Admin Logistik', 'Admin Purchase', and 'Leader' to align with UserRole type.
+        case 'Admin Logistik': return 'bg-info-light text-info-text';
+        case 'Admin Purchase': return 'bg-teal-100 text-teal-800';
+        case 'Leader': return 'bg-sky-100 text-sky-800';
         default: return 'bg-gray-100 text-gray-800';
     }
 }
@@ -568,8 +573,8 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
             if (!asset) return baseButtons;
             const category = assetCategories.find(c => c.name === asset.category);
             const canBeInstalled = category?.isCustomerInstallable;
-            // FIX: Use 'Inventory Admin' for authorization check to align with UserRole type.
-            const isAdmin = currentUser.role === 'Inventory Admin' || currentUser.role === 'Super Admin';
+            // FIX: Use 'Admin Logistik' for authorization check to align with UserRole type.
+            const isAdmin = currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin';
             const isOwner = currentUser.name === asset.currentUser;
             const canReportDamage = isOwner && ![AssetStatus.DAMAGED, AssetStatus.UNDER_REPAIR, AssetStatus.OUT_FOR_REPAIR].includes(asset.status);
 

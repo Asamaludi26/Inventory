@@ -24,7 +24,7 @@ import { BoxIcon } from '../../components/icons/BoxIcon';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { PercentIcon } from '../../components/icons/PercentIcon';
 import { HistoryIcon } from '../../components/icons/HistoryIcon';
-import { RequestStatusIndicator } from '../itemRequest/ItemRequestPage';
+import { RequestStatusIndicator } from '../itemRequest/components/RequestStatus';
 import { InboxIcon } from '../../components/icons/InboxIcon';
 import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
 import { useSortableData, SortConfig } from '../../hooks/useSortableData';

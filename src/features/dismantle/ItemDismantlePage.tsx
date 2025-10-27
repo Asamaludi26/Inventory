@@ -788,8 +788,7 @@ const ItemDismantlePage: React.FC<ItemDismantlePageProps> = (props) => {
                     size="3xl"
                     disableContentPadding
                     footerContent={
-                        // FIX: Use 'Inventory Admin' role for authorization check.
-                        selectedDismantle.status === ItemStatus.IN_PROGRESS && (currentUser.role === 'Inventory Admin' || currentUser.role === 'Super Admin') ? (
+                        selectedDismantle.status === ItemStatus.IN_PROGRESS && (currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin') ? (
                             <button onClick={handleCompleteDismantle} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">
                                 {isLoading ? <SpinnerIcon className="w-4 h-4" /> : <CheckIcon className="w-4 h-4" />}
                                 {isLoading ? 'Memproses...' : 'Acknowledge & Complete'}

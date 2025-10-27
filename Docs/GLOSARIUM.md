@@ -17,6 +17,9 @@ Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang serin
 
 ### B
 
+-   **BAK (Berita Acara Kerjasama)**
+    Dokumen formal yang merangkum poin-poin kesepakatan kerjasama teknis dan operasional antara klien dan pengembang.
+    
 -   **BAST (Berita Acara Serah Terima)**
     Dokumen formal yang mencatat proses serah terima aset. Di aplikasi ini, BAST direpresentasikan oleh modul **Handover** (untuk serah terima internal) dan **Dismantle** (untuk penarikan dari pelanggan).
     
@@ -51,8 +54,8 @@ Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang serin
 
 ### M
 
--   **Monorepo**
-    Strategi pengembangan perangkat lunak di mana kode untuk banyak proyek (dalam kasus ini, `frontend` dan `backend`) disimpan dalam satu repositori Git yang sama.
+-   **Mock API**
+    Lapisan simulasi di frontend (`src/services/api.ts`) yang meniru perilaku API backend dengan membaca dan menulis data ke `localStorage`. Ini memungkinkan pengembangan frontend secara independen.
 
 ### O
 
@@ -73,7 +76,7 @@ Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang serin
 ### R
 
 -   **RBAC (Role-Based Access Control)**
-    Model keamanan di mana hak akses pengguna ke sistem ditentukan oleh peran mereka (misal: `Staff`, `Admin`, `Super Admin`).
+    Model keamanan di mana hak akses pengguna ke sistem ditentukan oleh peran mereka (misal: `Staff`, `Leader`, `Admin Logistik`, `Admin Purchase`, `Super Admin`).
 
 -   **REST API (Representational State Transfer Application Programming Interface)**
     Gaya arsitektur yang digunakan untuk komunikasi antara frontend dan backend. Frontend mengirim request (misal: `GET`, `POST`) ke URL tertentu di backend, dan backend merespons dengan data (biasanya dalam format JSON).

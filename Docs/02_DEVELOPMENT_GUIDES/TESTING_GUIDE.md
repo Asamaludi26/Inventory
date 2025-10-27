@@ -135,3 +135,76 @@ describe('AssetsController (Integration)', () => {
   });
 });
 ```
+### Contoh 3: Unit Test Service NestJS (Backend)
+
+Menggunakan `@nestjs/testing` untuk menguji `AssetsService` secara terisolasi dengan me-mock `PrismaService`.
+
+**File**: `src/assets/assets.service.spec.ts`
+```typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AssetsService } from './assets.service';
+import { PrismaService } from '../shared/prisma/prisma.service';
+import { CreateAssetDto } from './dto/create-asset.dto';
+import { AssetCondition } from '@prisma/client';
+
+// Buat mock untuk PrismaService
+const db = {
+  asset: {
+    findMany: jest.fn(),
+    create: jest.fn(),
+  },
+};
+
+describe('AssetsService', () => {
+  let service: AssetsService;
+  let prisma: PrismaService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AssetsService,
+        {
+          provide: PrismaService,
+          useValue: db, // Gunakan mock
+        },
+      ],
+    }).compile();
+
+    service = module.get<AssetsService>(AssetsService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('findAll', () => {
+    it('should return an array of assets', async () => {
+      const mockAssets = [{ id: 'AST-001', name: 'Test Asset' }];
+      db.asset.findMany.mockResolvedValue(mockAssets);
+
+      const assets = await service.findAll();
+      expect(assets).toEqual(mockAssets);
+      expect(prisma.asset.findMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('create', () => {
+    it('should create and return an asset', async () => {
+      const dto: CreateAssetDto = { 
+        id: 'AST-002', 
+        name: 'New Asset', 
+        condition: AssetCondition.BRAND_NEW,
+        // ...properti lain
+      };
+      const mockCreatedAsset = { ...dto, createdAt: new Date(), updatedAt: new Date() };
+      
+      db.asset.create.mockResolvedValue(mockCreatedAsset);
+
+      const newAsset = await service.create(dto);
+      expect(newAsset).toEqual(mockCreatedAsset);
+      expect(prisma.asset.create).toHaveBeenCalledWith({ data: dto });
+    });
+  });
+});
+```

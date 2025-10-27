@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Asset, AssetStatus, AssetCondition, Attachment, Request, User, Customer, Handover, Dismantle, ActivityLogEntry, PreviewData, AssetCategory, StandardItem, Page, AssetType, RequestItem, ParsedScanResult } from '../../types';
+import { Asset, AssetStatus, AssetCondition, Attachment, Request, User, Customer, Handover, Dismantle, ActivityLogEntry, PreviewData, AssetCategory, StandardItem, Page, AssetType, RequestItem, ParsedScanResult, PurchaseDetails } from '../../types';
 import Modal from '../../components/ui/Modal';
 import DatePicker from '../../components/ui/DatePicker';
 import { InfoIcon } from '../../components/icons/InfoIcon';
@@ -383,6 +383,8 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
     const conditionOptions = useMemo(() => Object.values(AssetCondition).map(c => ({ value: c, label: c })), []);
     const locationOptions = useMemo(() => assetLocations.map(loc => ({ value: loc, label: loc })), []);
 
+    const canViewPrice = (role: User['role']) => ['Admin Purchase', 'Super Admin'].includes(role);
+
     const capitalizeFirstLetter = (string: string | undefined): string => {
         if (!string) return 'Unit';
         return string.charAt(0).toUpperCase() + string.slice(1);
@@ -405,6 +407,20 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
             setNotes(`Pencatatan dari request ${request.id}: ${itemToRegister.keterangan}`);
             setInitialUser(request.requester);
             
+            // Prefill purchase details, respecting role visibility
+            if (request.purchaseDetails) {
+                if (canViewPrice(currentUser.role)) {
+                    setPurchasePrice(request.purchaseDetails.purchasePrice);
+                }
+                setVendor(request.purchaseDetails.vendor);
+                setPoNumber(request.purchaseDetails.poNumber);
+                setInvoiceNumber(request.purchaseDetails.invoiceNumber);
+                setPurchaseDate(new Date(request.purchaseDetails.purchaseDate));
+                if (request.purchaseDetails.warrantyEndDate) {
+                    setWarrantyDate(new Date(request.purchaseDetails.warrantyEndDate));
+                }
+            }
+            
             const alreadyRegistered = request.partiallyRegisteredItems?.[itemToRegister.id] || 0;
             const quantityToRegister = Math.max(0, itemToRegister.quantity - alreadyRegistered);
 
@@ -416,7 +432,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                 setQuantity(quantityToRegister);
             }
         }
-    }, [prefillData, setBulkItems, assetCategories]);
+    }, [prefillData, setBulkItems, assetCategories, currentUser.role]);
     
     useEffect(() => {
         if (isEditing && editingAsset) {
@@ -828,7 +844,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                 <FormSection title="Informasi Pembelian" icon={<DollarIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
                     <div>
                         <label htmlFor="purchasePrice" className="block text-sm font-medium text-gray-700">Harga Beli (Rp)</label>
-                        <input type="number" id="purchasePrice" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value === '' ? '' : parseFloat(e.target.value))} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: 3500000" />
+                        <input type="number" id="purchasePrice" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value === '' ? '' : parseFloat(e.target.value))} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: 3500000" disabled={!canViewPrice(currentUser.role)} />
                     </div>
                     <div>
                         <label htmlFor="vendor" className="block text-sm font-medium text-gray-700">Vendor / Toko</label>

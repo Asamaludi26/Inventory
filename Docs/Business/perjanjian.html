@@ -78,6 +78,39 @@
         section {
             break-inside: avoid;
         }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 2cm;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                background-color: #ffffff;
+            }
+            .container {
+                margin: 0;
+                padding: 50px 60px;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                max-width: 100%;
+                min-height: auto;
+            }
+            h1, h2, h3, h4, section {
+                break-after: avoid;
+            }
+            table, .signature-block {
+                break-inside: avoid;
+            }
+            *,
+            *::before,
+            *::after {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -155,7 +188,7 @@
             </div>
             <div class="ayat">
                 <span>(2)</span>
-                <div>Tujuan dari Perjanjian ini adalah untuk menetapkan hak dan kewajiban Para Pihak serta memastikan bahwa pekerjaan dilaksanakan sesuai dengan ruang lingkup, jadwal, dan biaya yang telah disepakati berdasarkan proposal penawaran nomor Q-INV/AS/VIII/2024/002 ("Proposal") yang merupakan bagian tidak terpisahkan dari Perjanjian ini.</div>
+                <div>Tujuan dari Perjanjian ini adalah untuk menetapkan hak dan kewajiban Para Pihak serta memastikan bahwa pekerjaan dilaksanakan sesuai dengan ruang lingkup, jadwal, dan biaya yang telah disepakati berdasarkan proposal penawaran nomor Q-INV/AS/X/2025/001 ("Proposal") yang merupakan bagian tidak terpisahkan dari Perjanjian ini.</div>
             </div>
         </section>
 

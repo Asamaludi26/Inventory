@@ -71,6 +71,30 @@ graph TD
     style H fill:#3182ce,stroke:#333,stroke-width:2px
 ```
 
+### Level 3: Diagram Komponen (Contoh: Fitur Request Aset)
+
+Diagram ini memperbesar kontainer "API Backend" untuk menunjukkan komponen-komponen utama yang bekerja sama saat menangani alur kerja permintaan aset.
+
+```mermaid
+graph TD
+    subgraph "API Backend (NestJS)"
+        direction LR
+        A["<b>Request Controller</b><br>[Class: RequestsController]<br><br>Menerima request HTTP dari<br>frontend. Memvalidasi DTO."]
+        B["<b>Request Service</b><br>[Class: RequestsService]<br><br>Berisi logika bisnis inti untuk<br>membuat, menyetujui, atau<br>menolak permintaan."]
+        C["<b>Prisma Service</b><br>[Shared Service]<br><br>Menyediakan akses ke database<br>melalui Prisma Client."]
+        
+        A -- "Memanggil metode" --> B
+        B -- "Menggunakan" --> C
+    end
+    
+    D["<b>Database</b><br>[PostgreSQL]"]
+    C -- "Mengeksekusi query (CRUD)" --> D
+    
+    style A fill:#90cdf4,stroke:#333,stroke-width:2px
+    style B fill:#63b3ed,stroke:#333,stroke-width:2px
+    style C fill:#4299e1,stroke:#333,stroke-width:2px
+```
+
 ---
 
 ## 3. Alur Data Utama

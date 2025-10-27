@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory, Division, StandardItem, AssetType, RequestItem, ParsedScanResult, Notification, AssetCondition, Attachment } from './types';
 import { Sidebar } from './components/layout/Sidebar';
@@ -41,6 +38,11 @@ import { StartRepairModal, CompleteRepairModal, DecommissionConfirmationModal, A
 import { WrenchIcon } from './components/icons/WrenchIcon';
 import RepairManagementPage from './features/repair/RepairManagementPage';
 import { RegisterIcon } from './components/icons/RegisterIcon';
+import QuotationPage from './features/documents/QuotationPage';
+import PerjanjianPage from './features/documents/PerjanjianPage';
+import BakPage from './features/documents/BakPage';
+import { DashboardIcon } from './components/icons/DashboardIcon';
+import { PencilIcon } from './components/icons/PencilIcon';
 
 
 declare var Html5Qrcode: any;
@@ -49,10 +51,10 @@ declare var Html5QrcodeSupportedFormats: any;
 const getRoleClass = (role: User['role']) => {
     switch(role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        // FIX: Replaced 'Admin' with specific admin roles to align with UserRole type.
-        case 'Inventory Admin': return 'bg-info-light text-info-text';
-        case 'Procurement Admin': return 'bg-teal-100 text-teal-800';
-        case 'Manager': return 'bg-sky-100 text-sky-800';
+        // FIX: Replaced incorrect role names with 'Admin Logistik', 'Admin Purchase', and 'Leader' to align with UserRole type.
+        case 'Admin Logistik': return 'bg-info-light text-info-text';
+        case 'Admin Purchase': return 'bg-teal-100 text-teal-800';
+        case 'Leader': return 'bg-sky-100 text-sky-800';
         default: return 'bg-gray-100 text-gray-800';
     }
 }
@@ -291,6 +293,7 @@ const NotificationBell: React.FC<{
 
         switch (notification.type) {
             case 'REQUEST_CREATED': message = `membuat request baru`; Icon = RequestIcon; break;
+            case 'REQUEST_LOGISTIC_APPROVED': message = `menyetujui request, mohon isi detail pembelian untuk`; Icon = PencilIcon; break;
             case 'REQUEST_AWAITING_FINAL_APPROVAL': message = `menyetujui request, butuh approval final untuk`; Icon = CheckIcon; break;
             case 'REQUEST_FULLY_APPROVED': message = `memberikan approval final untuk`; Icon = CheckIcon; break;
             case 'REQUEST_COMPLETED': message = `telah menyelesaikan registrasi aset untuk`; Icon = RegisterIcon; break;
@@ -388,6 +391,26 @@ const NotificationBell: React.FC<{
     );
 };
 
+const staffRestrictedPages: Page[] = ['registration', 'pengaturan-pengguna', 'kategori', 'customers', 'repair', 'quotation', 'perjanjian', 'bak'];
+
+const UnderConstructionPage: React.FC<{ title: string; setActivePage: (page: Page) => void; }> = ({ title, setActivePage }) => {
+    return (
+        <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-8 text-center bg-gray-50">
+            <div>
+                <WrenchIcon className="w-16 h-16 mx-auto text-amber-400" />
+                <h1 className="mt-4 text-2xl font-bold text-gray-800">{title}</h1>
+                <p className="mt-2 text-gray-600">Fitur ini sedang dalam tahap pengembangan dan akan segera tersedia. Terima kasih atas kesabaran Anda.</p>
+                <button 
+                    onClick={() => setActivePage('dashboard')}
+                    className="inline-flex items-center justify-center gap-2 mt-6 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
+                >
+                    <DashboardIcon className="w-4 h-4" />
+                    Kembali ke Dashboard
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ currentUser, onLogout }) => {
   const [activePage, setActivePage] = useState<Page>('dashboard');
@@ -861,8 +884,8 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                   referenceId: requestId,
               });
           }
-          // FIX: Replace 'Admin' with 'Inventory Admin' to match UserRole type.
-          const admins = users.filter(u => u.role === 'Inventory Admin' || u.role === 'Super Admin');
+          // FIX: Use 'Admin Logistik' to match UserRole type for notifications.
+          const admins = users.filter(u => u.role === 'Admin Logistik' || u.role === 'Super Admin');
           admins.forEach(admin => {
               addAppNotification({
                   recipientId: admin.id,
@@ -899,8 +922,8 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
             details: `Kerusakan dilaporkan dengan deskripsi: "${description}"`,
         });
 
-        // FIX: Replace 'Admin' with 'Inventory Admin' as they are responsible for asset management.
-        users.filter(u => u.role === 'Inventory Admin').forEach(admin => {
+        // FIX: Use 'Admin Logistik' to match UserRole type for asset management notifications.
+        users.filter(u => u.role === 'Admin Logistik').forEach(admin => {
             addAppNotification({
                 recipientId: admin.id,
                 actorName: currentUser.name,
@@ -1064,7 +1087,6 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
   }
 
   const renderPage = () => {
-    const staffRestrictedPages: Page[] = ['registration', 'pengaturan-pengguna', 'kategori', 'customers', 'repair'];
     if (currentUser.role === 'Staff' && staffRestrictedPages.includes(activePage)) {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-8 text-center bg-gray-50">
@@ -1098,6 +1120,16 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         return <CategoryManagementPage currentUser={currentUser} categories={assetCategories} setCategories={(valueOrFn) => setAndPersist(setAssetCategories, valueOrFn, 'app_assetCategories')} divisions={divisions} assets={assets} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal}/>;
       case 'customers':
         return <CustomerManagementPage currentUser={currentUser} customers={customers} setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} assets={assets} onInitiateDismantle={handleInitiateDismantle} onShowPreview={handleShowPreview} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)}/>;
+      case 'quotation':
+        return <QuotationPage />;
+      case 'perjanjian':
+        return <PerjanjianPage />;
+      case 'bak':
+        return <BakPage />;
+      case 'request-stock':
+        return <UnderConstructionPage title="Request Stok" setActivePage={handleSetActivePage} />;
+      case 'request-loan':
+        return <UnderConstructionPage title="Request Pinjam" setActivePage={handleSetActivePage} />;
       default:
         return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
     }

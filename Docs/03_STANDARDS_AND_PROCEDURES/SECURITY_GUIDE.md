@@ -24,13 +24,14 @@ Otorisasi adalah proses menentukan apakah pengguna yang sudah terautentikasi mem
 
 **Peran yang Didefinisikan:**
 -   **`Staff`**: Hak akses paling terbatas. Hanya bisa membuat dan melihat request pribadi.
--   **`Manager`**: Dapat membuat request tipe `Urgent` dan `Project Based`.
--   **`Admin`**: Hak akses operasional. Bisa mengelola aset, request, handover, dll.
+-   **`Leader`**: Dapat membuat request tipe `Urgent` dan `Project Based`.
+-   **`Admin Logistik`**: Mengelola operasional gudang, pencatatan, handover, dan perbaikan aset.
+-   **`Admin Purchase`**: Mengelola proses persetujuan dan pengadaan request aset.
 -   **`Super Admin`**: Hak akses penuh, termasuk mengelola pengguna dan divisi.
 
 **Implementasi Teknis:**
 -   Peran pengguna disimpan dalam _payload_ JWT.
--   Di backend (NestJS), _decorator_ `@Roles('Admin', 'Super Admin')` digunakan pada _endpoint controller_ untuk mendefinisikan peran mana yang diizinkan.
+-   Di backend (NestJS), _decorator_ `@Roles('Admin Logistik', 'Super Admin')` digunakan pada _endpoint controller_ untuk mendefinisikan peran mana yang diizinkan.
 -   Sebuah `RolesGuard` akan memeriksa peran pengguna dari token terhadap peran yang diizinkan oleh _endpoint_. Jika tidak cocok, akses ditolak dengan status `403 Forbidden`.
 
 ## 4. Keamanan Data
