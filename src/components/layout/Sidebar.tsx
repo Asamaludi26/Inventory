@@ -74,17 +74,6 @@ const allMenuItems: MenuItem[] = [
         { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon, roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'] },
     ]
   },
-   {
-    id: 'businessDocs',
-    label: 'Dokumen Bisnis',
-    icon: FileTextIcon,
-    roles: ['Super Admin', 'Admin Purchase'],
-    children: [
-        { id: 'quotation', page: 'quotation', label: 'Proposal Penawaran', icon: FileSignatureIcon, isExternal: true, path: '/Docs/Business/quotation.html' },
-        { id: 'perjanjian', page: 'perjanjian', label: 'Perjanjian Kerja', icon: FileSignatureIcon, isExternal: true, path: '/Docs/Business/perjanjian.html' },
-        { id: 'bak', page: 'bak', label: 'Berita Acara Kerjasama', icon: JournalCheckIcon, isExternal: true, path: '/Docs/Business/bak.html' },
-    ]
-  },
 ];
 
 

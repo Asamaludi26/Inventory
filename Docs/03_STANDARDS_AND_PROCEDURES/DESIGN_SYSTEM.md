@@ -35,7 +35,7 @@ Warna-warna ini digunakan untuk memberikan umpan balik visual yang cepat kepada 
 | **Success** | `#16A34A` (600) | `bg-success`      | `bg-success-light` | `text-success-text` | Notifikasi berhasil, status "Selesai", badge "Aktif".    |
 | **Danger**  | `#DC2626` (600) | `bg-danger`       | `bg-danger-light`  | `text-danger-text`  | Tombol hapus, pesan error, status "Ditolak".             |
 | **Warning** | `#FBBF24` (400) | `bg-warning`      | `bg-warning-light` | `text-warning-text` | Notifikasi peringatan, status "Menunggu", "Suspend".     |
-| **Info**    | `#2563EB` (600) | `bg-info`         | `bg-info-light`    | `text-info-text`    | Pesan informatif, status "Dalam Proses", badge "Admin".  |
+| **Info**    | `#2563EB` (600) | `bg-info`         | `bg-info-light`  | `text-info-text`    | Pesan informatif, status "Dalam Proses", badge "Admin".  |
 
 ## 3. Tipografi
 

@@ -1,4 +1,4 @@
-// FIX: Import the 'useEffect' hook from React.
+
 import React, { useMemo, useState, useEffect } from 'react';
 import { Asset, User, AssetStatus, PreviewData } from '../../types';
 import { useSortableData, SortConfig } from '../../hooks/useSortableData';

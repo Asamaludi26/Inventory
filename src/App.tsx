@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory, Division, StandardItem, AssetType, RequestItem, ParsedScanResult, Notification, AssetCondition, Attachment } from './types';
 import { Sidebar } from './components/layout/Sidebar';
@@ -7,7 +6,7 @@ import ItemRequestPage from './features/itemRequest/ItemRequestPage';
 import ItemRegistration from './features/assetRegistration/RegistrationPage';
 import ItemHandoverPage from './features/handover/HandoverPage';
 import ItemDismantlePage from './features/dismantle/ItemDismantlePage';
-import AccountsPage from './features/users/AccountsPage';
+import { AccountsPage } from './features/users/AccountsPage';
 import CustomerManagementPage from './features/customers/CustomerManagementPage';
 import { MenuIcon } from './components/icons/MenuIcon';
 import { NotificationProvider, useNotification } from './providers/NotificationProvider';
@@ -34,7 +33,6 @@ import { InfoIcon } from './components/icons/InfoIcon';
 import { CloseIcon } from './components/icons/CloseIcon';
 import { parseScanData } from './utils/scanner';
 import ReportDamageModal from './features/stock/components/ReportDamageModal';
-// FIX: Import AddProgressUpdateModal, which was missing.
 import { StartRepairModal, CompleteRepairModal, DecommissionConfirmationModal, AddProgressUpdateModal } from './features/stock/components/RepairModals';
 import { WrenchIcon } from './components/icons/WrenchIcon';
 import RepairManagementPage from './features/repair/RepairManagementPage';
@@ -49,7 +47,6 @@ declare var Html5QrcodeSupportedFormats: any;
 const getRoleClass = (role: User['role']) => {
     switch(role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        // FIX: Replaced incorrect role names with 'Admin Logistik', 'Admin Purchase', and 'Leader' to align with UserRole type.
         case 'Admin Logistik': return 'bg-info-light text-info-text';
         case 'Admin Purchase': return 'bg-teal-100 text-teal-800';
         case 'Leader': return 'bg-sky-100 text-sky-800';
@@ -880,7 +877,6 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                   referenceId: requestId,
               });
           }
-          // FIX: Use 'Admin Logistik' to match UserRole type for notifications.
           const admins = users.filter(u => u.role === 'Admin Logistik' || u.role === 'Super Admin');
           admins.forEach(admin => {
               addAppNotification({
@@ -918,7 +914,6 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
             details: `Kerusakan dilaporkan dengan deskripsi: "${description}"`,
         });
 
-        // FIX: Use 'Admin Logistik' to match UserRole type for asset management notifications.
         users.filter(u => u.role === 'Admin Logistik').forEach(admin => {
             addAppNotification({
                 recipientId: admin.id,
@@ -933,7 +928,6 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         setAssetToReport(null);
     };
 
-    // FIX: Update signature to match the corrected StartRepairModal onSubmit prop.
     const handleStartRepairProcess = (asset: Asset, data: { repairType: 'internal' | 'external'; technician?: string; vendor?: string; vendorContact?: string; estimatedDate: Date; notes: string }) => {
         const { repairType, technician, vendor, vendorContact, estimatedDate, notes } = data;
         let details = '';
@@ -1082,7 +1076,6 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
     );
   }
 
-  // FIX: Define staffRestrictedPages to enforce role-based page access for Staff users.
   const staffRestrictedPages: Page[] = [
     'registration',
     'handover',

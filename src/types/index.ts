@@ -176,6 +176,7 @@ export interface Request {
   rejectedBy: string | null;
   rejectionDate: string | null;
   rejectedByDivision: string | null;
+  itemStatuses?: Record<number, { status: 'rejected'; reason?: string }>;
   isRegistered?: boolean;
   estimatedDeliveryDate?: string | null;
   arrivalDate?: string | null;

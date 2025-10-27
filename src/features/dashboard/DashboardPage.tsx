@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Asset, Request, Handover, Dismantle, Customer, AssetStatus, ItemStatus, Page, PreviewData, AssetCategory, Division, OrderType, OrderDetails, User, UserRole } from '../../types';
 import { WrenchIcon } from '../../components/icons/WrenchIcon';
@@ -53,7 +54,6 @@ const ActivityItem: React.FC<{ icon: React.ReactNode; action: React.ReactNode; u
     </li>
 );
 
-// FIX: Moved formatCurrencyShort to module scope so it can be accessed by OrderAnalyticsCard.
 const formatCurrencyShort = (value: number): string => {
     if (value >= 1_000_000_000) {
         return `${(value / 1_000_000_000).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Miliar`;
@@ -67,7 +67,7 @@ const formatCurrencyShort = (value: number): string => {
     return value.toLocaleString('id-ID');
 };
 
-const canViewPrice = (role: UserRole) => ['Procurement Admin', 'Super Admin'].includes(role);
+const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].includes(role);
 
 // Define DashboardProps interface
 interface DashboardProps {
@@ -83,7 +83,6 @@ interface DashboardProps {
     onShowPreview: (data: PreviewData) => void;
 }
 
-// FIX: Define SortableHeader component for the asset table in StaffDashboard.
 const SortableHeader: React.FC<{
     children: React.ReactNode;
     columnKey: keyof Asset;
@@ -203,7 +202,6 @@ const StaffDashboard: React.FC<DashboardProps> = ({ currentUser, assets, request
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50/70">
                                 <tr>
-                                    {/* FIX: Correctly use SortableHeader component which renders a <th> */}
                                     <SortableHeader columnKey="name" sortConfig={sortConfig} requestSort={requestSort}>Nama Aset</SortableHeader>
                                     <SortableHeader columnKey="category" sortConfig={sortConfig} requestSort={requestSort}>Kategori</SortableHeader>
                                     <SortableHeader columnKey="condition" sortConfig={sortConfig} requestSort={requestSort}>Kondisi</SortableHeader>

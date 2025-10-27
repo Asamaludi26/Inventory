@@ -36,7 +36,6 @@ interface AccountsPageProps {
 const getRoleClass = (role: UserRole) => {
     switch (role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        // FIX: Replaced incorrect role names with 'Admin Logistik', 'Admin Purchase', and 'Leader' to align with UserRole type.
         case 'Admin Logistik': return 'bg-info-light text-info-text';
         case 'Admin Purchase': return 'bg-teal-100 text-teal-800';
         case 'Leader': return 'bg-sky-100 text-sky-800';
@@ -44,7 +43,6 @@ const getRoleClass = (role: UserRole) => {
     }
 };
 
-// FIX: Replaced incorrect role names with 'Admin Logistik', 'Admin Purchase', and 'Leader' to align with UserRole type.
 const userRoles: UserRole[] = ['Staff', 'Leader', 'Admin Logistik', 'Admin Purchase', 'Super Admin'];
 
 
@@ -61,7 +59,6 @@ const UserForm: React.FC<{
     const [isSubmitting, setIsSubmitting] = useState(false);
     const addNotification = useNotification();
     
-    // FIX: Corrected division name from 'Inventori' to 'Logistik' to match mock data.
     const inventoryDivisionId = divisions.find(d => d.name === 'Logistik')?.id.toString();
 
     useEffect(() => {
@@ -79,14 +76,12 @@ const UserForm: React.FC<{
     }, [editingUser, divisions]);
 
     useEffect(() => {
-        // FIX: Use 'Admin Logistik' to match UserRole type and corrected division name logic.
         if (selectedRole === 'Admin Logistik' && inventoryDivisionId) {
             setSelectedDivisionId(inventoryDivisionId);
         }
     }, [selectedRole, inventoryDivisionId]);
 
     const handleDivisionChange = (divisionId: string) => {
-        // FIX: Use 'Admin Logistik' to match UserRole type.
         if (divisionId !== inventoryDivisionId && selectedRole === 'Admin Logistik') {
             setSelectedRole('Staff');
         }
@@ -130,14 +125,7 @@ const UserForm: React.FC<{
                     <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
                     <div className="mt-1">
                         <CustomSelect
-                            // FIX: Replaced incorrect role options to align with UserRole type.
-                             options={[
-                                { value: 'Staff', label: 'Staff' },
-                                { value: 'Leader', label: 'Leader' },
-                                { value: 'Admin Logistik', label: 'Admin Logistik' },
-                                { value: 'Admin Purchase', label: 'Admin Purchase' },
-                                { value: 'Super Admin', label: 'Super Admin' },
-                            ]}
+                             options={userRoles.map(r => ({ value: r, label: r }))}
                              value={selectedRole}
                              onChange={(value) => setSelectedRole(value as UserRole)}
                         />
@@ -154,7 +142,6 @@ const UserForm: React.FC<{
                             }
                              value={selectedDivisionId}
                             onChange={handleDivisionChange}
-                            // FIX: Use 'Admin Logistik' to match UserRole type.
                             disabled={selectedRole === 'Super Admin' || selectedRole === 'Admin Logistik'}
                             placeholder="Pilih Divisi"
                         />
@@ -224,7 +211,7 @@ const DivisionForm: React.FC<{
 };
 
 
-const AccountsPage: React.FC<AccountsPageProps> = ({ currentUser, users, setUsers, divisions, setDivisions, setActivePage }) => {
+export function AccountsPage({ currentUser, users, setUsers, divisions, setDivisions, setActivePage }: AccountsPageProps): React.ReactElement {
     const [activeView, setActiveView] = useState<View>('users');
     const [isUserFormModalOpen, setIsUserFormModalOpen] = useState(false);
     const [isDivisionFormModalOpen, setIsDivisionFormModalOpen] = useState(false);
@@ -514,7 +501,6 @@ const AccountsPage: React.FC<AccountsPageProps> = ({ currentUser, users, setUser
                     const updatedUser = { ...u, role: targetRole };
                     if (targetRole === 'Super Admin') {
                         updatedUser.divisionId = null;
-                    // FIX: Use 'Admin Logistik' to match UserRole type and corrected division name logic.
                     } else if (targetRole === 'Admin Logistik') {
                         const inventoryDivision = divisions.find(d => d.name === 'Logistik');
                         if (inventoryDivision) {
@@ -764,30 +750,6 @@ const AccountsPage: React.FC<AccountsPageProps> = ({ currentUser, users, setUser
                 <p className="text-sm text-gray-600">Anda yakin ingin menghapus divisi <strong>{divisionToDelete.name}</strong>? Aksi ini tidak dapat diurungkan.</p>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setDivisionToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleConfirmDivisionDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus</button></div>
             </Modal>}
-            
-             <Modal isOpen={bulkDeleteConfirmation !== null} onClose={() => setBulkDeleteConfirmation(null)} title="Konfirmasi Hapus Massal" size="md">
-                <div className="text-center">
-                    <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-red-500" />
-                    <h3 className="mt-4 text-lg font-semibold text-gray-800">Hapus {bulkDeleteConfirmation === 'users' ? `${deletableUsersCount} Akun` : `${deletableDivisionsCount} Divisi`}?</h3>
-                    {bulkDeleteConfirmation === 'users' && <p className="mt-2 text-sm text-gray-600">Total {selectedUserIds.length} akun dipilih. {skippableUsersCount} akun (Super Admin/Anda) akan dilewati.</p>}
-                    {bulkDeleteConfirmation === 'divisions' && <p className="mt-2 text-sm text-gray-600">Total {selectedDivisionIds.length} divisi dipilih. {skippableDivisionsCount} divisi yang masih memiliki anggota akan dilewati.</p>}
-                </div>
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setBulkDeleteConfirmation(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleBulkDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Ya, Hapus</button></div>
-            </Modal>
-            
-            <Modal isOpen={isMoveDivisionModalOpen} onClose={() => setIsMoveDivisionModalOpen(false)} title={`Pindah ${selectedUserIds.length} Akun`}>
-                <p className="mb-4 text-sm text-gray-600">Pilih divisi tujuan.</p>
-                <CustomSelect options={divisions.map(d => ({value: d.id.toString(), label: d.name}))} value={targetDivisionId?.toString() || ''} onChange={v => setTargetDivisionId(parseInt(v))} />
-                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setIsMoveDivisionModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleBulkMoveDivision} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Pindahkan</button></div>
-            </Modal>
-            
-            <Modal isOpen={isChangeRoleModalOpen} onClose={() => setIsChangeRoleModalOpen(false)} title={`Ubah Role untuk ${selectedUserIds.length} Akun`}>
-                <p className="mb-4 text-sm text-gray-600">Pilih role baru.</p>
-                <CustomSelect options={userRoles.map(r => ({value: r, label: r}))} value={targetRole} onChange={v => setTargetRole(v as UserRole)} />
-                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setIsChangeRoleModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleBulkChangeRole} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>}Ubah Role</button></div>
-            </Modal>
         </div>
     );
-};
-
-export default AccountsPage;
+}

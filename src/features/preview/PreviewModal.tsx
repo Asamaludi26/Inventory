@@ -1,16 +1,10 @@
 
-
-
-
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus, PreviewData, ActivityLogEntry, AssetCategory, UserRole } from '../../types';
 import Modal from '../../components/ui/Modal';
 import { ClickableLink } from '../../components/ui/ClickableLink';
 import { ChevronLeftIcon } from '../../components/icons/ChevronLeftIcon';
 import { ChevronRightIcon } from '../../components/icons/ChevronRightIcon';
-// FIX: Corrected the import path for getRequestStatusClass.
 import { getStatusClass as getRequestStatusClass } from '../itemRequest/components/RequestStatus';
 import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
 import { getStatusClass as getCustomerStatusClass } from '../customers/CustomerManagementPage';
@@ -55,7 +49,6 @@ interface PreviewModalProps {
     onStartRepair: (asset: Asset) => void;
     onMarkAsRepaired: (asset: Asset) => void;
     onDecommission: (asset: Asset) => void;
-    // FIX: Add onReceiveFromRepair and onAddProgressUpdate to props to resolve type errors in App.tsx.
     onReceiveFromRepair: (asset: Asset) => void;
     onAddProgressUpdate: (asset: Asset) => void;
 }
@@ -73,7 +66,6 @@ const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].inclu
 const getRoleClass = (role: User['role']) => {
     switch(role) {
         case 'Super Admin': return 'bg-purple-100 text-purple-800';
-        // FIX: Replaced incorrect role names with 'Admin Logistik', 'Admin Purchase', and 'Leader' to align with UserRole type.
         case 'Admin Logistik': return 'bg-info-light text-info-text';
         case 'Admin Purchase': return 'bg-teal-100 text-teal-800';
         case 'Leader': return 'bg-sky-100 text-sky-800';
@@ -573,7 +565,6 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
             if (!asset) return baseButtons;
             const category = assetCategories.find(c => c.name === asset.category);
             const canBeInstalled = category?.isCustomerInstallable;
-            // FIX: Use 'Admin Logistik' for authorization check to align with UserRole type.
             const isAdmin = currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin';
             const isOwner = currentUser.name === asset.currentUser;
             const canReportDamage = isOwner && ![AssetStatus.DAMAGED, AssetStatus.UNDER_REPAIR, AssetStatus.OUT_FOR_REPAIR].includes(asset.status);

@@ -118,6 +118,9 @@ Endpoint untuk sumber daya ini mengikuti pola RESTful CRUD standar.
 ### `GET /api/[resource]/:id`
 -   Mengambil detail satu item.
 
+### `GET /api/[resource]/:id`
+-   Mengambil detail satu item.
+
 ### `POST /api/[resource]`
 -   Membuat item baru.
 

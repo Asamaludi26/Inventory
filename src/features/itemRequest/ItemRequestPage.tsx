@@ -747,18 +747,189 @@ const FollowUpConfirmationModal: React.FC<{
     );
 };
 
+const SelectiveRejectionModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    request: Request;
+    onConfirm: (rejectedItemIds: number[], reason: string) => void;
+    isLoading: boolean;
+}> = ({ isOpen, onClose, request, onConfirm, isLoading }) => {
+    const [rejectedItemIds, setRejectedItemIds] = useState<number[]>([]);
+    const [reason, setReason] = useState('');
+    const addNotificationUI = useNotification();
+
+    useEffect(() => {
+        if (!isOpen) {
+            setRejectedItemIds([]);
+            setReason('');
+        }
+    }, [isOpen]);
+
+    const handleToggleItem = (itemId: number) => {
+        setRejectedItemIds(prev =>
+            prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+        );
+    };
+
+    const handleSubmit = () => {
+        if (rejectedItemIds.length === 0) {
+            addNotificationUI('Pilih setidaknya satu item untuk ditolak.', 'error');
+            return;
+        }
+        if (!reason.trim()) {
+            addNotificationUI('Alasan penolakan harus diisi.', 'error');
+            return;
+        }
+        onConfirm(rejectedItemIds, reason);
+    };
+
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Tolak Item Secara Selektif"
+            size="lg"
+            hideDefaultCloseButton
+            footerContent={
+                <>
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                    <button onClick={handleSubmit} disabled={isLoading || rejectedItemIds.length === 0 || !reason.trim()} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-300">
+                        {isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}
+                        Tolak {rejectedItemIds.length > 0 ? `(${rejectedItemIds.length})` : ''} Item
+                    </button>
+                </>
+            }
+        >
+            <div className="space-y-4">
+                <div className="flex flex-col items-center text-center">
+                    <div className="flex items-center justify-center w-12 h-12 mb-4 text-danger-text bg-danger-light rounded-full">
+                        <ExclamationTriangleIcon className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800">Tolak Item dari Request #{request.id}</h3>
+                    <p className="mt-2 text-sm text-gray-600">
+                        Pilih item yang ingin ditolak dan berikan satu alasan penolakan yang akan diterapkan ke semua item yang dipilih.
+                    </p>
+                </div>
+                <div className="pt-4 space-y-4">
+                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar border rounded-lg p-2 bg-gray-50/50">
+                        {request.items.map(item => {
+                            const isRejected = rejectedItemIds.includes(item.id);
+                            const isAlreadyRejected = request.itemStatuses?.[item.id]?.status === 'rejected';
+                            return (
+                                <div key={item.id} onClick={() => !isAlreadyRejected && handleToggleItem(item.id)} className={`flex items-center gap-3 p-3 rounded-md transition-colors ${isAlreadyRejected ? 'bg-gray-200 cursor-not-allowed' : isRejected ? 'bg-red-100 ring-1 ring-red-200 cursor-pointer' : 'bg-white hover:bg-gray-50 cursor-pointer'}`}>
+                                    <Checkbox checked={isRejected || isAlreadyRejected} readOnly disabled={isAlreadyRejected} />
+                                    <div className={`flex-1 ${isAlreadyRejected ? 'text-gray-500 line-through' : ''}`}>
+                                        <p className={`font-semibold ${isRejected ? 'text-danger-text' : 'text-gray-800'}`}>{item.itemName}</p>
+                                        <p className={`text-xs ${isRejected ? 'text-danger' : 'text-gray-500'}`}>{item.itemTypeBrand} - {item.quantity} unit</p>
+                                    </div>
+                                    {isAlreadyRejected && <span className="text-xs font-bold text-danger-text">SUDAH DITOLAK</span>}
+                                </div>
+                            );
+                        })}
+                    </div>
+                     <div>
+                        <label htmlFor="selectiveRejectionReason" className="block text-sm font-medium text-gray-700">Alasan Penolakan</label>
+                        <textarea
+                            id="selectiveRejectionReason"
+                            rows={3}
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
+                            placeholder="Contoh: Stok tidak tersedia, permintaan tidak sesuai budget, dll."
+                        ></textarea>
+                    </div>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+const SimpleRejectionModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    request: Request | null;
+    onConfirm: (reason: string) => void;
+    isLoading: boolean;
+}> = ({ isOpen, onClose, request, onConfirm, isLoading }) => {
+    const [reason, setReason] = useState('');
+    const addNotificationUI = useNotification();
+
+    useEffect(() => {
+        if (!isOpen) {
+            setReason('');
+        }
+    }, [isOpen]);
+
+    if (!request) return null;
+
+    const handleSubmit = () => {
+        if (!reason.trim()) {
+            addNotificationUI('Alasan penolakan harus diisi.', 'error');
+            return;
+        }
+        onConfirm(reason);
+    };
+
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Tolak Permintaan"
+            size="md"
+            hideDefaultCloseButton
+            footerContent={
+                <>
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                    <button onClick={handleSubmit} disabled={isLoading || !reason.trim()} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-300">
+                        {isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}
+                        Konfirmasi Tolak
+                    </button>
+                </>
+            }
+        >
+            <div className="space-y-4">
+                 <div className="text-center">
+                    <div className="flex items-center justify-center w-12 h-12 mx-auto text-danger-text bg-danger-light rounded-full">
+                        <ExclamationTriangleIcon className="w-6 h-6" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold text-gray-800">Tolak Seluruh Permintaan?</h3>
+                    <p className="mt-2 text-sm text-gray-600">Anda akan menolak seluruh permintaan <strong>#{request.id}</strong>. Mohon berikan alasan penolakan.</p>
+                </div>
+                 <div className="p-4 my-4 bg-gray-50 border rounded-lg">
+                    <p className="text-xs font-medium text-gray-500 uppercase">Item yang ditolak:</p>
+                    <div className="mt-2 text-sm">
+                        <p className="font-semibold text-tm-dark">{request.items[0].itemName}</p>
+                        <p className="text-xs text-gray-500">{request.items[0].itemTypeBrand} - {request.items[0].quantity} unit</p>
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor="simpleRejectionReason" className="block text-sm font-medium text-gray-700">Alasan Penolakan</label>
+                    <textarea
+                        id="simpleRejectionReason"
+                        rows={4}
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
+                        placeholder="Contoh: Stok tidak tersedia dan pengadaan tidak disetujui."
+                    ></textarea>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
 
 const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests, setRequests, assets, assetCategories, divisions, onInitiateRegistration, initialFilters, onClearInitialFilters, onShowPreview, openModelModal, openTypeModal, setActivePage, users, notifications, addNotification, markNotificationsAsRead }) => {
     const [view, setView] = useState<'list' | 'form'>('list');
     const [itemToPrefill, setItemToPrefill] = useState<{ name: string; brand: string } | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
+    const [isSelectiveRejectionModalOpen, setIsSelectiveRejectionModalOpen] = useState(false);
+    const [isSimpleRejectionModalOpen, setIsSimpleRejectionModalOpen] = useState(false);
     const [isProcurementModalOpen, setIsProcurementModalOpen] = useState(false);
     const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
     const [stagingRequest, setStagingRequest] = useState<Request | null>(null);
     const [estimatedDelivery, setEstimatedDelivery] = useState<Date | null>(new Date());
     const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
-    const [rejectionReason, setRejectionReason] = useState('');
     const [requestToDeleteId, setRequestToDeleteId] = useState<string | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState(false);
     const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
@@ -1035,16 +1206,55 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         setIsDetailModalOpen(false);
         setSelectedRequest(null);
     };
-
-    const handleOpenRejectionModal = () => {
-        setIsDetailModalOpen(false);
-        setIsRejectionModalOpen(true);
+    
+    const handleConfirmSimpleRejection = (reason: string) => {
+        if (!selectedRequest) return;
+    
+        setIsLoading(true);
+        setTimeout(() => {
+            const today = new Date().toISOString().split('T')[0];
+            const rejectorDivision = currentUser.role === 'Super Admin' ? 'Manajemen' : 
+                                    currentUser.role === 'Admin Purchase' ? 'Purchase' : 'Logistik';
+    
+            const updatedRequest: Request = {
+                ...selectedRequest,
+                status: ItemStatus.REJECTED,
+                rejectionReason: reason,
+                rejectedBy: currentUser.name,
+                rejectionDate: today,
+                rejectedByDivision: rejectorDivision
+            };
+    
+            setRequests(prev => prev.map(r => r.id === selectedRequest.id ? updatedRequest : r));
+    
+            // Notify requester
+            const requesterUser = users.find(u => u.name === selectedRequest.requester);
+            if (requesterUser) {
+                addNotification({ 
+                    recipientId: requesterUser.id, 
+                    actorName: currentUser.name, 
+                    type: 'REQUEST_REJECTED', 
+                    referenceId: selectedRequest.id,
+                    message: `menolak permintaan Anda`
+                });
+            }
+    
+            addNotificationUI(`Request #${selectedRequest.id} telah ditolak.`, 'success');
+            setIsLoading(false);
+            setIsSimpleRejectionModalOpen(false); 
+            handleCloseDetailModal();
+        }, 1000);
     };
 
-    const handleCloseRejectionModal = () => {
-        setIsRejectionModalOpen(false);
-        setRejectionReason('');
-        setSelectedRequest(null);
+    const handleOpenRejectionModal = () => {
+        if (!selectedRequest) return;
+        setIsDetailModalOpen(false);
+
+        if (selectedRequest.items.length > 1) {
+            setIsSelectiveRejectionModalOpen(true);
+        } else {
+            setIsSimpleRejectionModalOpen(true);
+        }
     };
 
     const handleCreateRequest = (data: Omit<Request, 'id' | 'status' | 'logisticApprover' | 'logisticApprovalDate' | 'finalApprover' | 'finalApprovalDate' | 'rejectionReason' | 'rejectedBy' | 'rejectionDate' | 'rejectedByDivision'>) => {
@@ -1202,9 +1412,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
 
     const handleConfirmFollowUp = () => {
         if (!followUpRequest) return;
-        
-        setIsLoading(true);
 
+        setIsLoading(true);
         setTimeout(() => {
             const now = new Date();
             if (followUpRequest.lastFollowUpAt) {
@@ -1218,7 +1427,10 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 }
             }
             
-            setRequests(prev => prev.map(r => r.id === followUpRequest.id ? { ...r, lastFollowUpAt: now.toISOString() } : r));
+            const updatedRequest = { ...followUpRequest, lastFollowUpAt: now.toISOString() };
+
+            setRequests(prev => prev.map(r => r.id === followUpRequest.id ? updatedRequest : r));
+            setSelectedRequest(updatedRequest); 
 
             const admins = users.filter(u => u.role === 'Admin Logistik');
             admins.forEach(admin => {
@@ -1425,50 +1637,60 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         }, 1000);
     };
     
-    const handleConfirmRejection = () => {
-        if (!selectedRequest || !rejectionReason.trim()) {
-            addNotificationUI('Alasan penolakan harus diisi.', 'error');
-            return;
-        }
-
-        const canReject = 
-            (currentUser.role === 'Admin Logistik' && selectedRequest.status === ItemStatus.PENDING) ||
-            (currentUser.role === 'Admin Purchase' && selectedRequest.status === ItemStatus.LOGISTIC_APPROVED) ||
-            (currentUser.role === 'Super Admin' && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL].includes(selectedRequest.status));
-
-        if (!canReject) {
-            addNotificationUI('Anda tidak memiliki izin untuk menolak permintaan pada status ini.', 'error');
-            return;
-        }
-
+    const handleConfirmSelectiveRejection = (rejectedItemIds: number[], reason: string) => {
+        if (!selectedRequest) return;
+    
         setIsLoading(true);
-        setTimeout(() => { // Simulate API Call
-            const today = new Date().toISOString().split('T')[0];
-            const rejectorDivision = 
-                currentUser.role === 'Super Admin' ? 'Manajemen' : 
-                currentUser.role === 'Admin Purchase' ? 'Purchase' : 'Logistik';
-
-            setRequests(prevRequests =>
-                prevRequests.map(req =>
-                    req.id === selectedRequest.id 
-                    ? { ...req, status: ItemStatus.REJECTED, rejectionReason: rejectionReason.trim(), rejectedBy: currentUser.name, rejectionDate: today, rejectedByDivision: rejectorDivision } 
-                    : req
-                )
-            );
-
-            const requesterUser = users.find(u => u.name === selectedRequest.requester);
-            if(requesterUser) {
-                addNotification({ recipientId: requesterUser.id, actorName: currentUser.name, type: 'REQUEST_REJECTED', referenceId: selectedRequest.id });
-            }
-
-            const adminsAndSuperAdmins = users.filter(u => (u.role === 'Admin Purchase' || u.role === 'Admin Logistik' || u.role === 'Super Admin') && u.id !== currentUser.id);
-            adminsAndSuperAdmins.forEach(admin => {
-                addNotification({ recipientId: admin.id, actorName: currentUser.name, type: 'REQUEST_REJECTED', referenceId: selectedRequest.id, message: `menolak request dengan alasan: "${rejectionReason.trim()}"` });
+        setTimeout(() => {
+            let finalStatus = selectedRequest.status;
+            const updatedItemStatuses = { ...(selectedRequest.itemStatuses || {}) };
+            rejectedItemIds.forEach(id => {
+                updatedItemStatuses[id] = { status: 'rejected', reason };
             });
 
-            addNotificationUI('Request telah ditolak.', 'success');
+            const allItemIds = new Set(selectedRequest.items.map(i => i.id));
+            const allRejected = selectedRequest.items.every(item => updatedItemStatuses[item.id]?.status === 'rejected');
+
+            if (allRejected) {
+                finalStatus = ItemStatus.REJECTED;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            const rejectorDivision = currentUser.role === 'Super Admin' ? 'Manajemen' : 
+                                    currentUser.role === 'Admin Purchase' ? 'Purchase' : 'Logistik';
+
+            const updatedRequest: Request = {
+                ...selectedRequest,
+                status: finalStatus,
+                itemStatuses: updatedItemStatuses,
+                ...(allRejected && {
+                    rejectionReason: `Semua item ditolak. Alasan utama: "${reason.trim()}"`,
+                    rejectedBy: currentUser.name,
+                    rejectionDate: today,
+                    rejectedByDivision: rejectorDivision
+                })
+            };
+    
+            setRequests(prev => prev.map(r => r.id === selectedRequest.id ? updatedRequest : r));
+            
+            // Notify requester
+            const requesterUser = users.find(u => u.name === selectedRequest.requester);
+            if(requesterUser) {
+                addNotification({ 
+                    recipientId: requesterUser.id, 
+                    actorName: currentUser.name, 
+                    type: 'REQUEST_REJECTED', 
+                    referenceId: selectedRequest.id,
+                    message: `menolak ${rejectedItemIds.length} item dari permintaan Anda`
+                });
+            }
+            
+            addNotificationUI(`${rejectedItemIds.length} item dari request #${selectedRequest.id} telah ditolak.`, 'success');
             setIsLoading(false);
-            handleCloseRejectionModal();
+            setIsSelectiveRejectionModalOpen(false);
+            // Re-select the updated request to refresh the detail modal
+            setSelectedRequest(updatedRequest);
+            setIsDetailModalOpen(true); // Reopen detail modal
         }, 1000);
     };
     
@@ -1713,7 +1935,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
     
     const showProcurement = selectedRequest && [ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(selectedRequest.status);
 
-    // FIX: Define renderContent function to switch between list and form views.
     const renderContent = () => {
         if (view === 'form') {
             return (
@@ -2047,15 +2268,28 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {selectedRequest.items.map((item, index) => (
-                                                <tr key={item.id} className="border-b">
-                                                    <td className="p-2 text-center text-gray-800">{index + 1}.</td>
-                                                    <td className="p-2 font-semibold text-gray-800">{item.itemName}</td>
-                                                    <td className="p-2 text-gray-600">{item.itemTypeBrand}</td>
-                                                    <td className="p-2 text-center font-medium text-gray-800">{item.quantity} unit</td>
-                                                    <td className="p-2 text-xs italic text-gray-600">"{item.keterangan}"</td>
-                                                </tr>
-                                            ))}
+                                            {selectedRequest.items.map((item, index) => {
+                                                const isRejected = selectedRequest.itemStatuses?.[item.id]?.status === 'rejected';
+                                                const rejectionReasonText = selectedRequest.itemStatuses?.[item.id]?.reason;
+                                                return (
+                                                    <tr key={item.id} className={`border-b ${isRejected ? 'bg-red-50/50 text-gray-500' : ''}`}>
+                                                        <td className={`p-2 text-center ${isRejected ? 'line-through' : 'text-gray-800'}`}>{index + 1}.</td>
+                                                        <td className={`p-2 font-semibold ${isRejected ? 'line-through text-danger-text' : 'text-gray-800'}`}>
+                                                            {item.itemName}
+                                                            {isRejected && rejectionReasonText && (
+                                                                <Tooltip text={`Alasan: ${rejectionReasonText}`}>
+                                                                    <span className="ml-2 inline-block">
+                                                                        <InfoIcon className="w-4 h-4 text-danger" />
+                                                                    </span>
+                                                                </Tooltip>
+                                                            )}
+                                                        </td>
+                                                        <td className={`p-2 ${isRejected ? 'line-through' : 'text-gray-600'}`}>{item.itemTypeBrand}</td>
+                                                        <td className={`p-2 text-center font-medium ${isRejected ? 'line-through' : 'text-gray-800'}`}>{item.quantity} unit</td>
+                                                        <td className={`p-2 text-xs italic ${isRejected ? 'line-through' : 'text-gray-600'}`}>"{item.keterangan}"</td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                         {selectedRequest.totalValue && canViewPrice(currentUser.role) && (
                                              <tfoot className="bg-gray-100">
@@ -2175,52 +2409,34 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 </Modal>
             )}
 
-            {isRejectionModalOpen && (
-                 <Modal
-                    isOpen={isRejectionModalOpen}
-                    onClose={handleCloseRejectionModal}
-                    title="Konfirmasi Penolakan"
-                    hideDefaultCloseButton={true}
-                    footerContent={
-                        <div className="flex items-center space-x-3">
-                            <button
-                                type="button"
-                                onClick={handleCloseRejectionModal}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleConfirmRejection}
-                                disabled={!rejectionReason.trim() || isLoading}
-                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
-                            >
-                                {isLoading && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                                Konfirmasi Tolak
-                            </button>
-                        </div>
-                    }
-                >
-                    <div className="space-y-4">
-                        <p className="text-sm text-gray-600">
-                           Anda akan menolak permintaan dengan ID <span className="font-bold text-tm-dark">{selectedRequest?.id}</span>. 
-                           Mohon berikan alasan penolakan di bawah ini.
-                        </p>
-                        <div>
-                            <label htmlFor="rejectionReason" className="block text-sm font-medium text-gray-700">Alasan Penolakan</label>
-                            <textarea
-                                id="rejectionReason"
-                                rows={4}
-                                value={rejectionReason}
-                                onChange={(e) => setRejectionReason(e.target.value)}
-                                className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
-                                placeholder="Contoh: Stok tidak tersedia, permintaan tidak sesuai budget, dll."
-                            ></textarea>
-                        </div>
-                    </div>
-                </Modal>
+            {isSelectiveRejectionModalOpen && selectedRequest && (
+                 <SelectiveRejectionModal
+                    isOpen={isSelectiveRejectionModalOpen}
+                    onClose={() => {
+                        setIsSelectiveRejectionModalOpen(false);
+                        // Reopen detail modal if it was closed
+                        if (selectedRequest) {
+                            setIsDetailModalOpen(true);
+                        }
+                    }}
+                    request={selectedRequest}
+                    onConfirm={handleConfirmSelectiveRejection}
+                    isLoading={isLoading}
+                />
             )}
+            
+            <SimpleRejectionModal
+                isOpen={isSimpleRejectionModalOpen}
+                onClose={() => {
+                    setIsSimpleRejectionModalOpen(false);
+                    if (selectedRequest) {
+                        setIsDetailModalOpen(true);
+                    }
+                }}
+                request={selectedRequest}
+                onConfirm={handleConfirmSimpleRejection}
+                isLoading={isLoading}
+            />
 
             {selectedRequest && (
                 <Modal
@@ -2298,7 +2514,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                             type="button"
                             onClick={handleBulkDelete}
                             disabled={isLoading}
-                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400"
+                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-400"
                         >
                             {isLoading && <SpinnerIcon className="w-5 h-5 mr-2"/>}
                             Ya, Hapus ({selectedRequestIds.length}) Request
