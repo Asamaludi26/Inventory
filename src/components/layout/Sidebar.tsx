@@ -61,17 +61,6 @@ const allMenuItems: MenuItem[] = [
       { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Admin Logistik', 'Super Admin'] },
     ],
   },
-  {
-    id: 'documents',
-    label: 'Dokumen Penting',
-    icon: FileSignatureIcon,
-    roles: ['Leader', 'Admin Purchase', 'Super Admin'],
-    children: [
-        { id: 'doc-quotation', page: 'quotation', label: 'Proposal Penawaran', icon: FileTextIcon },
-        { id: 'doc-perjanjian', page: 'perjanjian', label: 'Perjanjian Kerja', icon: FileSignatureIcon },
-        { id: 'doc-bak', page: 'bak', label: 'Berita Acara Kerjasama', icon: JournalCheckIcon },
-    ]
-  },
   { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'] },
   {
     id: 'settings',

@@ -18,13 +18,10 @@ Saat ini, proyek berada pada tahap **Prototipe Frontend Fungsional Penuh (High-F
 
 ---
 
-## Titik Awal Utama
+## Titik Awal Utama (WAJIB DIBACA)
 
-Untuk pemahaman komprehensif mengenai proyek dari awal hingga akhir, mulailah dengan membaca dokumen berikut:
-
--   [**Laporan Pertanggungjawaban Final**](./Docs/FINAL_REPORT.md)
-
-Dokumen ini merangkum seluruh aspek proyek, dari visi bisnis hingga realisasi teknis, dan berfungsi sebagai panduan utama untuk menavigasi sisa dokumentasi.
+> Untuk pemahaman komprehensif mengenai proyek dari awal hingga akhir, mulailah dengan membaca dokumen berikut. Dokumen ini merangkum seluruh aspek proyek dan berfungsi sebagai "daftar isi" utama untuk menavigasi seluruh dokumentasi yang tersedia.
+> ### ➡️ [**Laporan Pertanggungjawaban Final**](./Docs/FINAL_REPORT.md)
 
 ## Daftar Isi Dokumentasi
 
@@ -37,6 +34,7 @@ Berikut adalah struktur dokumentasi yang dirancang untuk membantu Anda menemukan
 | **1. Konsep & Arsitektur** <br>_Gambaran besar_  | [**Product Requirements Document (PRD)**](./Docs/01_CONCEPT_AND_ARCHITECTURE/PRODUCT_REQUIREMENTS.md) | Dokumen fundamental yang menjelaskan APA yang harus dibangun dan MENGAPA.      |
 |                                              | [Arsitektur Sistem](./Docs/01_CONCEPT_AND_ARCHITECTURE/ARCHITECTURE.md)                 | Blueprint dan diagram arsitektur tingkat tinggi yang menjelaskan interaksi antar komponen sistem.   |
 |                                              | [Skema Database (ERD)](./Docs/01_CONCEPT_AND_ARCHITECTURE/DATABASE_SCHEMA.md)               | Visualisasi struktur database, relasi antar tabel, dan kamus data.                                |
+|                                              | [Panduan Diagram Sistem](./Docs/01_CONCEPT_AND_ARCHITECTURE/SYSTEM_DIAGRAMS.md)             | Penjelasan semua diagram yang digunakan dalam siklus hidup pengembangan.                          |
 |                                              | [Tumpukan Teknologi](./Docs/01_CONCEPT_AND_ARCHITECTURE/TECHNOLOGY_STACK.md)                | Rincian teknologi yang digunakan dan alasan strategis di balik setiap pilihan.                    |
 |                                              | [Catatan Keputusan Arsitektural (ADR)](./Docs/01_CONCEPT_AND_ARCHITECTURE/ADR/)             | Kumpulan catatan keputusan teknis penting yang dibuat selama pengembangan.                        |
 | **2. Panduan Pengembangan** <br>_Mulai koding_ | [**Panduan Memulai (Wajib)**](./Docs/02_DEVELOPMENT_GUIDES/GETTING_STARTED.md)              | Panduan langkah demi langkah untuk menyiapkan lingkungan pengembangan lokal.                        |
@@ -52,6 +50,6 @@ Berikut adalah struktur dokumentasi yang dirancang untuk membantu Anda menemukan
 |                                              | [Monitoring & Logging](./Docs/04_OPERATIONS/MONITORING_AND_LOGGING.md)                      | Strategi operasional untuk memantau kesehatan dan kinerja aplikasi di produksi.                   |
 |                                              | [Backup & Recovery](./Docs/04_OPERATIONS/BACKUP_AND_RECOVERY.md)                            | Prosedur standar untuk mencadangkan data dan memulihkan sistem jika terjadi kegagalan.            |
 | **5. Dokumentasi Pengguna** <br>_Cara pakai_ | [Panduan Pengguna](./Docs/05_USER_DOCUMENTATION/USER_GUIDE.md)                              | Panduan fungsional aplikasi dari perspektif pengguna akhir (Staff, Admin).                        |
-| **Dokumen Bisnis** <br>_Legal & Penawaran_  | [Proposal Penawaran](./Docs/Business/quotation.html)                                       | Dokumen proposal awal yang merinci lingkup proyek dan opsi investasi.                             |
-|                                              | [Perjanjian Kerja](./Docs/Business/perjanjian.html)                                        | Dokumen legal yang mengikat perjanjian kerja antara pengembang dan klien.                         |
-|                                              | [Berita Acara Kerjasama](./Docs/Business/bak.html)                                           | Dokumen berita acara yang merangkum poin-poin kesepakatan kerjasama teknis dan operasional.       |
+| **Dokumen Bisnis** <br>_Legal & Penawaran_  | [Proposal Penawaran](./Docs/Business/quotation.md)                                       | Dokumen proposal awal yang merinci lingkup proyek dan opsi investasi.                             |
+|                                              | [Perjanjian Kerja](./Docs/Business/perjanjian.md)                                        | Dokumen legal yang mengikat perjanjian kerja antara pengembang dan klien.                         |
+|                                              | [Berita Acara Kerjasama](./Docs/Business/bak.md)                                           | Dokumen berita acara yang merangkum poin-poin kesepakatan kerjasama teknis dan operasional.       |

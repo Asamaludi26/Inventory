@@ -6,6 +6,12 @@ Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang serin
 
 ### A
 
+-   **Admin Logistik**
+    Peran pengguna dari Divisi Logistik yang bertanggung jawab atas operasional gudang, pencatatan aset, serah terima, penarikan, dan manajemen perbaikan.
+
+-   **Admin Purchase**
+    Peran pengguna yang bertanggung jawab atas proses pengadaan, termasuk memproses, menyetujui, atau menolak permintaan aset.
+
 -   **ADR (Architectural Decision Record)**
     Dokumen yang mencatat keputusan arsitektural penting yang dibuat selama pengembangan. Setiap ADR menjelaskan konteks, keputusan yang diambil, dan konsekuensinya. Lihat di [`/Docs/01_CONCEPT_AND_ARCHITECTURE/ADR/`](./01_CONCEPT_AND_ARCHITECTURE/ADR/).
 
@@ -51,6 +57,11 @@ Dokumen ini berisi daftar definisi untuk istilah, akronim, dan konsep yang serin
 
 -   **JWT (JSON Web Token)**
     Standar token yang ringkas dan aman untuk autentikasi. Digunakan untuk memverifikasi identitas pengguna pada setiap permintaan API setelah mereka berhasil login.
+
+### L
+
+-   **Leader**
+    Peran pengguna yang ditujukan untuk Manajer atau Supervisor (SPV) di setiap divisi. Memiliki hak akses lebih tinggi dari Staff, seperti membuat request tipe `Urgent` atau `Project Based`.
 
 ### M
 

@@ -109,7 +109,7 @@ Menyimpan informasi akun pengguna yang dapat login ke sistem.
 | `name`       | VARCHAR(255)      | Nama lengkap pengguna.                           |
 | `email`      | VARCHAR(255) `(UK)`| Alamat email unik untuk login.                   |
 | `password`   | VARCHAR(255)      | Hash kata sandi pengguna (menggunakan bcrypt).   |
-| `role`       | VARCHAR(50)       | Peran pengguna: `Staff`, `Manager`, `Admin`, `Super Admin`. |
+| `role`       | VARCHAR(50)       | Peran pengguna: `Staff`, `Leader`, `Admin Logistik`, `Admin Purchase`, `Super Admin`. |
 | `divisionId` | INTEGER `(FK)`    | ID divisi tempat pengguna bernaung. Relasi ke tabel `Division`. |
 
 ### Tabel: `Asset`
@@ -184,7 +184,7 @@ Mencatat semua histori penting yang terjadi pada sebuah aset.
 
 ## 3. Implementasi Skema Prisma (schema.prisma)
 
-Berikut adalah contoh implementasi skema database menggunakan sintaks Prisma. File ini akan menjadi sumber kebenaran tunggal untuk model data dan relasi.
+Berikut adalah implementasi **lengkap dan siap pakai** dari skema database menggunakan sintaks Prisma. File ini akan menjadi sumber kebenaran tunggal untuk model data dan relasi di backend.
 
 ```prisma
 // This is your Prisma schema file,
@@ -199,11 +199,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =================================
+//        MODELS & ENUMS
+// =================================
+
 model User {
   id         Int       @id @default(autoincrement())
   name       String
   email      String    @unique
-  password   String
+  password   String // Stored as a hash
   role       UserRole
   divisionId Int?
   division   Division? @relation(fields: [divisionId], references: [id])
@@ -214,6 +218,18 @@ model Division {
   id    Int    @id @default(autoincrement())
   name  String @unique
   users User[]
+}
+
+model Customer {
+  id               String      @id
+  name             String
+  address          String
+  phone            String
+  email            String      @unique
+  status           CustomerStatus
+  installationDate DateTime
+  servicePackage   String
+  dismantles       Dismantle[]
 }
 
 model Asset {
@@ -229,12 +245,12 @@ model Asset {
   purchaseDate     DateTime?
   purchasePrice    Decimal?
   vendor           String?
-  poNumber         String?
+  poNumber         String? // Can be related to a Request ID
   invoiceNumber    String?
   warrantyEndDate  DateTime?
   location         String?
   locationDetail   String?
-  currentUser      String? // Nama user atau ID customer
+  currentUser      String? // Can be a User's name or a Customer's ID
   status           AssetStatus
   condition        AssetCondition
   notes            String?
@@ -245,22 +261,65 @@ model Asset {
 }
 
 model Request {
-  id                  String       @id
-  status              ItemStatus
-  requestDate         DateTime
-  items               Json // Menyimpan array RequestItem
-  order               Json // Menyimpan OrderDetails
-  totalValue          Decimal?
-  requesterId         Int
-  requester           User         @relation(fields: [requesterId], references: [id])
-  logisticApprover    String?
-  logisticApprovalDate DateTime?
-  finalApprover       String?
-  finalApprovalDate   DateTime?
-  rejectionReason     String?
+  id                     String       @id
+  requesterId            Int
+  requestDate            DateTime
+  status                 ItemStatus
+  order                  Json // Stores OrderDetails
+  items                  Json // Stores RequestItem[]
+  totalValue             Decimal?
+  logisticApprover       String?
+  logisticApprovalDate   DateTime?
+  finalApprover          String?
+  finalApprovalDate      DateTime?
+  rejectionReason        String?
+  rejectedBy             String?
+  rejectionDate          DateTime?
+  isRegistered           Boolean      @default(false)
+  
+  requester              User         @relation(fields: [requesterId], references: [id])
 }
 
-// ... Tambahkan model lain seperti Customer, Handover, Dismantle, ActivityLog ...
+model Handover {
+  id           String   @id
+  handoverDate DateTime
+  menyerahkan  String
+  penerima     String
+  mengetahui   String
+  woRoIntNumber String?
+  items        Json // Stores HandoverItem[]
+  status       ItemStatus
+}
+
+model Dismantle {
+  id                 String         @id
+  dismantleDate      DateTime
+  technician         String
+  retrievedCondition AssetCondition
+  notes              String?
+  acknowledger       String?
+  status             ItemStatus
+  
+  assetId            String
+  asset              Asset          @relation(fields: [assetId], references: [id])
+  
+  customerId         String
+  customer           Customer       @relation(fields: [customerId], references: [id])
+}
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  timestamp   DateTime @default(now())
+  user        String
+  action      String
+  details     String
+  referenceId String?
+  
+  assetId     String
+  asset       Asset    @relation(fields: [assetId], references: [id])
+}
+
+// ENUMS
 
 enum UserRole {
   Staff
@@ -268,6 +327,12 @@ enum UserRole {
   AdminLogistik
   AdminPurchase
   SuperAdmin
+}
+
+enum CustomerStatus {
+  Aktif
+  Tidak_Aktif
+  Suspend
 }
 
 enum AssetStatus {

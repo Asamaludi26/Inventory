@@ -20,7 +20,7 @@
 
 # Ringkasan Eksekutif
 
-Laporan ini menandai penyelesaian dan serah terima resmi dari proyek pengembangan **Aplikasi Inventori Aset** untuk PT. Triniti Media Indonesia. Proyek ini telah berhasil dilaksanakan sesuai dengan seluruh ruang lingkup, jadwal, dan tujuan yang telah disepakati dalam [Proposal Penawaran (Q-INV/AS/VIII/2024/001)](./Business/quotation.html) dan dikukuhkan dalam [Perjanjian Kerja (001/SPK-DEV/TMI-AS/X/2025)](./Business/perjanjian.html).
+Laporan ini menandai penyelesaian dan serah terima resmi dari proyek pengembangan **Aplikasi Inventori Aset** untuk PT. Triniti Media Indonesia. Proyek ini telah berhasil dilaksanakan sesuai dengan seluruh ruang lingkup, jadwal, dan tujuan yang telah disepakati dalam [Proposal Penawaran (Q-INV/AS/X/2025/001)](./Business/quotation.md) dan dikukuhkan dalam [Perjanjian Kerja (001/SPK-DEV/TMI-AS/X/2025)](./Business/perjanjian.md).
 
 Hasil akhir yang diserahkan adalah sebuah **Prototipe Frontend Fungsional Penuh (*High-Fidelity Functional Frontend Prototype*)**. Aplikasi ini secara komprehensif merealisasikan seluruh antarmuka pengguna (UI/UX) dan alur kerja sisi klien dari sistem manajemen aset yang dirancang. Sistem ini secara spesifik mengatasi tantangan operasional PT. Triniti Media Indonesia dengan mendigitalkan seluruh siklus hidup aset—mulai dari proses permintaan barang, persetujuan multi-level, pencatatan aset baru, serah terima internal, instalasi di lokasi pelanggan, hingga proses penarikan kembali (*dismantle*) dan perbaikan aset.
 
@@ -212,6 +212,8 @@ graph TD
     style C fill:#4299e1,stroke:#333,stroke-width:2px
 ```
 _Untuk detail arsitektur, lihat [Dokumen Arsitektur](./01_CONCEPT_AND_ARCHITECTURE/ARCHITECTURE.md)._
+
+Untuk pemahaman yang lebih mendalam mengenai jenis-jenis diagram yang digunakan dalam setiap fase perancangan, dari analisis hingga deployment, silakan merujuk ke dokumen [Panduan Diagram Sistem](./01_CONCEPT_AND_ARCHITECTURE/SYSTEM_DIAGRAMS.md).
 
 ### 2.4. Tumpukan Teknologi yang Digunakan
 Tumpukan teknologi dipilih untuk memaksimalkan produktivitas, keamanan, dan skalabilitas.
@@ -487,10 +489,10 @@ Dengan selesainya laporan ini, item-item berikut secara resmi diserahterimakan k
 | **Kode Sumber**         | Seluruh kode sumber aplikasi Frontend (React).                     | Repositori Git / Arsip ZIP.                               |
 | **Dokumentasi**         | Seluruh isi dari direktori `/Docs` pada repositori.                | File Markdown (.md) di dalam repositori.                  |
 | **Database**          | Skema database siap pakai untuk implementasi.                      | `schema.prisma` dan file migrasi awal.                    |
-| **Dokumen Bisnis**      | Proposal Penawaran dan Perjanjian Kerja.                           | File di dalam folder `/Business`.                         |
+| **Dokumen Bisnis**      | Proposal Penawaran, Perjanjian Kerja, dan Berita Acara Kerjasama.  | File di dalam folder `/Docs/Business`.                         |
 
 ### 7.2. Masa Garansi dan Dukungan Teknis
-Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.html) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
+Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.md) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
 
 ### 7.3. Rekomendasi Pengembangan Lanjutan
 Aplikasi ini memiliki fondasi yang kuat untuk dikembangkan lebih lanjut. Berikut adalah beberapa rekomendasi fitur untuk masa depan:
@@ -517,12 +519,12 @@ Berikut adalah contoh peta jalan pengembangan yang dapat diadopsi.
 
 ### Lampiran A: Salinan Proposal Penawaran
 Dokumen proposal penawaran asli yang merinci lingkup, fitur, dan investasi proyek dapat diakses pada file berikut:
--   [**Dokumen Proposal Penawaran**](./Business/quotation.html)
+-   [**Dokumen Proposal Penawaran**](./Business/quotation.md)
 
 ### Lampiran B: Salinan Perjanjian Kerja
 Dokumen legal yang mengikat perjanjian pelaksanaan pekerjaan antara pengembang dan klien dapat diakses pada file berikut:
--   [**Dokumen Perjanjian Kerja**](./Business/perjanjian.html)
+-   [**Dokumen Perjanjian Kerja**](./Business/perjanjian.md)
 
 ### Lampiran C: Salinan Berita Acara Kerjasama
 Dokumen berita acara yang merangkum poin-poin kesepakatan kerjasama teknis dan operasional.
--   [**Dokumen Berita Acara Kerjasama**](./Business/bak.html)
+-   [**Dokumen Berita Acara Kerjasama**](./Business/bak.md)

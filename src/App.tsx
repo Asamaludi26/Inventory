@@ -38,9 +38,6 @@ import { StartRepairModal, CompleteRepairModal, DecommissionConfirmationModal, A
 import { WrenchIcon } from './components/icons/WrenchIcon';
 import RepairManagementPage from './features/repair/RepairManagementPage';
 import { RegisterIcon } from './components/icons/RegisterIcon';
-import QuotationPage from './features/documents/QuotationPage';
-import PerjanjianPage from './features/documents/PerjanjianPage';
-import BakPage from './features/documents/BakPage';
 import { DashboardIcon } from './components/icons/DashboardIcon';
 import { PencilIcon } from './components/icons/PencilIcon';
 
@@ -390,8 +387,6 @@ const NotificationBell: React.FC<{
         </div>
     );
 };
-
-const staffRestrictedPages: Page[] = ['registration', 'pengaturan-pengguna', 'kategori', 'customers', 'repair', 'quotation', 'perjanjian', 'bak'];
 
 const UnderConstructionPage: React.FC<{ title: string; setActivePage: (page: Page) => void; }> = ({ title, setActivePage }) => {
     return (
@@ -1120,12 +1115,6 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         return <CategoryManagementPage currentUser={currentUser} categories={assetCategories} setCategories={(valueOrFn) => setAndPersist(setAssetCategories, valueOrFn, 'app_assetCategories')} divisions={divisions} assets={assets} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal}/>;
       case 'customers':
         return <CustomerManagementPage currentUser={currentUser} customers={customers} setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} assets={assets} onInitiateDismantle={handleInitiateDismantle} onShowPreview={handleShowPreview} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)}/>;
-      case 'quotation':
-        return <QuotationPage />;
-      case 'perjanjian':
-        return <PerjanjianPage />;
-      case 'bak':
-        return <BakPage />;
       case 'request-stock':
         return <UnderConstructionPage title="Request Stok" setActivePage={handleSetActivePage} />;
       case 'request-loan':

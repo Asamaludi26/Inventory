@@ -31,7 +31,7 @@ Diagram ini menunjukkan gambaran besar: bagaimana sistem Aplikasi Inventori Aset
 ```mermaid
 graph TD
     subgraph "Pengguna Internal PT. Triniti Media"
-        A[<b>Staff / Manajer</b><br>Karyawan yang membuat<br>request dan menggunakan aset]
+        A[<b>Staff / Leader</b><br>Karyawan yang membuat<br>request dan menggunakan aset]
         B[<b>Admin / Super Admin</b><br>Tim yang mengelola inventori<br>dan sistem]
     end
 
