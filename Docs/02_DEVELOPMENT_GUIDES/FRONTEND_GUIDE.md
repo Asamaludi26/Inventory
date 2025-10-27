@@ -88,8 +88,8 @@ Setiap perubahan pada state global (misalnya, menambah aset baru) dilakukan mela
 ```mermaid
 graph TD
     subgraph App.tsx
-        A[<b>State Global</b><br>(assets, requests, dll.)]
-        B[<b>Fungsi Update</b><br>(setAssets, setRequests)]
+        A["State Global (assets, requests, dll.)"]
+        B["Fungsi Update (setAssets, setRequests)"]
     end
     
     subgraph "Komponen Halaman"
@@ -118,6 +118,7 @@ graph TD
     style C fill:#bde4ff
     style D fill:#c1f0c1
     style E fill:#d3d3d3
+
 ```
 
 ## 6. Filosofi Komponen
