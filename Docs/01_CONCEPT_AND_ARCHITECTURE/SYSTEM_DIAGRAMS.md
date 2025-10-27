@@ -19,6 +19,138 @@ Tabel berikut memetakan setiap fase pengembangan ke diagram yang relevan, menjel
 
 ---
 
+## Contoh Implementasi Diagram
+
+Bagian ini menyediakan contoh visual konkret untuk diagram-diagram utama yang disebutkan di atas.
+
+### Contoh 1: Use Case Diagram - Interaksi Pengguna Utama
+Diagram ini menunjukkan fungsionalitas utama yang dapat diakses oleh setiap peran pengguna (aktor) dalam sistem.
+
+```mermaid
+left to right direction
+actor "Staff / Leader" as Staff
+actor "Admin Logistik" as AdminL
+actor "Admin Purchase" as AdminP
+actor "Super Admin" as SuperAdmin
+
+AdminL --|> Staff
+AdminP --|> Staff
+SuperAdmin --|> AdminL
+SuperAdmin --|> AdminP
+
+rectangle "Aplikasi Inventori Aset" {
+  Staff -- (Membuat Request Aset)
+  Staff -- (Melihat Aset Pribadi)
+  Staff -- (Melaporkan Kerusakan)
+
+  AdminL -- (Mencatat Aset Baru)
+  AdminL -- (Mengelola Handover/Dismantle)
+  AdminL -- (Mengelola Perbaikan Aset)
+
+  AdminP -- (Menyetujui Request)
+  AdminP -- (Mengisi Detail Pembelian)
+
+  SuperAdmin -- (Mengelola Pengguna & Divisi)
+  SuperAdmin -- (Memberi Persetujuan Final)
+}
+```
+
+### Contoh 2: BPMN Diagram - Alur Kerja Permintaan Aset
+Diagram ini (disimulasikan menggunakan Flowchart dengan *swimlane*) memodelkan alur kerja bisnis yang krusial dari awal permintaan aset hingga selesai.
+
+```mermaid
+graph TD
+    subgraph "Staff / Leader"
+        A[Mulai] --> B{Membuat Request Aset};
+    end
+
+    subgraph "Admin Logistik"
+        B --> C{Review Request Awal};
+        C -- Disetujui --> D[Update Status: LOGISTIC_APPROVED];
+        C -- Ditolak --> E[Update Status: REJECTED & Notifikasi];
+        E --> X[Selesai];
+    end
+    
+    subgraph "Admin Purchase"
+        D --> F{Isi Detail Pembelian};
+        F --> G{Cek Nilai Total};
+        G -- "Nilai > 10 Juta" --> H[Update Status: AWAITING_CEO_APPROVAL];
+        G -- "Nilai <= 10 Juta" --> I[Update Status: APPROVED & Notifikasi];
+    end
+
+    subgraph "Super Admin"
+        H --> J{Review Final};
+        J -- Disetujui --> I;
+        J -- Ditolak --> E;
+    end
+
+    subgraph "Proses Pengadaan"
+       I --> K[Proses Pembelian];
+       K --> L[Barang Tiba];
+       L --> M[Aset Dicatat];
+       M --> X;
+    end
+```
+
+### Contoh 3: Sequence Diagram - Alur Laporan Kerusakan Aset
+Diagram ini menggambarkan urutan pesan dan interaksi antar komponen sistem ketika seorang pengguna melaporkan kerusakan aset.
+
+```mermaid
+sequenceDiagram
+    participant Staff
+    participant Frontend
+    participant Backend
+    participant Notifikasi
+    participant AdminL as Admin Logistik
+
+    Staff->>Frontend: Mengisi & Kirim Form Lapor Rusak
+    Frontend->>Backend: PATCH /api/assets/:id/report-damage
+    activate Backend
+    Backend->>Backend: Validasi data
+    Backend->>Backend: Update status aset menjadi 'DAMAGED'
+    Backend->>Notifikasi: Buat notifikasi untuk Admin Logistik
+    activate Notifikasi
+    Notifikasi-->>AdminL: Kirim notifikasi "Aset Rusak Dilaporkan"
+    deactivate Notifikasi
+    Backend-->>Frontend: Response 200 OK
+    deactivate Backend
+    Frontend-->>Staff: Tampilkan "Laporan berhasil dikirim"
+```
+
+### Contoh 4: Deployment Diagram - Arsitektur Produksi
+Diagram ini memberikan gambaran arsitektur fisik tentang bagaimana komponen aplikasi akan di-deploy di lingkungan produksi cloud.
+
+```mermaid
+graph TD
+    subgraph "Internet"
+        User[Pengguna]
+    end
+
+    subgraph "Cloud Provider (misal: GCP, AWS)"
+        LB(Load Balancer / CDN)
+
+        subgraph "Vercel / Netlify"
+            FE[<b>Frontend Container</b><br>React SPA (Static Files)]
+        end
+
+        subgraph "Cloud Run / App Runner"
+            BE[<b>Backend Container</b><br>NestJS API Server (Docker)]
+        end
+
+        subgraph "Managed Database Service"
+            DB[<b>Database Server</b><br>PostgreSQL]
+        end
+    end
+
+    User -- HTTPS --> LB
+    LB -- "Routes to" --> FE
+    LB -- "'/api/*' proxy" --> BE
+    FE -- "API Calls" --> BE
+    BE -- "TCP/IP" --> DB
+```
+
+---
+
 ## Integrasi dengan Dokumentasi Proyek
 
 Diagram-diagram ini bukanlah artefak yang berdiri sendiri, melainkan konsep yang diwujudkan dalam berbagai dokumen di dalam proyek ini:

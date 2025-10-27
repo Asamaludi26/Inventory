@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory, Division, StandardItem, AssetType, RequestItem, ParsedScanResult, Notification, AssetCondition, Attachment } from './types';
 import { Sidebar } from './components/layout/Sidebar';
@@ -1080,6 +1081,17 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         </div>
     );
   }
+
+  // FIX: Define staffRestrictedPages to enforce role-based page access for Staff users.
+  const staffRestrictedPages: Page[] = [
+    'registration',
+    'handover',
+    'dismantle',
+    'repair',
+    'customers',
+    'pengaturan-pengguna',
+    'kategori',
+  ];
 
   const renderPage = () => {
     if (currentUser.role === 'Staff' && staffRestrictedPages.includes(activePage)) {

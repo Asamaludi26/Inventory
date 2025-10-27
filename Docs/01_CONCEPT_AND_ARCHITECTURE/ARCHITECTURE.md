@@ -186,5 +186,6 @@ sequenceDiagram
 
 Untuk detail implementasi yang lebih spesifik, silakan merujuk ke dokumen berikut:
 
+-   [**Panduan Diagram Sistem**](./SYSTEM_DIAGRAMS.md)
 -   [**Panduan Pengembangan Frontend**](../02_DEVELOPMENT_GUIDES/FRONTEND_GUIDE.md)
 -   [**Panduan Pengembangan Backend**](../02_DEVELOPMENT_GUIDES/BACKEND_GUIDE.md)
