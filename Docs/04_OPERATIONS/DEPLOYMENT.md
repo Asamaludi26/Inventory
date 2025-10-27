@@ -1,97 +1,175 @@
-# Panduan Deployment
+# Panduan Deployment Produksi
 
-Dokumen ini menjelaskan proses untuk membangun (build) dan men-deploy aplikasi frontend dan backend ke lingkungan produksi.
+Dokumen ini menjelaskan proses teknis untuk membangun (build) dan men-deploy aplikasi **full-stack** (frontend dan backend) ke server produksi, seperti server milik PT. Triniti.
 
-## 1. Konsep Dasar
+## 1. Konsep Arsitektur Deployment
 
-Aplikasi ini terdiri dari dua bagian yang di-deploy secara terpisah:
-1.  **Frontend (React)**: Sebuah _Single-Page Application_ (SPA). Setelah di-build, hasilnya adalah file statis (HTML, CSS, JS) yang dapat di-host di layanan hosting statis.
-2.  **Backend (NestJS)**: Sebuah aplikasi server yang berjalan di lingkungan Node.js. Ini di-deploy sebagai layanan yang terus berjalan (misalnya, dalam sebuah kontainer Docker).
+Kita akan men-deploy dua aplikasi berbeda yang bekerja sama di satu server, diatur oleh sebuah **Reverse Proxy (Nginx)**.
+
+-   **Aplikasi Frontend (React)**: Hasil build-nya adalah **file statis** (HTML, CSS, JS). Nginx akan bertugas menyajikan file-file ini langsung ke pengguna.
+-   **Aplikasi Backend (NestJS)**: Hasil build-nya adalah aplikasi **Node.js**. Aplikasi ini akan berjalan sebagai layanan (*service*) di latar belakang pada port internal (misal: `3001`) menggunakan manajer proses seperti **PM2**.
+-   **Nginx (Reverse Proxy)**: Bertindak sebagai pintu gerbang utama. Ia akan menerima semua trafik dari domain publik (misal: `aset.trinitimedia.com`) dan meneruskannya ke layanan yang tepat:
+    -   Request ke `/api/*` akan diteruskan ke aplikasi backend.
+    -   Semua request lainnya akan dilayani oleh file statis frontend.
+
+**Diagram Alur Produksi:**
+```mermaid
+graph TD
+    User[Pengguna] -- "HTTP Request ke aset.trinitimedia.com" --> Nginx
+
+    subgraph "Server Produksi"
+        Nginx
+        
+        subgraph "Aplikasi Backend (Berjalan via PM2)"
+            Backend[Proses NestJS @ localhost:3001]
+        end
+
+        subgraph "File Statis Frontend"
+            Frontend[Direktori /var/www/assetflow/frontend]
+        end
+    end
+    
+    Nginx -- "Jika request adalah '/api/*'" --> Backend
+    Nginx -- "Jika request BUKAN '/api/*'" --> Frontend
+```
 
 ---
 
-## 2. Deployment Frontend (Aplikasi React)
+## 2. Persiapan Server
 
-Frontend di-deploy sebagai situs statis. Proses ini sangat cepat dan efisien.
+Pastikan server Linux (misal: Ubuntu) sudah terinstal perangkat lunak berikut:
+-   **Nginx**: `sudo apt install nginx`
+-   **Node.js** (v18+): Gunakan `nvm` atau `nodesource` untuk instalasi.
+-   **pnpm**: `npm install -g pnpm`
+-   **PM2**: `pnpm add -g pm2`
 
-### Langkah 1: Build Aplikasi Frontend
--   Dari direktori root proyek, jalankan perintah build:
+---
+
+## 3. Proses Deployment (Langkah-demi-Langkah)
+
+### Langkah 1: Build Kedua Aplikasi di Mesin Lokal
+Sebelum men-deploy, kita perlu membuat versi produksi dari kedua aplikasi.
+
+1.  **Build Frontend**:
     ```bash
+    cd frontend
+    pnpm install
     pnpm run build
     ```
--   Perintah ini akan menghasilkan folder `dist/` yang berisi semua file HTML, CSS, dan JavaScript statis yang dioptimalkan untuk produksi.
+    -   **Hasil**: Folder baru `frontend/dist/`. Folder inilah yang akan kita deploy.
 
-### Langkah 2: Deploy di Platform Hosting Statis
--   Pilih platform yang dirancang untuk hosting statis. Platform ini biasanya menawarkan performa tinggi melalui CDN (Content Delivery Network).
--   **Rekomendasi Platform**: [Vercel](https://vercel.com/), [Netlify](https://www.netlify.com/), [AWS S3 + CloudFront](https://aws.amazon.com/s3/).
+2.  **Build Backend**:
+    ```bash
+    cd backend
+    pnpm install
+    pnpm run build
+    ```
+    -   **Hasil**: Folder baru `backend/dist/`.
 
--   **Proses Deployment (Contoh dengan Vercel/Netlify)**:
-    1.  Hubungkan repositori Git Anda ke platform.
-    2.  **Konfigurasi Build**:
-        -   **Build Command**: `pnpm run build`
-        -   **Publish Directory**: `dist` (Pastikan ini adalah root direktori, bukan `frontend/dist`)
-        -   **Install Command**: `pnpm install`
-    3.  **Atur Environment Variables** (jika ada).
-    4.  Deploy. Platform akan secara otomatis menjalankan build command setiap kali ada push baru ke cabang `main` (atau `develop`, sesuai konfigurasi).
+### Langkah 2: Deploy File ke Server
+Salin file yang relevan dari komputer lokal Anda ke server produksi. Anda bisa menggunakan `scp` atau `rsync`.
 
-### Langkah 3: Konfigurasi Proxy di Produksi
-Di lingkungan development, Vite menangani _proxying_ request dari `/api` ke `http://localhost:3001`. Di produksi, ini tidak berfungsi. Anda perlu mengkonfigurasi _rewrites_ atau _proxy rules_ di platform hosting Anda untuk meneruskan panggilan API ke server backend.
+1.  **Salin Build Frontend**:
+    Salin **isi** dari folder `frontend/dist/` ke direktori di server.
+    ```bash
+    # Contoh menggunakan rsync
+    rsync -avz frontend/dist/ user@your_server_ip:/var/www/assetflow/frontend
+    ```
+    > **Penting**: Buat direktori `/var/www/assetflow/frontend` di server jika belum ada.
 
--   **Contoh Konfigurasi (Vercel - `vercel.json`)**:
-    ```json
-    {
-      "rewrites": [
-        {
-          "source": "/api/:path*",
-          "destination": "https://your-backend-api.com/api/:path*"
+2.  **Salin Folder Backend**:
+    Salin **seluruh folder** `backend/` ke server. Kita membutuhkan `package.json` untuk menginstal dependensi produksi.
+    ```bash
+    # Contoh menggunakan rsync
+    rsync -avz backend/ user@your_server_ip:/var/www/assetflow/backend
+    ```
+
+### Langkah 3: Setup dan Jalankan Backend di Server
+SSH ke server Anda dan jalankan perintah berikut.
+
+1.  **Masuk ke Direktori Backend**:
+    ```bash
+    cd /var/www/assetflow/backend
+    ```
+
+2.  **Instal Dependensi Produksi**:
+    Perintah ini hanya akan menginstal paket yang dibutuhkan untuk produksi, bukan dependensi pengembangan.
+    ```bash
+    pnpm install --production
+    ```
+    
+3.  **Setup File `.env`**:
+    Buat file `.env` di dalam direktori `backend/` dan isi dengan konfigurasi produksi.
+    ```env
+    DATABASE_URL="postgresql://USER:PASSWORD@HOST_PROD:PORT/DATABASE_PROD?schema=public"
+    JWT_SECRET="<your-long-random-secret-key>"
+    ```
+
+4.  **Jalankan Aplikasi dengan PM2**:
+    PM2 adalah manajer proses yang akan menjaga aplikasi Node.js tetap berjalan dan akan me-restartnya secara otomatis jika terjadi _crash_.
+    ```bash
+    # Memulai aplikasi dan memberinya nama
+    pm2 start dist/main.js --name assetflow-backend
+
+    # Menyimpan daftar proses agar otomatis berjalan saat server reboot
+    pm2 save
+    ```
+
+5.  **Verifikasi**:
+    Pastikan aplikasi backend berjalan dengan `pm2 list`. Anda akan melihat `assetflow-backend` dengan status `online`.
+
+### Langkah 4: Konfigurasi Nginx sebagai Reverse Proxy
+Langkah terakhir adalah memberitahu Nginx bagaimana cara menangani trafik.
+
+1.  **Buat File Konfigurasi Nginx Baru**:
+    ```bash
+    sudo nano /etc/nginx/sites-available/assetflow
+    ```
+
+2.  **Isi File Konfigurasi**:
+    Salin dan tempel konfigurasi berikut. **Ganti `aset.trinitimedia.com` dengan domain Anda**.
+    ```nginx
+    server {
+        listen 80;
+        server_name aset.trinitimedia.com;
+
+        # Logging
+        access_log /var/log/nginx/assetflow-access.log;
+        error_log /var/log/nginx/assetflow-error.log;
+
+        # Aturan untuk API Backend
+        # Semua request yang dimulai dengan /api/ akan diteruskan ke aplikasi NestJS
+        location /api/ {
+            proxy_pass http://localhost:3001;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
         }
-      ]
+
+        # Aturan untuk menyajikan file Frontend
+        # Semua request lain akan dilayani oleh file statis React
+        location / {
+            root /var/www/assetflow/frontend;
+            try_files $uri /index.html;
+        }
     }
     ```
--   **Contoh Konfigurasi (Netlify - `_redirects` atau `netlify.toml`)**:
-    ```toml
-    # netlify.toml
-    [[redirects]]
-      from = "/api/*"
-      to = "https://your-backend-api.com/api/:splat"
-      status = 200 # 200 untuk rewrite
+
+3.  **Aktifkan Situs dan Restart Nginx**:
+    ```bash
+    # Buat symbolic link untuk mengaktifkan konfigurasi
+    sudo ln -s /etc/nginx/sites-available/assetflow /etc/nginx/sites-enabled/
+
+    # Tes konfigurasi untuk memastikan tidak ada error
+    sudo nginx -t
+
+    # Jika tes berhasil, restart Nginx untuk menerapkan perubahan
+    sudo systemctl restart nginx
     ```
-Ini memastikan bahwa setiap panggilan dari frontend ke `/api/...` akan diteruskan ke server backend produksi Anda.
 
----
-
-## 3. Deployment Backend (Target Implementasi)
-
-> **Catatan**: Langkah-langkah berikut berlaku untuk server backend NestJS **setelah selesai dibangun**.
-
-Metode yang direkomendasikan adalah menggunakan **Docker** untuk konsistensi dan portabilitas.
-
-### Langkah-langkah:
-
-1.  **Build Image Docker**:
-    -   Dari direktori `backend/`, jalankan perintah build:
-        ```bash
-        docker build -t inventory-backend:latest .
-        ```
-    -   Perintah ini akan mengikuti instruksi di `Dockerfile` untuk menginstal dependensi, menjalankan `prisma generate`, membangun aplikasi, dan mengemas semuanya ke dalam sebuah image.
-
-2.  **Push Image ke Container Registry**:
-    -   Unggah image ke registry seperti Docker Hub, Google Container Registry (GCR), atau Amazon Elastic Container Registry (ECR).
-        ```bash
-        # Contoh untuk Docker Hub
-        docker tag inventory-backend:latest yourusername/inventory-backend:latest
-        docker push yourusername/inventory-backend:latest
-        ```
-
-3.  **Deploy di Platform Hosting**:
-    -   Pilih platform hosting yang mendukung kontainer, misalnya:
-        -   **PaaS (Rekomendasi)**: [Google Cloud Run](https://cloud.google.com/run), [AWS App Runner](https://aws.amazon.com/apprunner/), [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform).
-    -   **Konfigurasi**:
-        -   Gunakan image yang telah di-push ke registry.
-        -   **Atur Environment Variables**: Masukkan `DATABASE_URL` (untuk database produksi), `JWT_SECRET`, dll. **JANGAN PERNAH** memasukkan nilai produksi ke dalam kode.
-        -   **Koneksi Database**: Pastikan layanan backend dapat terhubung ke database PostgreSQL produksi.
-        -   **Ekspos Port**: Pastikan port yang diekspos oleh kontainer (misal: port 3001) dipetakan dengan benar.
-
-## 4. Otomatisasi (CI/CD)
-
-Untuk praktik terbaik, proses deployment di atas harus diotomatisasi menggunakan pipeline CI/CD (Continuous Integration/Continuous Deployment) seperti GitHub Actions. Pipeline akan secara otomatis menjalankan tes, membangun image/aset, dan men-deploy ke lingkungan yang sesuai (misal: `staging` atau `production`) setelah merge ke cabang `develop` atau `main`.
+Aplikasi Anda sekarang seharusnya sudah aktif dan dapat diakses melalui domain yang telah dikonfigurasi.

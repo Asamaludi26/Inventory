@@ -20,7 +20,7 @@ Untuk detail teknologi yang digunakan, silakan lihat dokumen [**Tumpukan Teknolo
 
 ---
 
-## 2. Diagram Arsitektur (C4 Model)
+## 2. Arsitektur Logis (C4 Model)
 
 Diagram berikut menggunakan notasi C4 untuk memvisualisasikan arsitektur dalam berbagai tingkat detail.
 
@@ -71,35 +71,54 @@ graph TD
     style H fill:#3182ce,stroke:#333,stroke-width:2px
 ```
 
-### Level 3: Diagram Komponen (Contoh: Fitur Request Aset)
+---
 
-Diagram ini memperbesar kontainer "API Backend" untuk menunjukkan komponen-komponen utama yang bekerja sama saat menangani alur kerja permintaan aset.
+## 3. Arsitektur Fisik & Target Deployment
 
+Bagian ini menjelaskan bagaimana komponen-komponen di atas akan di-deploy dan berinteraksi di lingkungan server produksi. Model ini menggunakan **Reverse Proxy** untuk menyajikan frontend dan backend di bawah satu domain tunggal, yang merupakan praktik industri terbaik untuk keamanan dan efisiensi.
+
+### Konsep Utama
+- **Frontend**: Setelah proses _build_, aplikasi frontend menjadi sekumpulan file statis (HTML, CSS, JavaScript). File-file ini hanya perlu "disajikan" oleh web server.
+- **Backend**: Aplikasi backend adalah proses Node.js yang berjalan secara terus-menerus di server pada port internal (misalnya, `3001`).
+- **Nginx (Reverse Proxy)**: Bertindak sebagai "penerima tamu" atau gerbang utama. Nginx akan menerima semua permintaan dari pengguna dan secara cerdas memutuskan ke mana permintaan itu harus diteruskan.
+
+### Alur Kerja di Produksi
+1. Pengguna mengakses domain utama (misal: `http://aset.trinitimedia.com`).
+2. Nginx menerima permintaan tersebut.
+3. **Jika permintaan adalah untuk API** (misalnya, `.../api/assets`), Nginx akan meneruskannya secara internal ke aplikasi backend yang berjalan di `localhost:3001`.
+4. **Jika permintaan BUKAN untuk API** (misalnya, halaman utama, gambar, CSS), Nginx akan menyajikan file statis dari direktori frontend.
+
+Dengan cara ini, dari sudut pandang pengguna, seluruh aplikasi tampak berjalan dari satu server tunggal, padahal di belakang layar ada dua aplikasi berbeda yang bekerja sama.
+
+**Diagram Alur Produksi:**
 ```mermaid
 graph TD
-    subgraph "API Backend (NestJS)"
-        direction LR
-        A["<b>Request Controller</b><br>[Class: RequestsController]<br><br>Menerima request HTTP dari<br>frontend. Memvalidasi DTO."]
-        B["<b>Request Service</b><br>[Class: RequestsService]<br><br>Berisi logika bisnis inti untuk<br>membuat, menyetujui, atau<br>menolak permintaan."]
-        C["<b>Prisma Service</b><br>[Shared Service]<br><br>Menyediakan akses ke database<br>melalui Prisma Client."]
+    User[Pengguna] -- "HTTP Request ke aset.trinitimedia.com" --> Nginx
+
+    subgraph "Server Produksi PT. Triniti"
+        Nginx
         
-        A -- "Memanggil metode" --> B
-        B -- "Menggunakan" --> C
+        subgraph "Aplikasi Backend (Berjalan via PM2)"
+            Backend[Proses NestJS @ localhost:3001]
+        end
+
+        subgraph "File Statis Frontend"
+            Frontend[Direktori /var/www/assetflow/frontend]
+        end
     end
     
-    D["<b>Database</b><br>[PostgreSQL]"]
-    C -- "Mengeksekusi query (CRUD)" --> D
-    
-    style A fill:#90cdf4,stroke:#333,stroke-width:2px
-    style B fill:#63b3ed,stroke:#333,stroke-width:2px
-    style C fill:#4299e1,stroke:#333,stroke-width:2px
+    Nginx -- "Jika request adalah '/api/*'" --> Backend
+    Nginx -- "Jika request BUKAN '/api/*'" --> Frontend
+    Backend -- "Berinteraksi dengan" --> DB[(Database PostgreSQL)]
 ```
+
+Untuk panduan implementasi teknis dari arsitektur ini, silakan merujuk ke [**Panduan Deployment**](../04_OPERATIONS/DEPLOYMENT.md).
 
 ---
 
-## 3. Alur Data Utama
+## 4. Alur Data Utama
 
-### 3.1. Proses Request Aset
+### 4.1. Proses Request Aset
 
 Diagram berikut menggambarkan alur data dan interaksi antar komponen saat seorang staf membuat permintaan aset baru hingga disetujui.
 
@@ -149,40 +168,9 @@ sequenceDiagram
     Frontend ->> Admin: Tampilkan notifikasi "Request Disetujui"
 ```
 
-### 3.2. Alur Serah Terima Aset (Handover)
-
-Diagram ini mengilustrasikan proses serah terima aset internal dari Admin ke seorang Staff.
-
-```mermaid
-sequenceDiagram
-    participant Admin
-    participant Frontend
-    participant Backend
-    participant Database
-
-    Admin->>Frontend: Mengisi form Handover (pilih aset, penerima)
-    Frontend->>Backend: POST /api/handovers (data handover)
-    activate Backend
-
-    Backend->>Backend: Validasi data & otorisasi
-    Backend->>Database: 1. Buat record Handover baru
-    activate Database
-    Database-->>Backend: Record Handover tersimpan
-    deactivate Database
-
-    Backend->>Database: 2. Update status & currentUser pada record Asset
-    activate Database
-    Database-->>Backend: Record Asset terupdate
-    deactivate Database
-
-    Backend-->>Frontend: Response 201 Created (data handover)
-    deactivate Backend
-    Frontend->>Admin: Tampilkan notifikasi "Handover Berhasil"
-```
-
 ---
 
-## 4. Referensi Lanjutan
+## 5. Referensi Lanjutan
 
 Untuk detail implementasi yang lebih spesifik, silakan merujuk ke dokumen berikut:
 

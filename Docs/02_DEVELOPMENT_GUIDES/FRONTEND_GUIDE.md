@@ -9,15 +9,28 @@ Dokumen ini menjelaskan arsitektur, pola, dan konvensi yang digunakan dalam peng
 -   **Kinerja**: Aplikasi dirancang agar tetap cepat dan responsif, terutama saat menangani data dalam jumlah besar, dengan menerapkan teknik seperti paginasi dan memoization (`useMemo`).
 -   **Pengalaman Pengguna (UX)**: Antarmuka harus intuitif, konsisten, dan memberikan umpan balik yang jelas kepada pengguna (misalnya, state loading, pesan error, notifikasi).
 
-## 2. Tumpukan Teknologi
+## 2. Peran React & Vite: Koki & Dapur
 
--   **Framework**: **React 18**
+Penting untuk memahami bahwa **React** dan **Vite** bukanlah teknologi yang bersaing, melainkan **partner yang bekerja sama**.
+
+> **Analogi Sederhana**:
+> -   **React adalah Kokinya**: React adalah ahli dalam meracik "hidangan" (komponen UI). Dia tahu resep (`<button>`, `<div>`), logika penyajian (`useState`), dan cara menyusun semuanya menjadi tampilan yang fungsional.
+> -   **Vite adalah Dapur Modern & Jasa Pengirimannya**: Vite menyediakan dua fungsi vital untuk si koki (React):
+>     1.  **Dapur Super Cepat (Development)**: Saat Anda menjalankan `pnpm run dev`, Vite menyediakan lingkungan pengembangan yang instan. Setiap kali Anda mengubah resep (kode), hasilnya langsung terlihat di browser tanpa menunggu lama.
+>     2.  **Sistem Pengemasan & Pengiriman (Build)**: Saat Anda menjalankan `pnpm run build`, Vite akan "mengemas" semua resep dan bahan (kode React, CSS, gambar) menjadi beberapa kotak kecil yang teroptimasi (folder `dist/`). Kotak-kotak inilah yang siap dikirim dan disajikan di "meja pelanggan" (browser pengguna).
+
+Secara singkat: kita menggunakan **React** untuk **membangun** antarmuka, dan **Vite** untuk **mengembangkan dan mem-bundle** aplikasi React tersebut agar siap di-deploy.
+
+## 3. Tumpukan Teknologi
+
+-   **Pustaka UI**: **React 18**
+-   **Alat Build & Dev Server**: **Vite**
 -   **Bahasa**: **TypeScript**
 -   **Styling**: **Tailwind CSS**
 -   **Manajemen State**: **React Hooks** (`useState`, `useContext`, `useMemo`). State global diangkat ke komponen root (`App.tsx`) dan didistribusikan ke komponen anak melalui props.
 -   **Pustaka Ikon**: **React Icons**
 
-## 3. Struktur Folder (`src`)
+## 4. Struktur Folder (`src`)
 
 Struktur folder dirancang berdasarkan **fitur** untuk menjaga agar kode yang saling terkait tetap berdekatan. Hierarki detailnya adalah sebagai berikut:
 
@@ -64,7 +77,7 @@ src/
     └── scanner.ts      # Logika untuk mem-parsing data dari pemindai QR/Barcode.
 ```
 
-## 4. Alur Data & Manajemen State
+## 5. Alur Data & Manajemen State
 
 State global (seperti daftar aset, request, pengguna) dikelola di komponen `AppContent.tsx` menggunakan `useState`. Data ini kemudian dioper ke bawah ke komponen-komponen fitur melalui `props`.
 
@@ -107,7 +120,7 @@ graph TD
     style E fill:#d3d3d3
 ```
 
-## 5. Filosofi Komponen
+## 6. Filosofi Komponen
 
 -   **Komponen UI (`src/components/ui`)**:
     -   Komponen ini bersifat **presentasional** (bodoh/dumb).
@@ -121,22 +134,11 @@ graph TD
     -   Mereka menggunakan komponen UI untuk membangun antarmuka.
     -   Contoh: `ItemRequestPage.tsx` mengelola logika untuk membuat dan menampilkan request, menggunakan `Modal`, `DatePicker`, dan komponen UI lainnya.
 
-## 6. Styling dengan Tailwind CSS
-
--   **Utility-First**: Gunakan kelas utilitas Tailwind secara langsung di dalam JSX.
--   **Konfigurasi Tema**: Warna kustom (`tm-primary`, `tm-accent`), font, dan ekstensi lainnya didefinisikan di `index.html`.
--   **Kelas Kustom**: Untuk properti yang lebih kompleks (seperti scrollbar atau animasi), kelas CSS global didefinisikan di `index.html`.
-
 ## 7. Interaksi dengan API (Simulasi)
 
 -   **Mock API Layer (`src/services/api.ts`)**: Semua logika untuk berkomunikasi dengan data terpusat di file ini.
 -   **Prinsip Kerja**:
     1.  Saat aplikasi dimuat, fungsi `fetchAllData` memeriksa `localStorage`.
-    2.  Jika data tidak ada di `localStorage`, data awal dari `src/data/mockData.ts` akan dimuat dan disimpan.
-    3.  Jika data ada, data dari `localStorage` yang akan digunakan.
-    4.  Setiap operasi "tulis" (membuat, mengedit, menghapus) memanggil fungsi `updateData`, yang akan menyimpan keseluruhan state (misal: seluruh array `assets`) kembali ke `localStorage`.
--   **Tujuan**: Pendekatan ini memungkinkan pengembangan frontend yang sepenuhnya independen dan memberikan pengalaman persistensi data yang realistis selama sesi pengembangan.
--   **Rencana Integrasi**: Ketika backend siap, fungsi-fungsi di dalam `api.ts` akan diganti dengan panggilan `fetch` atau `axios` ke endpoint REST API yang sesungguhnya, tanpa perlu mengubah logika di dalam komponen React secara signifikan.
-
-## 8. Pemetaan Tipe Data
-File `src/types/index.ts` adalah satu-satunya sumber kebenaran (*single source of truth*) untuk semua bentuk data di aplikasi. Tipe-tipe ini (seperti `Asset`, `Request`, `User`) harus dijaga agar tetap sinkron dengan skema database dan DTO di backend.
+    2.  Jika data tidak ada, data awal dari `src/data/mockData.ts` akan dimuat.
+    3.  Setiap operasi "tulis" memanggil `updateData`, yang menyimpan state kembali ke `localStorage`.
+-   **Rencana Integrasi**: Ketika backend siap, fungsi-fungsi di `api.ts` akan diganti dengan panggilan `fetch` atau `axios` ke endpoint REST API, tanpa perlu mengubah logika komponen secara signifikan.

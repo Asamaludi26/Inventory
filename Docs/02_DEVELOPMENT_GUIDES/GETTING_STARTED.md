@@ -30,30 +30,36 @@ Pastikan perangkat lunak berikut telah terinstal di komputer Anda:
     cd <nama-folder-proyek>
     ```
 
-2.  **Instal Dependensi**:
-    Aplikasi ini menggunakan `pnpm` untuk mengelola dependensi. Jalankan perintah berikut dari direktori root proyek:
+2.  **Masuk ke Direktori Frontend**:
+    Proyek ini memiliki struktur _monorepo_, di mana kode frontend dan backend dipisahkan. Untuk pengembangan saat ini, kita hanya akan fokus pada frontend.
+    ```bash
+    cd frontend
+    ```
+    > **Catatan**: Semua perintah selanjutnya (seperti `pnpm install` dan `pnpm run dev`) harus dijalankan dari dalam direktori `frontend/` ini. Folder `backend/` berisi cetak biru untuk pengembangan sisi server di masa mendatang.
+
+3.  **Instal Dependensi**:
+    Dari dalam direktori `frontend/`, jalankan perintah berikut untuk menginstal semua paket yang dibutuhkan:
     ```bash
     pnpm install
     ```
-    Perintah ini akan membaca file `pnpm-lock.yaml` dan menginstal semua paket yang dibutuhkan.
 
-3.  **Jalankan Server Pengembangan**:
-    Setelah instalasi selesai, jalankan server pengembangan Vite:
+4.  **Jalankan Server Pengembangan**:
+    Setelah instalasi selesai, jalankan server pengembangan Vite. Server ini akan secara otomatis membuka aplikasi di browser Anda dan memuat ulang setiap kali ada perubahan pada kode.
     ```bash
     pnpm run dev
     ```
 
-4.  **Buka Aplikasi**:
-    Server akan memulai dan menampilkan URL di terminal Anda, biasanya:
+5.  **Buka Aplikasi**:
+    Server akan menampilkan URL di terminal Anda, biasanya:
     -   **Local**: `http://localhost:5173`
 
     Buka URL tersebut di browser web modern (Chrome, Firefox, Edge). Aplikasi sekarang siap digunakan.
 
 ## 4. Cara Kerja Mock API
 
--   **Lokasi Kode**: Logika untuk simulasi API berada di `src/services/api.ts`.
--   **Penyimpanan**: Data awal dimuat dari `src/data/mockData.ts` saat pertama kali aplikasi dijalankan. Setiap perubahan (membuat, mengedit, menghapus data) akan disimpan ke `localStorage` browser Anda.
--   **Inspeksi Data**: Anda dapat melihat data yang tersimpan dengan membuka Developer Tools di browser Anda (`F12` atau `Ctrl+Shift+I`), pergi ke tab `Application`, dan lihat di bawah `Local Storage`. Anda akan menemukan kunci seperti `app_assets`, `app_requests`, dll.
+-   **Lokasi Kode**: Logika untuk simulasi API berada di `frontend/src/services/api.ts`.
+-   **Penyimpanan**: Data awal dimuat dari `frontend/src/data/mockData.ts` saat pertama kali aplikasi dijalankan. Setiap perubahan (membuat, mengedit, menghapus data) akan disimpan ke `localStorage` browser Anda.
+-   **Inspeksi Data**: Anda dapat melihat data yang tersimpan dengan membuka Developer Tools di browser (`F12`), pergi ke tab `Application`, dan lihat di bawah `Local Storage`. Anda akan menemukan kunci seperti `app_assets`, `app_requests`, dll.
 
 ## 5. Troubleshooting (Masalah Umum)
 
@@ -62,12 +68,13 @@ Pastikan perangkat lunak berikut telah terinstal di komputer Anda:
     -   **Solusi**: Jalankan `npm install -g pnpm`. Tutup dan buka kembali terminal Anda.
 
 -   **Aplikasi menampilkan halaman kosong atau error saat dijalankan.**
-    -   **Penyebab**: Dependensi mungkin tidak terinstal dengan benar atau ada masalah dengan cache.
+    -   **Penyebab**: Dependensi mungkin tidak terinstal dengan benar atau Anda menjalankan perintah dari direktori yang salah.
     -   **Solusi**:
-        1.  Hentikan server pengembangan (`Ctrl+C`).
-        2.  Hapus folder `node_modules`: `rm -rf node_modules`.
-        3.  Jalankan kembali `pnpm install`.
-        4.  Jalankan kembali `pnpm run dev`.
+        1.  Pastikan Anda berada di dalam direktori `frontend/`.
+        2.  Hentikan server pengembangan (`Ctrl+C`).
+        3.  Hapus folder `node_modules`: `rm -rf node_modules`.
+        4.  Jalankan kembali `pnpm install`.
+        5.  Jalankan kembali `pnpm run dev`.
 
 -   **Data kembali ke kondisi awal.**
     -   **Penyebab**: Anda mungkin membersihkan data situs (`Clear site data`) di browser, yang akan menghapus `localStorage`.
