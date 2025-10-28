@@ -45,6 +45,7 @@ Laporan ini berfungsi sebagai dokumen warisan (*legacy document*) yang merangkum
     - [1.4. Ruang Lingkup dan Batasan Proyek](#14-ruang-lingkup-dan-batasan-proyek)
     - [1.5. Target Pengguna dan Peran (User Persona)](#15-target-pengguna-dan-peran-user-persona)
     - [1.6. Definisi dan Istilah](#16-definisi-dan-istilah)
+    - [1.7. Jaminan Kualitas & Profesionalisme: Nilai Investasi Anda](#17-jaminan-kualitas--profesionalisme-nilai-investasi-anda)
 - **BAB 2: ANALISIS KEBUTUHAN DAN DESAIN SISTEM**
     - [2.1. Kebutuhan Fungsional](#21-kebutuhan-fungsional)
     - [2.2. Kebutuhan Non-Fungsional](#22-kebutuhan-non-fungsional)
@@ -153,6 +154,27 @@ Aplikasi ini dirancang untuk lima persona utama, masing-masing dengan hak akses 
 ### 1.6. Definisi dan Istilah
 Untuk daftar lengkap istilah yang digunakan dalam proyek, silakan merujuk ke dokumen:
 -   [**Glosarium Istilah**](./GLOSARIUM.md)
+
+### 1.7. Jaminan Kualitas & Profesionalisme: Nilai Investasi Anda
+
+Kami memahami bahwa investasi yang disepakati sebesar **Rp 25.000.000,-** merupakan komitmen yang signifikan. Sebagai pertanggungjawaban atas kepercayaan tersebut, kami tidak hanya menyerahkan sebuah aplikasi yang berfungsi, tetapi sebuah **aset digital berkualitas tinggi** yang dibangun dengan standar rekayasa perangkat lunak profesional.
+
+Kualitas ini terwujud dalam dua pilar utama:
+
+#### Arsitektur File dan Folder yang Unggul
+Struktur folder proyek ini dirancang secara cermat untuk memastikan:
+-   **Skalabilitas**: Organisasi berbasis fitur (`/features`) memungkinkan penambahan modul baru di masa depan tanpa merombak struktur yang ada, membuat pengembangan lebih cepat dan lebih murah.
+-   **Kemudahan Perawatan**: Dengan pemisahan tanggung jawab yang jelas (misalnya, antara komponen UI di `/components/ui` dan logika bisnis di `/features`), proses *debugging* dan pemeliharaan menjadi jauh lebih efisien.
+-   **Efisiensi Tim**: Developer baru dapat dengan cepat memahami *codebase* dan menjadi produktif, mengurangi biaya orientasi dan kolaborasi.
+
+#### Kode yang Bersih, Efisien, dan Teruji
+Setiap baris kode ditulis dengan mematuhi prinsip-prinsip berikut:
+-   **Keterbacaan (*Clean Code*)**: Penggunaan TypeScript, konvensi penamaan yang konsisten, dan *formatting* otomatis memastikan kode mudah dibaca dan dipahami oleh siapa pun.
+-   **Efisiensi (*Efficient Code*)**: Implementasi teknik modern seperti paginasi, dan *memoization* memastikan aplikasi tetap cepat dan responsif bahkan dengan data yang besar.
+-   **Dapat Digunakan Kembali (*Reusability*)**: Pembuatan pustaka komponen internal (seperti `Modal`, `CustomSelect`) secara drastis mempercepat pengembangan dan menjamin konsistensi visual di seluruh aplikasi.
+-   **Keandalan (*Reliability*)**: Penanganan *state* (loading, error) yang jelas dan sistem notifikasi global memberikan pengalaman pengguna yang solid dan dapat diandalkan.
+
+Singkatnya, fondasi arsitektural dan kualitas kode ini adalah jaminan kami bahwa investasi Anda telah diwujudkan menjadi produk yang tidak hanya memenuhi kebutuhan saat ini, tetapi juga siap untuk tumbuh dan berkembang secara efisien di masa depan, memberikan nilai jangka panjang bagi PT. Triniti Media Indonesia.
 
 <div style="page-break-after: always;"></div>
 

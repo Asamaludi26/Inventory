@@ -32,6 +32,17 @@ Secara singkat: kita menggunakan **React** untuk **membangun** antarmuka, dan **
 
 ## 4. Struktur Folder (`src`)
 
+Arsitektur folder adalah fondasi dari sebuah *codebase* yang sehat. Struktur yang baik memungkinkan skalabilitas, kemudahan perawatan, dan produktivitas tim. Struktur folder proyek ini dirancang dengan tiga prinsip utama untuk memastikan kualitas jangka panjang:
+
+> **1. Skalabilitas & Modularitas (Siap untuk Masa Depan)**
+> Inti dari aplikasi berada di dalam `src/features/`. Setiap fitur bisnis utama (misalnya `itemRequest`, `dashboard`) ditempatkan dalam foldernya sendiri. Ini memungkinkan tim untuk mengerjakan fitur secara terisolasi dan memudahkan penambahan modul baru di masa depan tanpa merombak struktur yang ada.
+
+> **2. Pemisahan Tanggung Jawab (Separation of Concerns)**
+> Kami secara tegas memisahkan komponen UI "bodoh" yang dapat digunakan kembali (`src/components/ui/`) dari komponen "pintar" yang mengelola logika bisnis (`src/features/`). Lapisan data (`src/services/api.ts`) dan tipe (`src/types/`) juga terisolasi. Hal ini secara drastis mempercepat proses *debugging* dan pemeliharaan.
+
+> **3. Kemudahan Navigasi (Discoverability)**
+> Penamaan file dan folder bersifat deskriptif dan konsisten. Developer baru dapat dengan cepat memahami di mana harus mencari atau menempatkan kode, mengurangi waktu orientasi dan meningkatkan produktivitas tim.
+
 Struktur folder dirancang berdasarkan **fitur** untuk menjaga agar kode yang saling terkait tetap berdekatan. Hierarki detailnya adalah sebagai berikut:
 
 ```
@@ -88,8 +99,8 @@ Setiap perubahan pada state global (misalnya, menambah aset baru) dilakukan mela
 ```mermaid
 graph TD
     subgraph App.tsx
-        A["State Global (assets, requests, dll.)"]
-        B["Fungsi Update (setAssets, setRequests)"]
+        A[<b>State Global</b><br>(assets, requests, dll.)]
+        B[<b>Fungsi Update</b><br>(setAssets, setRequests)]
     end
     
     subgraph "Komponen Halaman"
@@ -118,7 +129,6 @@ graph TD
     style C fill:#bde4ff
     style D fill:#c1f0c1
     style E fill:#d3d3d3
-
 ```
 
 ## 6. Filosofi Komponen

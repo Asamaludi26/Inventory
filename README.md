@@ -18,6 +18,14 @@ Saat ini, proyek berada pada tahap **Prototipe Frontend Fungsional Penuh (High-F
 
 ---
 
+## Komitmen Terhadap Kualitas Profesional
+
+Aplikasi ini tidak hanya dirancang untuk fungsionalitas, tetapi dibangun di atas fondasi rekayasa perangkat lunak profesional. Kami memahami bahwa investasi yang signifikan menuntut hasil yang terbaik. Oleh karena itu, setiap aspek—mulai dari arsitektur folder hingga setiap baris kode—dibuat dengan mematuhi prinsip **clean, terstruktur, efisien, dan efektif**.
+
+Fondasi ini memastikan bahwa aplikasi tidak hanya memenuhi kebutuhan saat ini, tetapi juga merupakan aset digital berkualitas tinggi yang **mudah dipelihara**, **dapat diskalakan**, dan **siap untuk pengembangan di masa depan**, menjamin nilai jangka panjang dari investasi Anda.
+
+---
+
 ## Titik Awal Utama (WAJIB DIBACA)
 
 > Untuk pemahaman komprehensif mengenai proyek dari awal hingga akhir, mulailah dengan membaca dokumen berikut. Dokumen ini merangkum seluruh aspek proyek dan berfungsi sebagai "daftar isi" utama untuk menavigasi seluruh dokumentasi yang tersedia.

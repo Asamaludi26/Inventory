@@ -2,6 +2,14 @@
 
 Dokumen ini mendefinisikan standar dan praktik terbaik yang harus diikuti oleh semua kontributor proyek untuk memastikan kode yang bersih, konsisten, dan mudah dikelola.
 
+## Filosofi Kualitas
+
+Standar yang dijabarkan dalam dokumen ini bukan sekadar aturan, melainkan manifestasi dari komitmen kami terhadap **keunggulan rekayasa perangkat lunak**. Setiap standar—mulai dari struktur Git hingga gaya penulisan kode—diterapkan untuk mencapai tujuan utama: menghasilkan *codebase* yang **bersih, terstruktur, efisien, dan efektif**.
+
+Dengan mematuhi panduan ini, kita memastikan bahwa aplikasi ini bukan hanya fungsional, tetapi juga merupakan aset jangka panjang yang mudah dipelihara, diperluas, dan dipahami oleh developer di masa depan. Ini adalah fondasi untuk menjamin kualitas yang sepadan dengan investasi yang telah diberikan.
+
+---
+
 ## 1. Version Control (Git)
 
 Kami menggunakan alur kerja **Git Flow** yang disederhanakan.
