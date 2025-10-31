@@ -1,143 +1,191 @@
-export type Page =
-  | 'dashboard'
-  | 'registration'
-  | 'stock'
-  | 'request'
-  | 'handover'
-  | 'dismantle'
-  | 'customers'
-  | 'pengaturan-pengguna'
-  | 'kategori'
-  | 'repair'
-  | 'quotation'
-  | 'perjanjian'
-  | 'bak'
-  | 'request-stock'
-  | 'request-loan';
+// --- ENUMS & LITERAL TYPES ---
 
-export type PreviewData = {
-    type: 'asset' | 'customer' | 'user' | 'request' | 'handover' | 'dismantle' | 'customerAssets' | 'stockItemAssets' | 'stockHistory';
-    id: string | number;
-};
-
-export interface ParsedScanResult {
-    id?: string;
-    name?: string;
-    serialNumber?: string;
-    macAddress?: string;
-    raw: string;
-}
+export type UserRole = 'Super Admin' | 'Admin Logistik' | 'Admin Purchase' | 'Leader' | 'Staff';
 
 export enum CustomerStatus {
-  ACTIVE = 'Aktif',
-  INACTIVE = 'Tidak Aktif',
-  SUSPENDED = 'Suspend',
-}
-
-export interface Customer {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  status: CustomerStatus;
-  installationDate: string;
-  servicePackage: string;
-  activityLog: ActivityLogEntry[];
-}
-
-export enum ItemStatus {
-  PENDING = 'Menunggu Persetujuan',
-  LOGISTIC_APPROVED = 'Disetujui Logistik',
-  AWAITING_CEO_APPROVAL = 'Menunggu Persetujuan CEO',
-  APPROVED = 'Disetujui',
-  PURCHASING = 'Proses Pengadaan',
-  IN_DELIVERY = 'Dalam Pengiriman',
-  ARRIVED = 'Telah Tiba',
-  REJECTED = 'Ditolak',
-  CANCELLED = 'Dibatalkan',
-  COMPLETED = 'Selesai',
-  IN_PROGRESS = 'Dalam Proses',
-  AWAITING_HANDOVER = 'Menunggu Diserahkan',
+    ACTIVE = 'Aktif',
+    INACTIVE = 'Tidak Aktif',
+    SUSPENDED = 'Ditangguhkan',
 }
 
 export enum AssetStatus {
-  IN_USE = 'Digunakan',
-  IN_STORAGE = 'Disimpan',
-  UNDER_REPAIR = 'Dalam Perbaikan',
-  OUT_FOR_REPAIR = 'Perbaikan Eksternal',
-  DAMAGED = 'Rusak',
-  DECOMMISSIONED = 'Diberhentikan',
+    IN_STORAGE = 'Di Gudang',
+    IN_USE = 'Digunakan',
+    UNDER_REPAIR = 'Dalam Perbaikan',
+    OUT_FOR_REPAIR = 'Perbaikan Eksternal',
+    DAMAGED = 'Rusak',
+    DECOMMISSIONED = 'Diberhentikan',
 }
 
 export enum AssetCondition {
-  BRAND_NEW = 'Baru (Segel)',
-  GOOD = 'Baik',
-  USED_OKAY = 'Bekas Layak Pakai',
-  MINOR_DAMAGE = 'Rusak Ringan (Perlu Perbaikan)',
-  MAJOR_DAMAGE = 'Rusak Berat',
-  FOR_PARTS = 'Untuk Kanibalisasi',
+    BRAND_NEW = 'Baru',
+    GOOD = 'Baik',
+    USED_OKAY = 'Bekas Layak Pakai',
+    MINOR_DAMAGE = 'Rusak Ringan',
+    MAJOR_DAMAGE = 'Rusak Berat',
+    FOR_PARTS = 'Untuk Kanibal',
+}
+
+export enum ItemStatus {
+    PENDING = 'Menunggu Persetujuan',
+    LOGISTIC_APPROVED = 'Disetujui Logistik',
+    AWAITING_CEO_APPROVAL = 'Menunggu Persetujuan CEO',
+    APPROVED = 'Disetujui',
+    REJECTED = 'Ditolak',
+    CANCELLED = 'Dibatalkan',
+    PURCHASING = 'Proses Pengadaan',
+    IN_DELIVERY = 'Dalam Pengiriman',
+    ARRIVED = 'Barang Tiba',
+    AWAITING_HANDOVER = 'Siap Serah Terima',
+    COMPLETED = 'Selesai',
+    IN_PROGRESS = 'Dalam Proses',
+}
+
+export type TrackingMethod = 'individual' | 'bulk';
+
+export type Page = 
+    | 'dashboard'
+    | 'request'
+    | 'registration'
+    | 'handover'
+    | 'dismantle'
+    | 'stock'
+    | 'repair'
+    | 'customers'
+    | 'pengaturan-pengguna'
+    | 'kategori'
+    | 'request-stock'
+    | 'request-loan';
+
+export type PreviewData = 
+    | { type: 'asset'; id: string }
+    | { type: 'customer'; id: string }
+    | { type: 'user'; id: string | number }
+    | { type: 'request'; id: string }
+    | { type: 'handover'; id: string }
+    | { type: 'dismantle'; id: string }
+    | { type: 'customerAssets'; id: string }
+    | { type: 'stockItemAssets', id: string }
+    | { type: 'stockHistory', id: string };
+
+export interface ParsedScanResult {
+    raw: string;
+    id?: string;
+    serialNumber?: string;
+    macAddress?: string;
+    name?: string;
+}
+
+// --- CORE INTERFACES ---
+
+export interface Division {
+    id: number;
+    name: string;
+}
+
+export interface User {
+    id: number;
+    name: string;
+    email: string;
+    divisionId: number | null;
+    role: UserRole;
+}
+
+export interface StandardItem {
+    id: number;
+    name: string;
+    brand: string;
+}
+
+export interface AssetType {
+    id: number;
+    name: string;
+    trackingMethod: TrackingMethod;
+    unitOfMeasure?: string;
+    baseUnitOfMeasure?: string;
+    quantityPerUnit?: number;
+    standardItems?: StandardItem[];
+}
+
+export interface AssetCategory {
+    id: number;
+    name: string;
+    isCustomerInstallable: boolean;
+    associatedDivisions: number[];
+    types: AssetType[];
 }
 
 export interface Attachment {
-  id: number;
-  name: string;
-  url: string; // In a real app, this would be a URL to the file
-  type: 'image' | 'pdf' | 'other';
+    id: number | string;
+    name: string;
+    url: string;
+    type: 'image' | 'pdf' | 'other';
 }
 
 export interface ActivityLogEntry {
-  id: string;
-  timestamp: string;
-  user: string;
-  action: string;
-  details: string;
-  referenceId?: string;
+    id: string;
+    timestamp: string;
+    user: string;
+    action: string;
+    details: string;
+    referenceId?: string;
 }
 
 export interface Asset {
-  id: string;
-  name: string;
-  category: string;
-  type: string;
-  brand: string;
-  serialNumber: string | null;
-  macAddress: string | null;
-  registrationDate: string;
-  recordedBy: string;
-  purchaseDate: string;
-  purchasePrice: number | null;
-  vendor: string | null;
-  poNumber: string | null;
-  invoiceNumber: string | null;
-  warrantyEndDate: string | null;
-  location: string | null;
-  locationDetail: string | null;
-  currentUser: string | null; // Can be staff name or Customer ID
-  woRoIntNumber: string;
-  status: AssetStatus;
-  condition: AssetCondition;
-  notes: string | null;
-  attachments: Attachment[];
-  activityLog: ActivityLogEntry[];
-  isDismantled?: boolean;
-  dismantleInfo?: {
-    customerId: string;
-    customerName: string;
-    dismantleDate: string;
-    dismantleId: string;
-  };
-  lastModifiedDate: string | null;
-  lastModifiedBy: string | null;
+    id: string;
+    name: string;
+    category: string;
+    type: string;
+    brand: string;
+    serialNumber: string | null;
+    macAddress: string | null;
+    registrationDate: string;
+    recordedBy: string;
+    purchaseDate: string;
+    purchasePrice: number | null;
+    vendor: string | null;
+    poNumber: string | null;
+    invoiceNumber: string | null;
+    warrantyEndDate: string | null;
+    location: string | null;
+    locationDetail: string | null;
+    currentUser: string | null; // Can be User name or Customer ID
+    status: AssetStatus;
+    condition: AssetCondition;
+    woRoIntNumber: string;
+    notes: string | null;
+    attachments: Attachment[];
+    activityLog: ActivityLogEntry[];
+    isDismantled?: boolean;
+    dismantleInfo?: {
+        customerId: string;
+        customerName: string;
+        dismantleDate: string;
+        dismantleId: string;
+    };
+    lastModifiedBy: string | null;
+    lastModifiedDate: string | null;
+}
+
+export interface Customer {
+    id: string;
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    status: CustomerStatus;
+    installationDate: string;
+    servicePackage: string;
+    activityLog: ActivityLogEntry[];
 }
 
 export interface RequestItem {
-  id: number; // Unique ID for client-side rendering
-  itemName: string;
-  itemTypeBrand: string;
-  stock: number;
-  quantity: number;
-  keterangan: string;
+    id: number;
+    itemName: string;
+    itemTypeBrand: string;
+    stock: number;
+    quantity: number;
+    keterangan: string;
 }
 
 export type OrderType = 'Regular Stock' | 'Urgent' | 'Project Based';
@@ -146,89 +194,108 @@ export interface OrderDetails {
     type: OrderType;
     justification?: string;
     project?: string;
-    source?: 'STOCK' | 'PROCUREMENT';
 }
 
 export interface PurchaseDetails {
-  purchasePrice: number;
-  vendor: string;
-  poNumber: string;
-  invoiceNumber: string;
-  purchaseDate: string;
-  warrantyEndDate: string | null;
-  filledBy: string;
-  fillDate: string;
+    purchasePrice: number;
+    vendor: string;
+    poNumber: string;
+    invoiceNumber: string;
+    purchaseDate: string;
+    warrantyEndDate: string | null;
+    filledBy: string;
+    fillDate: string;
+}
+
+export type ActivityType = 'creation' | 'status_change' | 'comment' | 'priority_change';
+
+export interface Activity {
+    id: number;
+    type: ActivityType;
+    author: string;
+    timestamp: string;
+    parentId?: number;
+    payload: {
+        oldStatus?: ItemStatus;
+        newStatus?: ItemStatus;
+        text?: string;
+        [key: string]: any;
+    };
 }
 
 export interface Request {
-  id: string;
-  requester: string;
-  division: string;
-  requestDate: string;
-  status: ItemStatus;
-  order: OrderDetails;
-  items: RequestItem[];
-  logisticApprover: string | null;
-  logisticApprovalDate: string | null;
-  finalApprover: string | null;
-  finalApprovalDate: string | null;
-  rejectionReason: string | null;
-  rejectedBy: string | null;
-  rejectionDate: string | null;
-  rejectedByDivision: string | null;
-  itemStatuses?: Record<number, { status: 'rejected'; reason?: string }>;
-  isRegistered?: boolean;
-  estimatedDeliveryDate?: string | null;
-  arrivalDate?: string | null;
-  receivedBy?: string | null;
-  partiallyRegisteredItems?: Record<number, number>; // { [requestItemId]: count }
-  totalValue?: number;
-  purchaseDetails?: PurchaseDetails;
-  isPrioritizedByCEO?: boolean;
-  ceoDispositionDate?: string | null;
-  progressUpdateRequest?: {
-    requestedBy: string;
+    id: string;
+    requester: string;
+    division: string;
     requestDate: string;
-    isAcknowledged: boolean;
-    acknowledgedBy?: string;
-    acknowledgedDate?: string;
-    feedbackSent?: boolean;
-  };
-  ceoDispositionFeedbackSent?: boolean;
-  lastFollowUpAt?: string;
-  ceoFollowUpSent?: boolean;
+    status: ItemStatus;
+    order: OrderDetails;
+    items: RequestItem[];
+    totalValue: number;
+    logisticApprover: string | null;
+    logisticApprovalDate: string | null;
+    finalApprover: string | null;
+    finalApprovalDate: string | null;
+    rejectionReason: string | null;
+    rejectedBy: string | null;
+    rejectionDate: string | null;
+    rejectedByDivision: string | null;
+    isRegistered?: boolean;
+    purchaseDetails?: Record<number, PurchaseDetails>;
+    estimatedDeliveryDate?: string;
+    actualShipmentDate?: string;
+    arrivalDate?: string;
+    receivedBy?: string;
+    partiallyRegisteredItems?: Record<number, number>; // { [requestItemId]: count }
+    itemStatuses?: Record<number, { status: 'rejected'; reason: string; approvedQuantity: number; }>;
+    isPrioritizedByCEO?: boolean;
+    ceoDispositionDate?: string | null;
+    ceoDispositionFeedbackSent?: boolean;
+    progressUpdateRequest?: {
+        requestedBy: string;
+        requestDate: string;
+        isAcknowledged: boolean;
+        acknowledgedBy?: string;
+        acknowledgedDate?: string;
+        feedbackSent?: boolean;
+    };
+    lastFollowUpAt?: string;
+    ceoFollowUpSent?: boolean;
+    activityLog?: Activity[];
+    completionDate?: string;
+    completedBy?: string;
 }
 
 export interface HandoverItem {
     id: number;
+    assetId: string | null;
     itemName: string;
     itemTypeBrand: string;
     conditionNotes: string;
     quantity: number;
     checked: boolean;
-    assetId?: string; // Tying back to a specific asset
 }
 
 export interface Handover {
     id: string;
+    docNumber: string;
     handoverDate: string;
     menyerahkan: string;
-    penerima: string; // Can be staff or customer name
+    penerima: string;
     mengetahui: string;
     woRoIntNumber: string;
     items: HandoverItem[];
     status: ItemStatus;
 }
 
-
 export interface Dismantle {
     id: string;
     assetId: string;
-    assetName: string; 
+    assetName: string;
     dismantleDate: string;
     technician: string;
-    customerName: string;
     customerId: string;
+    customerName: string;
     customerAddress: string;
     retrievedCondition: AssetCondition;
     notes: string | null;
@@ -237,73 +304,32 @@ export interface Dismantle {
     attachments: Attachment[];
 }
 
-export type NotificationType =
-  | 'REQUEST_CREATED'
-  | 'REQUEST_LOGISTIC_APPROVED'
-  | 'REQUEST_AWAITING_FINAL_APPROVAL'
-  | 'REQUEST_FULLY_APPROVED'
-  | 'REQUEST_COMPLETED'
-  | 'FOLLOW_UP'
-  | 'CEO_DISPOSITION'
-  | 'PROGRESS_UPDATE_REQUEST'
-  | 'PROGRESS_FEEDBACK'
-  | 'STATUS_CHANGE'
-  | 'REQUEST_APPROVED'
-  | 'REQUEST_REJECTED'
-  | 'ASSET_DAMAGED_REPORT'
-  | 'REPAIR_STARTED'
-  | 'REPAIR_COMPLETED'
-  | 'ASSET_DECOMMISSIONED'
-  | 'REPAIR_PROGRESS_UPDATE';
+export type NotificationType = 
+    | 'REQUEST_CREATED'
+    | 'REQUEST_LOGISTIC_APPROVED'
+    | 'REQUEST_AWAITING_FINAL_APPROVAL'
+    | 'REQUEST_FULLY_APPROVED'
+    | 'REQUEST_COMPLETED'
+    | 'FOLLOW_UP'
+    | 'CEO_DISPOSITION'
+    | 'PROGRESS_UPDATE_REQUEST'
+    | 'PROGRESS_FEEDBACK'
+    | 'STATUS_CHANGE'
+    | 'REQUEST_APPROVED'
+    | 'REQUEST_REJECTED'
+    | 'ASSET_DAMAGED_REPORT'
+    | 'REPAIR_STARTED'
+    | 'REPAIR_COMPLETED'
+    | 'REPAIR_PROGRESS_UPDATE'
+    | 'ASSET_DECOMMISSIONED';
 
 export interface Notification {
-  id: string;
-  recipientId: number;
-  actorName: string;
-  type: NotificationType;
-  isRead: boolean;
-  timestamp: string; // ISO string
-  referenceId: string; // e.g., REQ-001
-  message?: string; // Optional custom message for complex notifications
-}
-
-export type UserRole = 'Super Admin' | 'Admin Purchase' | 'Admin Logistik' | 'Leader' | 'Staff';
-
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  divisionId: number | null;
-  role: UserRole;
-}
-
-export interface Division {
-  id: number;
-  name: string;
-}
-
-export interface StandardItem {
-  id: number;
-  name: string;
-  brand: string;
-}
-
-export type TrackingMethod = 'individual' | 'bulk';
-
-export interface AssetType {
-  id: number;
-  name: string;
-  trackingMethod?: TrackingMethod;
-  unitOfMeasure?: string;
-  baseUnitOfMeasure?: string;
-  quantityPerUnit?: number;
-  standardItems?: StandardItem[];
-}
-
-export interface AssetCategory {
-  id: number;
-  name: string;
-  types: AssetType[];
-  associatedDivisions: number[]; // Array of Division IDs
-  isCustomerInstallable?: boolean;
+    id: string;
+    recipientId: number;
+    actorName: string;
+    type: NotificationType;
+    message?: string;
+    isRead: boolean;
+    timestamp: string;
+    referenceId: string; // e.g., Request ID or Asset ID
 }

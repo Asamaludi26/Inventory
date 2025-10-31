@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus, PreviewData, ActivityLogEntry, AssetCategory, UserRole } from '../../types';
 import Modal from '../../components/ui/Modal';
@@ -162,7 +163,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
             case 'customer': item = customers.find(i => i.id === data.id); return item?.name || `Pelanggan ${data.id}`;
             case 'user': item = users.find(i => i.id === data.id || i.name === data.id); return item?.name || `Pengguna ${data.id}`;
             case 'request': return `Request ${data.id}`;
-            case 'handover': return `Handover ${data.id}`;
+            case 'handover': item = handovers.find(i => i.id === data.id); return `Handover ${item?.docNumber || data.id}`;
             case 'dismantle': return `Dismantle ${data.id}`;
             case 'customerAssets': item = customers.find(i => i.id === data.id); return `Aset Milik ${item?.name || data.id}`;
             case 'stockItemAssets': {
@@ -507,8 +508,10 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                 return (
                      <div className="space-y-4">
                         <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                            <PreviewItem label="No. Dokumen" value={handover.docNumber} />
                             <PreviewItem label="Tanggal" value={handover.handoverDate} />
-                            <PreviewItem label="No. WO" value={handover.woRoIntNumber || '-'} />
+                            <PreviewItem label="No. Referensi" value={handover.woRoIntNumber || '-'} />
+                            <PreviewItem label="Status" value={<span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getRequestStatusClass(handover.status)}`}>{handover.status}</span>} />
                             <PreviewItem label="Menyerahkan" value={<ClickableLink onClick={() => onShowPreview({type: 'user', id: handover.menyerahkan})}>{handover.menyerahkan}</ClickableLink>} />
                             <PreviewItem label="Penerima" value={<ClickableLink onClick={() => onShowPreview({type: 'user', id: handover.penerima})}>{handover.penerima}</ClickableLink>} />
                         </dl>

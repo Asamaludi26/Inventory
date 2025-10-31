@@ -245,10 +245,27 @@ const generateMockAssets = () => {
             if (currentUser && !currentUser.startsWith('TMI-')) {
                 const handoverDate = new Date(new Date(registrationDate).setDate(registrationDate.getDate() + 2));
                 const handoverId = `HO-MOCK-${id}`;
+                
+                const year = handoverDate.getFullYear().toString().slice(-2);
+                const month = (handoverDate.getMonth() + 1).toString().padStart(2, '0');
+                const day = handoverDate.getDate().toString().padStart(2, '0');
+                const datePrefix = `${year}${month}${day}`;
+                
+                const sequenceForDay = allHandovers.filter(h => h.docNumber.split('-')[1] === datePrefix).length + 1;
+                const newSequence = sequenceForDay.toString().padStart(3, '0');
+                const docNumber = `HO-${datePrefix}-${newSequence}`;
+
                 activityLog.push({ id: `log-${id}-handover`, timestamp: handoverDate.toISOString(), user: 'Alice Johnson', action: 'Serah Terima Internal', details: `Aset diserahkan kepada ${currentUser}.`, referenceId: handoverId });
                 allHandovers.push({
-                    id: handoverId, handoverDate: handoverDate.toISOString().split('T')[0], menyerahkan: 'Alice Johnson', penerima: currentUser, mengetahui: 'John Doe', woRoIntNumber: `INT-${id}`,
-                    items: [{ id: 1, assetId: id, itemName: template.name, itemTypeBrand: template.brand, conditionNotes: 'Kondisi baik', quantity: 1, checked: true }], status: ItemStatus.COMPLETED
+                    id: handoverId,
+                    docNumber,
+                    handoverDate: handoverDate.toISOString().split('T')[0],
+                    menyerahkan: 'Alice Johnson',
+                    penerima: currentUser,
+                    mengetahui: 'John Doe',
+                    woRoIntNumber: `INT-${id}`,
+                    items: [{ id: 1, assetId: id, itemName: template.name, itemTypeBrand: template.brand, conditionNotes: 'Kondisi baik', quantity: 1, checked: true }],
+                    status: ItemStatus.COMPLETED
                 });
             }
         }
@@ -367,7 +384,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
         request.logisticApprovalDate = approvalDate.toISOString().split('T')[0];
     }
     if ([ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
-        request.purchaseDetails = {
+        request.purchaseDetails = { 1: {
             purchasePrice: totalValue,
             vendor: VENDORS[i % VENDORS.length],
             poNumber: `PO-${String(REQUEST_COUNT - i).padStart(3, '0')}`,
@@ -376,7 +393,7 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
             warrantyEndDate: new Date(new Date(purchaseFillDate).setFullYear(purchaseFillDate.getFullYear() + 1)).toISOString().split('T')[0],
             filledBy: 'Brian Adams',
             fillDate: purchaseFillDate.toISOString()
-        };
+        }};
     }
     if ([ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
         request.finalApprover = 'John Doe';

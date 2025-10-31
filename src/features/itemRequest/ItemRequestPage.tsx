@@ -1,11 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails } from '../../types';
+import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../types';
 import Modal from '../../components/ui/Modal';
 import { CloseIcon } from '../../components/icons/CloseIcon';
 import DatePicker from '../../components/ui/DatePicker';
-import { ApprovalStamp } from '../../components/ui/ApprovalStamp';
-import { RejectionStamp } from '../../components/ui/RejectionStamp';
-import { SignatureStamp } from '../../components/ui/SignatureStamp';
 import { EyeIcon } from '../../components/icons/EyeIcon';
 import { TrashIcon } from '../../components/icons/TrashIcon';
 import FloatingActionBar from '../../components/ui/FloatingActionBar';
@@ -24,25 +21,21 @@ import { PaginationControls } from '../../components/ui/PaginationControls';
 import { RegisterIcon } from '../../components/icons/RegisterIcon';
 import { ExclamationTriangleIcon } from '../../components/icons/ExclamationTriangleIcon';
 import { Tooltip } from '../../components/ui/Tooltip';
-import { ClickableLink } from '../../components/ui/ClickableLink';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { FilterIcon } from '../../components/icons/FilterIcon';
 import { RequestIcon } from '../../components/icons/RequestIcon';
 import { CheckIcon } from '../../components/icons/CheckIcon';
-import { ShoppingCartIcon } from '../../components/icons/ShoppingCartIcon';
-import { TruckIcon } from '../../components/icons/TruckIcon';
-import { ArchiveBoxIcon } from '../../components/icons/ArchiveBoxIcon';
-import { Letterhead } from '../../components/ui/Letterhead';
-import { FireIcon } from '../../components/icons/FireIcon';
-import { ProjectIcon } from '../../components/icons/ProjectIcon';
-import { BsClock, BsPatchCheck, BsClipboardCheck, BsCheckCircleFill, BsXCircleFill, BsSlashCircle } from 'react-icons/bs';
-import { InfoIcon } from '../../components/icons/InfoIcon';
 import { BellIcon } from '../../components/icons/BellIcon';
 import { MegaphoneIcon } from '../../components/icons/MegaphoneIcon';
+import { InfoIcon } from '../../components/icons/InfoIcon';
 import { ExportIcon } from '../../components/icons/ExportIcon';
-import { DollarIcon } from '../../components/icons/DollarIcon';
-import { PencilIcon } from '../../components/icons/PencilIcon';
 import { RequestStatusIndicator, OrderIndicator } from './components/RequestStatus';
+import RequestDetailPage from './RequestDetailPage';
+// FIX: Import SignatureStamp to resolve 'Cannot find name' error.
+import { SignatureStamp } from '../../components/ui/SignatureStamp';
+// FIX: Import PencilIcon to resolve 'Cannot find name' error.
+import { PencilIcon } from '../../components/icons/PencilIcon';
+
 
 const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].includes(role);
 
@@ -54,6 +47,7 @@ interface ItemRequestPageProps {
     assetCategories: AssetCategory[];
     divisions: Division[];
     onInitiateRegistration: (request: Request, itemToRegister: RequestItem) => void;
+    onInitiateHandoverFromRequest: (request: Request) => void;
     initialFilters?: any;
     onClearInitialFilters: () => void;
     onShowPreview: (data: PreviewData) => void;
@@ -637,19 +631,23 @@ const RequestForm: React.FC<{
                                         }}
                                     />
                                 </div>
-                                <div className="md:col-span-4">
-                                    <label className="block text-sm font-medium text-gray-600">Brand</label>
-                                    <input type="text" value={item.itemTypeBrand} readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" placeholder="Otomatis" />
+                                 <div className="md:col-span-6">
+                                    <label className="block text-sm font-medium text-gray-600">Nama Barang</label>
+                                    <input type="text" value={item.itemName} onChange={(e) => handleItemChange(item.id, 'itemName', e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm" placeholder="Otomatis dari model, atau isi manual" />
                                 </div>
-                                <div className="md:col-span-2">
+                                <div className="md:col-span-6">
+                                    <label className="block text-sm font-medium text-gray-600">Brand</label>
+                                    <input type="text" value={item.itemTypeBrand} onChange={(e) => handleItemChange(item.id, 'itemTypeBrand', e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm" placeholder="Otomatis dari model, atau isi manual" />
+                                </div>
+                                <div className="md:col-span-3">
                                     <label className="block text-sm font-medium text-gray-600">Stok Gudang</label>
                                     <input type="number" value={item.stock} readOnly className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" />
                                 </div>
-                                <div className="md:col-span-2">
+                                <div className="md:col-span-3">
                                     <label className="block text-sm font-medium text-gray-600">Jumlah Req ({unitOfMeasure})</label>
                                     <input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', parseInt(e.target.value))} min="1" className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm" />
                                 </div>
-                                <div className="md:col-span-4">
+                                <div className="md:col-span-6">
                                     <label className="block text-sm font-medium text-gray-600">Keterangan</label>
                                     <input type="text" value={item.keterangan} onChange={(e) => handleItemChange(item.id, 'keterangan', e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm" placeholder="Jelaskan kebutuhan" />
                                 </div>
@@ -747,171 +745,278 @@ const FollowUpConfirmationModal: React.FC<{
     );
 };
 
-const SelectiveRejectionModal: React.FC<{
+const RequestReviewModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     request: Request;
-    onConfirm: (rejectedItemIds: number[], reason: string) => void;
+    onConfirm: (adjustments: Record<number, { approvedQuantity: number, reason: string }>) => void;
     isLoading: boolean;
 }> = ({ isOpen, onClose, request, onConfirm, isLoading }) => {
-    const [rejectedItemIds, setRejectedItemIds] = useState<number[]>([]);
-    const [reason, setReason] = useState('');
+    type ItemAction = 'approve' | 'partial' | 'reject';
+    const [itemActions, setItemActions] = useState<Record<number, ItemAction>>({});
+    const [adjustments, setAdjustments] = useState<Record<number, { approvedQuantity: string; reason: string }>>({});
     const addNotificationUI = useNotification();
 
     useEffect(() => {
-        if (!isOpen) {
-            setRejectedItemIds([]);
-            setReason('');
+        if (isOpen) {
+            const initialActions: Record<number, ItemAction> = {};
+            const initialAdjustments: Record<number, { approvedQuantity: string; reason: string }> = {};
+            
+            request.items.forEach(item => {
+                const existingStatus = request.itemStatuses?.[item.id];
+                const approvedQty = existingStatus?.approvedQuantity;
+                
+                if (typeof approvedQty === 'number') {
+                    if (approvedQty === 0) initialActions[item.id] = 'reject';
+                    else if (approvedQty < item.quantity) initialActions[item.id] = 'partial';
+                    else initialActions[item.id] = 'approve';
+                    
+                    initialAdjustments[item.id] = {
+                        approvedQuantity: approvedQty.toString(),
+                        reason: existingStatus?.reason ?? ''
+                    };
+                } else {
+                    initialActions[item.id] = 'approve';
+                    initialAdjustments[item.id] = {
+                        approvedQuantity: item.quantity.toString(),
+                        reason: ''
+                    };
+                }
+            });
+            setItemActions(initialActions);
+            setAdjustments(initialAdjustments);
         }
-    }, [isOpen]);
+    }, [isOpen, request]);
 
-    const handleToggleItem = (itemId: number) => {
-        setRejectedItemIds(prev =>
-            prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
-        );
+    const handleAdjustmentChange = (itemId: number, field: 'approvedQuantity' | 'reason', value: string) => {
+        const item = request.items.find(i => i.id === itemId);
+        if (!item) return;
+
+        let newValue = value;
+        if (field === 'approvedQuantity') {
+            if (value === '') {
+                newValue = '';
+            } else {
+                const numValue = parseInt(value, 10);
+                if (isNaN(numValue) || numValue < 0 || numValue > item.quantity) return;
+                newValue = numValue.toString();
+            }
+        }
+        
+        setAdjustments(prev => ({
+            ...prev,
+            [itemId]: { ...prev[itemId], [field]: newValue }
+        }));
     };
+    
+    const handleActionChange = (itemId: number, action: ItemAction) => {
+        setItemActions(prev => ({ ...prev, [itemId]: action }));
+        
+        const item = request.items.find(i => i.id === itemId);
+        if (!item) return;
+
+        let newQuantity = item.quantity;
+        if (action === 'reject') newQuantity = 0;
+        else if (action === 'partial') newQuantity = Math.max(1, item.quantity - 1);
+        
+        setAdjustments(prev => ({
+            ...prev,
+            [itemId]: { ...prev[itemId], approvedQuantity: String(newQuantity) }
+        }));
+    };
+
+
+    const isSubmissionValid = useMemo(() => {
+        return request.items.every(item => {
+            const adj = adjustments[item.id];
+            if (!adj || adj.approvedQuantity === '') return false;
+            const approvedQty = Number(adj.approvedQuantity);
+            if (approvedQty < item.quantity) {
+                return adj.reason.trim() !== '';
+            }
+            return true;
+        });
+    }, [adjustments, request.items]);
 
     const handleSubmit = () => {
-        if (rejectedItemIds.length === 0) {
-            addNotificationUI('Pilih setidaknya satu item untuk ditolak.', 'error');
+        if (!isSubmissionValid) {
+            addNotificationUI('Harap isi catatan untuk setiap item yang kuantitasnya diubah atau ditolak.', 'error');
             return;
         }
-        if (!reason.trim()) {
-            addNotificationUI('Alasan penolakan harus diisi.', 'error');
-            return;
+        const finalAdjustments: Record<number, { approvedQuantity: number, reason: string }> = {};
+        for (const itemId in adjustments) {
+            finalAdjustments[itemId] = {
+                approvedQuantity: Number(adjustments[itemId].approvedQuantity),
+                reason: adjustments[itemId].reason
+            };
         }
-        onConfirm(rejectedItemIds, reason);
+        onConfirm(finalAdjustments);
     };
+
+    const ActionButton: React.FC<{ onClick: () => void, text: string, icon: React.FC<{className?:string}>, isActive: boolean }> = ({ onClick, text, icon: Icon, isActive }) => (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`flex-1 p-3 border-2 rounded-lg text-left transition-all duration-200 ${isActive ? 'bg-blue-50 border-tm-primary ring-2 ring-tm-primary/50' : 'bg-white border-gray-300 hover:border-tm-accent'}`}
+        >
+            <div className="flex items-center gap-3">
+                <Icon className={`w-5 h-5 ${isActive ? 'text-tm-primary' : 'text-gray-500'}`} />
+                <span className="font-semibold text-gray-800 text-sm">{text}</span>
+            </div>
+        </button>
+    );
 
     return (
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Tolak Item Secara Selektif"
-            size="lg"
+            title={`Tinjau & Revisi Permintaan #${request.id}`}
+            size="2xl"
             hideDefaultCloseButton
             footerContent={
                 <>
                     <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={handleSubmit} disabled={isLoading || rejectedItemIds.length === 0 || !reason.trim()} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-300">
+                    <button onClick={handleSubmit} disabled={isLoading || !isSubmissionValid} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/60">
                         {isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}
-                        Tolak {rejectedItemIds.length > 0 ? `(${rejectedItemIds.length})` : ''} Item
+                        Simpan Tinjauan & Lanjutkan
                     </button>
                 </>
             }
         >
             <div className="space-y-4">
-                <div className="flex flex-col items-center text-center">
-                    <div className="flex items-center justify-center w-12 h-12 mb-4 text-danger-text bg-danger-light rounded-full">
-                        <ExclamationTriangleIcon className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-800">Tolak Item dari Request #{request.id}</h3>
-                    <p className="mt-2 text-sm text-gray-600">
-                        Pilih item yang ingin ditolak dan berikan satu alasan penolakan yang akan diterapkan ke semua item yang dipilih.
-                    </p>
+                <div className="flex items-start gap-3 p-3 text-sm text-blue-800 bg-blue-50/70 rounded-lg border border-blue-200/50">
+                    <InfoIcon className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                    <p>Sesuaikan jumlah yang disetujui untuk setiap item. Jika jumlah dikurangi atau ditolak, Anda wajib memberikan catatan.</p>
                 </div>
-                <div className="pt-4 space-y-4">
-                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar border rounded-lg p-2 bg-gray-50/50">
-                        {request.items.map(item => {
-                            const isRejected = rejectedItemIds.includes(item.id);
-                            const isAlreadyRejected = request.itemStatuses?.[item.id]?.status === 'rejected';
-                            return (
-                                <div key={item.id} onClick={() => !isAlreadyRejected && handleToggleItem(item.id)} className={`flex items-center gap-3 p-3 rounded-md transition-colors ${isAlreadyRejected ? 'bg-gray-200 cursor-not-allowed' : isRejected ? 'bg-red-100 ring-1 ring-red-200 cursor-pointer' : 'bg-white hover:bg-gray-50 cursor-pointer'}`}>
-                                    <Checkbox checked={isRejected || isAlreadyRejected} readOnly disabled={isAlreadyRejected} />
-                                    <div className={`flex-1 ${isAlreadyRejected ? 'text-gray-500 line-through' : ''}`}>
-                                        <p className={`font-semibold ${isRejected ? 'text-danger-text' : 'text-gray-800'}`}>{item.itemName}</p>
-                                        <p className={`text-xs ${isRejected ? 'text-danger' : 'text-gray-500'}`}>{item.itemTypeBrand} - {item.quantity} unit</p>
+                <div className="pt-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar -m-2 p-2">
+                    {request.items.map(item => {
+                        const currentAction = itemActions[item.id];
+                        const adj = adjustments[item.id];
+                        const showReason = currentAction === 'reject' || currentAction === 'partial';
+
+                        return (
+                            <div key={item.id} className="p-4 border rounded-lg bg-gray-50/50 border-gray-200">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="font-semibold text-gray-800">{item.itemName}</p>
+                                        <p className="text-xs text-gray-500">{item.itemTypeBrand} &bull; Diminta: {item.quantity} unit</p>
                                     </div>
-                                    {isAlreadyRejected && <span className="text-xs font-bold text-danger-text">SUDAH DITOLAK</span>}
                                 </div>
-                            );
-                        })}
-                    </div>
-                     <div>
-                        <label htmlFor="selectiveRejectionReason" className="block text-sm font-medium text-gray-700">Alasan Penolakan</label>
-                        <textarea
-                            id="selectiveRejectionReason"
-                            rows={3}
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
-                            placeholder="Contoh: Stok tidak tersedia, permintaan tidak sesuai budget, dll."
-                        ></textarea>
-                    </div>
+                                
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {item.quantity === 1 ? (
+                                        <>
+                                            <ActionButton text="Setujui (1)" icon={CheckIcon} isActive={currentAction === 'approve'} onClick={() => handleActionChange(item.id, 'approve')} />
+                                            <ActionButton text="Tolak (0)" icon={CloseIcon} isActive={currentAction === 'reject'} onClick={() => handleActionChange(item.id, 'reject')} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ActionButton text={`Setujui Semua (${item.quantity})`} icon={CheckIcon} isActive={currentAction === 'approve'} onClick={() => handleActionChange(item.id, 'approve')} />
+                                            <ActionButton text="Setujui Sebagian" icon={PencilIcon} isActive={currentAction === 'partial'} onClick={() => handleActionChange(item.id, 'partial')} />
+                                            <ActionButton text="Tolak Semua (0)" icon={CloseIcon} isActive={currentAction === 'reject'} onClick={() => handleActionChange(item.id, 'reject')} />
+                                        </>
+                                    )}
+                                </div>
+                                
+                                {currentAction === 'partial' && (
+                                    <div className="mt-3">
+                                        <label htmlFor={`qty-${item.id}`} className="block text-sm font-medium text-gray-700">Jumlah Disetujui</label>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <input
+                                                type="number"
+                                                id={`qty-${item.id}`}
+                                                value={adj?.approvedQuantity ?? ''}
+                                                onChange={(e) => handleAdjustmentChange(item.id, 'approvedQuantity', e.target.value)}
+                                                min="1"
+                                                max={item.quantity - 1}
+                                                className="block w-24 px-2 py-1 text-center font-semibold text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
+                                            />
+                                            <span className="text-sm text-gray-500">/ {item.quantity} unit</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {showReason && (
+                                     <div className="mt-3">
+                                        <label htmlFor={`reason-${item.id}`} className="block text-sm font-medium text-amber-800">Catatan Revisi/Penolakan (Wajib)</label>
+                                        <textarea
+                                            id={`reason-${item.id}`}
+                                            rows={2}
+                                            value={adj?.reason ?? ''}
+                                            onChange={(e) => handleAdjustmentChange(item.id, 'reason', e.target.value)}
+                                            className="block w-full px-3 py-2 mt-1 text-sm text-gray-900 bg-white border-amber-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500"
+                                            placeholder={`Contoh: Stok hanya tersedia ${adj?.approvedQuantity}, Budget terbatas, dll.`}
+                                        ></textarea>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
         </Modal>
     );
 };
 
-const SimpleRejectionModal: React.FC<{
+// FIX: Define RegistrationStagingModal component to fix 'Cannot find name' error.
+const RegistrationStagingModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    request: Request | null;
-    onConfirm: (reason: string) => void;
-    isLoading: boolean;
-}> = ({ isOpen, onClose, request, onConfirm, isLoading }) => {
-    const [reason, setReason] = useState('');
-    const addNotificationUI = useNotification();
-
-    useEffect(() => {
-        if (!isOpen) {
-            setReason('');
-        }
-    }, [isOpen]);
-
-    if (!request) return null;
-
-    const handleSubmit = () => {
-        if (!reason.trim()) {
-            addNotificationUI('Alasan penolakan harus diisi.', 'error');
-            return;
-        }
-        onConfirm(reason);
-    };
-
+    request: Request;
+    onInitiateRegistration: (item: RequestItem) => void;
+}> = ({ isOpen, onClose, request, onInitiateRegistration }) => {
     return (
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Tolak Permintaan"
-            size="md"
-            hideDefaultCloseButton
-            footerContent={
-                <>
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={handleSubmit} disabled={isLoading || !reason.trim()} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-300">
-                        {isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}
-                        Konfirmasi Tolak
-                    </button>
-                </>
-            }
+            title={`Pilih Item untuk Dicatat dari Request ${request.id}`}
+            size="lg"
+            hideDefaultCloseButton={true}
+            footerContent={<button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Tutup</button>}
         >
             <div className="space-y-4">
-                 <div className="text-center">
-                    <div className="flex items-center justify-center w-12 h-12 mx-auto text-danger-text bg-danger-light rounded-full">
-                        <ExclamationTriangleIcon className="w-6 h-6" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-semibold text-gray-800">Tolak Seluruh Permintaan?</h3>
-                    <p className="mt-2 text-sm text-gray-600">Anda akan menolak seluruh permintaan <strong>#{request.id}</strong>. Mohon berikan alasan penolakan.</p>
-                </div>
-                 <div className="p-4 my-4 bg-gray-50 border rounded-lg">
-                    <p className="text-xs font-medium text-gray-500 uppercase">Item yang ditolak:</p>
-                    <div className="mt-2 text-sm">
-                        <p className="font-semibold text-tm-dark">{request.items[0].itemName}</p>
-                        <p className="text-xs text-gray-500">{request.items[0].itemTypeBrand} - {request.items[0].quantity} unit</p>
-                    </div>
-                </div>
-                <div>
-                    <label htmlFor="simpleRejectionReason" className="block text-sm font-medium text-gray-700">Alasan Penolakan</label>
-                    <textarea
-                        id="simpleRejectionReason"
-                        rows={4}
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
-                        placeholder="Contoh: Stok tidak tersedia dan pengadaan tidak disetujui."
-                    ></textarea>
+                <p className="text-sm text-gray-600">
+                    Satu atau lebih item dari permintaan ini telah tiba. Pilih item di bawah ini untuk memulai proses pencatatan sebagai aset.
+                </p>
+                <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar border rounded-lg p-3 bg-gray-50/50">
+                    {request.items.map(item => {
+                        const registeredCount = request.partiallyRegisteredItems?.[item.id] || 0;
+                        const remainingCount = item.quantity - registeredCount;
+                        const isCompleted = remainingCount <= 0;
+
+                        return (
+                            <div key={item.id} className={`p-4 border rounded-lg transition-colors ${isCompleted ? 'bg-gray-100' : 'bg-white'}`}>
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className={`font-semibold ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{item.itemName}</p>
+                                        <p className="text-xs text-gray-500">{item.itemTypeBrand}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => onInitiateRegistration(item)}
+                                        disabled={isCompleted}
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-tm-primary rounded-md shadow-sm hover:bg-tm-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    >
+                                        <RegisterIcon className="w-4 h-4" />
+                                        Catat
+                                    </button>
+                                </div>
+                                <div className="mt-2 pt-2 border-t text-xs">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Total diminta:</span>
+                                        <span className="font-medium text-gray-800">{item.quantity} unit</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Sudah dicatat:</span>
+                                        <span className="font-medium text-gray-800">{registeredCount} unit</span>
+                                    </div>
+                                    <div className={`flex justify-between font-semibold ${isCompleted ? 'text-green-600' : 'text-blue-600'}`}>
+                                        <span>Sisa:</span>
+                                        <span>{remainingCount} unit</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </Modal>
@@ -919,12 +1024,11 @@ const SimpleRejectionModal: React.FC<{
 };
 
 
-const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests, setRequests, assets, assetCategories, divisions, onInitiateRegistration, initialFilters, onClearInitialFilters, onShowPreview, openModelModal, openTypeModal, setActivePage, users, notifications, addNotification, markNotificationsAsRead }) => {
-    const [view, setView] = useState<'list' | 'form'>('list');
+const ItemRequestPage: React.FC<ItemRequestPageProps> = (props) => {
+    const { currentUser, requests, setRequests, assets, assetCategories, divisions, onInitiateRegistration, onInitiateHandoverFromRequest, initialFilters, onClearInitialFilters, onShowPreview, openModelModal, openTypeModal, setActivePage, users, notifications, addNotification, markNotificationsAsRead } = props;
+    const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
     const [itemToPrefill, setItemToPrefill] = useState<{ name: string; brand: string } | null>(null);
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [isSelectiveRejectionModalOpen, setIsSelectiveRejectionModalOpen] = useState(false);
-    const [isSimpleRejectionModalOpen, setIsSimpleRejectionModalOpen] = useState(false);
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [isProcurementModalOpen, setIsProcurementModalOpen] = useState(false);
     const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
     const [stagingRequest, setStagingRequest] = useState<Request | null>(null);
@@ -1022,7 +1126,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
     
     const handleShowDetails = (request: Request) => {
         setSelectedRequest(request);
-        setIsDetailModalOpen(true);
+        setView('detail');
         markNotificationsAsRead(request.id);
     };
 
@@ -1201,60 +1305,91 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         });
         exportToCSV(dataToExport, `requests_${new Date().toISOString().split('T')[0]}`);
     };
-
-    const handleCloseDetailModal = () => {
-        setIsDetailModalOpen(false);
-        setSelectedRequest(null);
-    };
     
-    const handleConfirmSimpleRejection = (reason: string) => {
+    const handleConfirmReview = (adjustments: Record<number, { approvedQuantity: number; reason: string }>) => {
         if (!selectedRequest) return;
     
         setIsLoading(true);
         setTimeout(() => {
-            const today = new Date().toISOString().split('T')[0];
-            const rejectorDivision = currentUser.role === 'Super Admin' ? 'Manajemen' : 
-                                    currentUser.role === 'Admin Purchase' ? 'Purchase' : 'Logistik';
+            const newItemStatuses = { ...(selectedRequest.itemStatuses || {}) };
+            const today = new Date().toISOString();
+            let hasAtLeastOneApproval = false;
+    
+            for (const itemIdStr in adjustments) {
+                const itemId = parseInt(itemIdStr, 10);
+                const { approvedQuantity, reason } = adjustments[itemId];
+                const originalItem = selectedRequest.items.find(i => i.id === itemId);
+    
+                if (originalItem && approvedQuantity < originalItem.quantity) {
+                    newItemStatuses[itemId] = {
+                        status: 'rejected',
+                        reason: reason,
+                        approvedQuantity: approvedQuantity,
+                    };
+                } else if (newItemStatuses[itemId]) {
+                    delete newItemStatuses[itemId]; // Reverted to full approval, so clear status
+                }
+    
+                if (approvedQuantity > 0) {
+                    hasAtLeastOneApproval = true;
+                }
+            }
+    
+            let nextStatus = selectedRequest.status;
+            let approvalUpdates: Partial<Request> = {};
+    
+            if (!hasAtLeastOneApproval) {
+                // All items were rejected
+                nextStatus = ItemStatus.REJECTED;
+                const rejectorDivision = currentUser.role === 'Super Admin' ? 'Manajemen' : 
+                                        currentUser.role === 'Admin Purchase' ? 'Purchase' : 'Logistik';
+                approvalUpdates = {
+                    rejectionReason: "Semua item ditolak atau kuantitas disetujui adalah 0.",
+                    rejectedBy: currentUser.name,
+                    rejectionDate: today,
+                    rejectedByDivision: rejectorDivision,
+                };
+            } else {
+                // At least one item approved, proceed to next stage
+                if (selectedRequest.status === ItemStatus.PENDING) {
+                    nextStatus = ItemStatus.LOGISTIC_APPROVED;
+                    approvalUpdates = { logisticApprover: currentUser.name, logisticApprovalDate: today };
+                } else if (selectedRequest.status === ItemStatus.LOGISTIC_APPROVED) {
+                    // Just update the item statuses, but don't change the main status yet.
+                    // The Admin Purchase still needs to fill in purchase details.
+                    nextStatus = ItemStatus.LOGISTIC_APPROVED;
+                    // No approvalUpdates needed here, as we are not changing the approver.
+                } else if (selectedRequest.status === ItemStatus.AWAITING_CEO_APPROVAL) {
+                    nextStatus = ItemStatus.APPROVED;
+                    approvalUpdates = { finalApprover: currentUser.name, finalApprovalDate: today };
+                }
+            }
     
             const updatedRequest: Request = {
                 ...selectedRequest,
-                status: ItemStatus.REJECTED,
-                rejectionReason: reason,
-                rejectedBy: currentUser.name,
-                rejectionDate: today,
-                rejectedByDivision: rejectorDivision
+                status: nextStatus,
+                itemStatuses: newItemStatuses,
+                ...approvalUpdates,
             };
     
             setRequests(prev => prev.map(r => r.id === selectedRequest.id ? updatedRequest : r));
-    
-            // Notify requester
-            const requesterUser = users.find(u => u.name === selectedRequest.requester);
-            if (requesterUser) {
-                addNotification({ 
-                    recipientId: requesterUser.id, 
-                    actorName: currentUser.name, 
-                    type: 'REQUEST_REJECTED', 
-                    referenceId: selectedRequest.id,
-                    message: `menolak permintaan Anda`
-                });
-            }
-    
-            addNotificationUI(`Request #${selectedRequest.id} telah ditolak.`, 'success');
+            addNotificationUI(`Tinjauan untuk request #${selectedRequest.id} telah disimpan.`, 'success');
+            
             setIsLoading(false);
-            setIsSimpleRejectionModalOpen(false); 
-            handleCloseDetailModal();
+            setIsReviewModalOpen(false);
+            
+            if (nextStatus === ItemStatus.REJECTED) {
+                setView('list');
+                setSelectedRequest(null);
+            } else {
+                setSelectedRequest(updatedRequest); // Update the detail view with the new data
+            }
         }, 1000);
     };
 
     const handleOpenRejectionModal = () => {
         if (!selectedRequest) return;
-        setIsDetailModalOpen(false);
-
-        if (selectedRequest.items.length > 1) {
-            setIsSelectiveRejectionModalOpen(true);
-        } else {
-            setIsSimpleRejectionModalOpen(true);
-        }
+        setIsReviewModalOpen(true);
     };
 
     const handleCreateRequest = (data: Omit<Request, 'id' | 'status' | 'logisticApprover' | 'logisticApprovalDate' | 'finalApprover' | 'finalApprovalDate' | 'rejectionReason' | 'rejectedBy' | 'rejectionDate' | 'rejectedByDivision'>) => {
@@ -1315,7 +1450,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
 
             if(approved) {
                 addNotificationUI('Request disetujui oleh Logistik dan diteruskan ke Purchase.', 'success');
-                handleCloseDetailModal();
+                setView('list');
+                setSelectedRequest(null);
             } else {
                  addNotificationUI('Aksi tidak diizinkan.', 'error');
             }
@@ -1323,7 +1459,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         }, 800);
     };
     
-    const handleSubmitForCeoApproval = (requestId: string, purchaseData: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => {
+    const handleSubmitForCeoApproval = (requestId: string, purchaseData: Record<number, Omit<PurchaseDetails, 'filledBy' | 'fillDate'>>) => {
         setIsLoading(true);
         setTimeout(() => {
             const today = new Date().toISOString();
@@ -1336,14 +1472,20 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                         superAdmins.forEach(sa => {
                             addNotification({ recipientId: sa.id, actorName: currentUser.name, type: 'REQUEST_AWAITING_FINAL_APPROVAL', referenceId: req.id });
                         });
+                        
+                        const newPurchaseDetails: Record<number, PurchaseDetails> = {};
+                        for (const itemId in purchaseData) {
+                            newPurchaseDetails[itemId] = {
+                                ...purchaseData[itemId],
+                                filledBy: currentUser.name,
+                                fillDate: today
+                            };
+                        }
+
                         return { 
                             ...req, 
                             status: ItemStatus.AWAITING_CEO_APPROVAL,
-                            purchaseDetails: {
-                                ...purchaseData,
-                                filledBy: currentUser.name,
-                                fillDate: today
-                            }
+                            purchaseDetails: newPurchaseDetails
                         };
                     }
                 }
@@ -1352,7 +1494,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
 
             if (submitted) {
                 addNotificationUI('Detail pembelian disimpan dan permintaan diteruskan ke CEO.', 'success');
-                handleCloseDetailModal();
+                setView('list');
+                setSelectedRequest(null);
             } else {
                 addNotificationUI('Aksi tidak diizinkan.', 'error');
             }
@@ -1389,7 +1532,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
 
             if(approved) {
                 addNotificationUI('Persetujuan final diberikan. Tim Purchase akan melanjutkan proses.', 'success');
-                handleCloseDetailModal();
+                setView('list');
+                setSelectedRequest(null);
             } else {
                 addNotificationUI('Aksi tidak diizinkan.', 'error');
             }
@@ -1563,7 +1707,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
 
 
     const handleStartProcurement = () => {
-        setIsDetailModalOpen(false);
         setIsProcurementModalOpen(true);
     };
     
@@ -1586,6 +1729,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             addNotificationUI(`Proses pengadaan untuk ${selectedRequest.id} dimulai.`, 'success');
             setIsProcurementModalOpen(false);
             setSelectedRequest(null);
+            setView('list');
             setIsLoading(false);
         }, 1000);
     };
@@ -1595,6 +1739,12 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         setIsLoading(true);
         setTimeout(() => {
             let updatedRequest: Request = { ...selectedRequest, status: newStatus };
+            if (newStatus === ItemStatus.IN_DELIVERY) {
+                updatedRequest = {
+                    ...updatedRequest,
+                    actualShipmentDate: new Date().toISOString().split('T')[0],
+                };
+            }
             if (newStatus === ItemStatus.ARRIVED) {
                 updatedRequest = {
                     ...updatedRequest,
@@ -1637,63 +1787,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         }, 1000);
     };
     
-    const handleConfirmSelectiveRejection = (rejectedItemIds: number[], reason: string) => {
-        if (!selectedRequest) return;
-    
-        setIsLoading(true);
-        setTimeout(() => {
-            let finalStatus = selectedRequest.status;
-            const updatedItemStatuses = { ...(selectedRequest.itemStatuses || {}) };
-            rejectedItemIds.forEach(id => {
-                updatedItemStatuses[id] = { status: 'rejected', reason };
-            });
-
-            const allItemIds = new Set(selectedRequest.items.map(i => i.id));
-            const allRejected = selectedRequest.items.every(item => updatedItemStatuses[item.id]?.status === 'rejected');
-
-            if (allRejected) {
-                finalStatus = ItemStatus.REJECTED;
-            }
-
-            const today = new Date().toISOString().split('T')[0];
-            const rejectorDivision = currentUser.role === 'Super Admin' ? 'Manajemen' : 
-                                    currentUser.role === 'Admin Purchase' ? 'Purchase' : 'Logistik';
-
-            const updatedRequest: Request = {
-                ...selectedRequest,
-                status: finalStatus,
-                itemStatuses: updatedItemStatuses,
-                ...(allRejected && {
-                    rejectionReason: `Semua item ditolak. Alasan utama: "${reason.trim()}"`,
-                    rejectedBy: currentUser.name,
-                    rejectionDate: today,
-                    rejectedByDivision: rejectorDivision
-                })
-            };
-    
-            setRequests(prev => prev.map(r => r.id === selectedRequest.id ? updatedRequest : r));
-            
-            // Notify requester
-            const requesterUser = users.find(u => u.name === selectedRequest.requester);
-            if(requesterUser) {
-                addNotification({ 
-                    recipientId: requesterUser.id, 
-                    actorName: currentUser.name, 
-                    type: 'REQUEST_REJECTED', 
-                    referenceId: selectedRequest.id,
-                    message: `menolak ${rejectedItemIds.length} item dari permintaan Anda`
-                });
-            }
-            
-            addNotificationUI(`${rejectedItemIds.length} item dari request #${selectedRequest.id} telah ditolak.`, 'success');
-            setIsLoading(false);
-            setIsSelectiveRejectionModalOpen(false);
-            // Re-select the updated request to refresh the detail modal
-            setSelectedRequest(updatedRequest);
-            setIsDetailModalOpen(true); // Reopen detail modal
-        }, 1000);
-    };
-    
     const handleConfirmCancellation = () => {
         if (!selectedRequest) return;
 
@@ -1703,7 +1796,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
             addNotificationUI(`Request ${selectedRequest.id} berhasil dibatalkan.`, 'success');
             setIsLoading(false);
             setIsCancellationModalOpen(false);
-            handleCloseDetailModal();
+            setView('list');
+            setSelectedRequest(null);
         }, 1000);
     };
     
@@ -1804,137 +1898,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
         }, 1000);
     };
 
-    const renderApprovalActions = () => {
-        if (!selectedRequest) return null;
-        
-        const canLogisticApprove = selectedRequest.status === ItemStatus.PENDING && (currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin');
-        const canFillPurchase = selectedRequest.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Admin Purchase';
-        const canFinalApprove = selectedRequest.status === ItemStatus.AWAITING_CEO_APPROVAL && currentUser.role === 'Super Admin';
-        
-        const canReject = 
-            (currentUser.role === 'Admin Logistik' && selectedRequest.status === ItemStatus.PENDING) ||
-            (currentUser.role === 'Admin Purchase' && selectedRequest.status === ItemStatus.LOGISTIC_APPROVED) ||
-            (currentUser.role === 'Super Admin' && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL].includes(selectedRequest.status));
-
-        const canCancel = selectedRequest.requester === currentUser.name && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED].includes(selectedRequest.status);
-        const canFollowUp = (currentUser.role === 'Staff' || currentUser.role === 'Leader') && (selectedRequest.status === ItemStatus.PENDING || selectedRequest.status === ItemStatus.LOGISTIC_APPROVED);
-
-        const now = new Date();
-        const lastFollowUpDate = selectedRequest.lastFollowUpAt ? new Date(selectedRequest.lastFollowUpAt) : null;
-        let isFollowUpDisabled = false;
-        let followUpTooltip = "Kirim notifikasi follow-up ke approver";
-
-        if (lastFollowUpDate) {
-            const diffHours = (now.getTime() - lastFollowUpDate.getTime()) / (1000 * 60 * 60);
-            if (diffHours < 24) {
-                isFollowUpDisabled = true;
-                const hoursRemaining = Math.ceil(24 - diffHours);
-                followUpTooltip = `Anda dapat follow-up lagi dalam ${hoursRemaining} jam.`;
-            }
-        }
-
-        const canFollowUpCeo = currentUser.role === 'Admin Purchase' && selectedRequest.status === ItemStatus.LOGISTIC_APPROVED;
-
-        let isCeoFollowUpDisabled = !!selectedRequest.ceoFollowUpSent;
-        let ceoFollowUpTooltip = "Kirim notifikasi follow-up ke CEO untuk persetujuan final";
-        if (isCeoFollowUpDisabled) {
-            ceoFollowUpTooltip = `Follow-up ke CEO untuk request ini sudah pernah dikirim.`;
-        }
-        
-        // --- Role-Based Operational Actions ---
-        const isApproved = [ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(selectedRequest.status);
-        const canStartProcurement = selectedRequest.status === ItemStatus.APPROVED && currentUser.role === 'Admin Purchase';
-        const canConfirmShipment = selectedRequest.status === ItemStatus.PURCHASING && currentUser.role === 'Admin Purchase';
-        const canConfirmArrival = selectedRequest.status === ItemStatus.IN_DELIVERY && currentUser.role === 'Admin Purchase';
-        const canRegister = selectedRequest.status === ItemStatus.ARRIVED && !selectedRequest.isRegistered && (currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin');
-        
-        const canPrioritize = currentUser.role === 'Super Admin' && selectedRequest.order.type === 'Urgent';
-
-        const canRequestUpdate = currentUser.role === 'Super Admin' && [ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY].includes(selectedRequest.status);
-        const hasUpdateBeenRequested = selectedRequest.progressUpdateRequest && !selectedRequest.progressUpdateRequest.isAcknowledged;
-        
-        return (
-            <div className="flex items-center justify-end flex-1 space-x-3">
-                {canFollowUp && (
-                    <Tooltip text={followUpTooltip} position="top">
-                        <button 
-                            type="button" 
-                            onClick={() => handleOpenFollowUpModal(selectedRequest)} 
-                            disabled={isLoading || isFollowUpDisabled}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-info-text bg-info-light rounded-lg shadow-sm hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <BellIcon className="w-4 h-4" />
-                            Follow Up Approver
-                        </button>
-                    </Tooltip>
-                )}
-                {canFollowUpCeo && (
-                    <Tooltip text={ceoFollowUpTooltip} position="top">
-                        <button
-                            onClick={() => handleFollowUpToCeo(selectedRequest)}
-                            disabled={isLoading || isCeoFollowUpDisabled}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-info-text bg-info-light rounded-lg shadow-sm hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <BellIcon className="w-4 h-4" />
-                            Follow Up ke CEO
-                        </button>
-                    </Tooltip>
-                )}
-                 {canRegister && (
-                    <button type="button" onClick={() => { setStagingRequest(selectedRequest); handleCloseDetailModal(); }} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"><RegisterIcon className="w-4 h-4" />Catat sebagai Aset</button>
-                )}
-                {canConfirmArrival && (
-                    <button type="button" onClick={() => handleUpdateRequestStatus(ItemStatus.ARRIVED)} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-lg shadow-sm hover:bg-green-700">{isLoading ? <SpinnerIcon /> : <ArchiveBoxIcon className="w-4 h-4" />}Konfirmasi Tiba</button>
-                )}
-                {canConfirmShipment && (
-                    <button type="button" onClick={() => handleUpdateRequestStatus(ItemStatus.IN_DELIVERY)} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-purple-600 rounded-lg shadow-sm hover:bg-purple-700">{isLoading ? <SpinnerIcon /> : <TruckIcon className="w-4 h-4" />}Konfirmasi Kirim</button>
-                )}
-                 {canStartProcurement && (
-                    <button type="button" onClick={handleStartProcurement} disabled={isLoading} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700">{isLoading ? <SpinnerIcon /> : <ShoppingCartIcon className="w-4 h-4" />}Mulai Pengadaan</button>
-                )}
-                {canCancel && (
-                    <button type="button" onClick={() => setIsCancellationModalOpen(true)} disabled={isLoading} className="px-4 py-2 text-sm font-medium text-danger-text bg-danger-light rounded-lg shadow-sm hover:bg-red-200 disabled:opacity-50">Batalkan Permintaan</button>
-                )}
-                {canReject && (
-                    <button type="button" onClick={handleOpenRejectionModal} disabled={isLoading} className="px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-danger rounded-lg shadow-sm hover:bg-red-700 disabled:bg-red-400">Tolak</button>
-                )}
-                {canRequestUpdate && (
-                    <button
-                        type="button"
-                        onClick={() => handleRequestProgressUpdate(selectedRequest.id)}
-                        disabled={isLoading || hasUpdateBeenRequested}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 bg-info rounded-lg shadow-sm hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
-                    >
-                        {isLoading ? <SpinnerIcon className="w-5 h-5" /> : <InfoIcon className="w-4 h-4" />}
-                        {hasUpdateBeenRequested ? 'Update Diminta' : 'Minta Update Progres'}
-                    </button>
-                )}
-                {canPrioritize && (
-                    <button
-                        type="button"
-                        onClick={() => handleCeoDisposition(selectedRequest.id)}
-                        disabled={isLoading || selectedRequest.isPrioritizedByCEO}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 bg-purple-600 rounded-lg shadow-sm hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed"
-                    >
-                        {isLoading ? <SpinnerIcon className="w-5 h-5" /> : <MegaphoneIcon className="w-4 h-4" />}
-                        {selectedRequest.isPrioritizedByCEO ? 'Telah Didisposisikan' : 'Disposisi & Prioritaskan'}
-                    </button>
-                )}
-                 {canLogisticApprove && (
-                    <button type="button" onClick={() => handleLogisticApproval(selectedRequest.id)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Setujui (Logistik)'}</button>
-                )}
-                {canFillPurchase && (
-                    <button type="button" onClick={handleStartProcurement} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Isi Detail Pembelian'}</button>
-                )}
-                {canFinalApprove && (
-                     <button type="button" onClick={() => handleFinalCeoApproval(selectedRequest.id)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white transition-colors duration-200 bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400">{isLoading ? <SpinnerIcon className="w-5 h-5 mr-2"/> : null}{isLoading ? 'Memproses...' : 'Setujui Final'}</button>
-                )}
-            </div>
-        );
-    };
-    
-    const showProcurement = selectedRequest && [ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(selectedRequest.status);
-
     const renderContent = () => {
         if (view === 'form') {
             return (
@@ -1959,6 +1922,44 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                         />
                     </div>
                 </div>
+            );
+        }
+
+        if (view === 'detail' && selectedRequest) {
+            return (
+                <RequestDetailPage
+                    request={selectedRequest}
+                    onUpdateRequest={(updatedRequest) => {
+                        setRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r));
+                        setSelectedRequest(updatedRequest);
+                    }}
+                    currentUser={currentUser}
+                    onBackToList={() => {
+                        setView('list');
+                        setSelectedRequest(null);
+                    }}
+                    assets={assets}
+                    users={users}
+                    assetCategories={assetCategories}
+                    onShowPreview={onShowPreview}
+                    onOpenRejectionModal={handleOpenRejectionModal}
+                    onOpenCancellationModal={() => setIsCancellationModalOpen(true)}
+                    onOpenFollowUpModal={handleOpenFollowUpModal}
+                    onLogisticApproval={handleLogisticApproval}
+                    onSubmitForCeoApproval={handleSubmitForCeoApproval}
+                    onFinalCeoApproval={handleFinalCeoApproval}
+                    onStartProcurement={handleStartProcurement}
+                    onUpdateRequestStatus={handleUpdateRequestStatus}
+                    onOpenStaging={setStagingRequest}
+                    onCeoDisposition={handleCeoDisposition}
+                    onAcknowledgeProgressUpdate={handleAcknowledgeProgressUpdate}
+                    onRequestProgressUpdate={handleRequestProgressUpdate}
+                    onFollowUpToCeo={handleFollowUpToCeo}
+                    onInitiateHandoverFromRequest={onInitiateHandoverFromRequest}
+                    // FIX: Pass missing 'divisions' prop to RequestDetailPage
+                    divisions={divisions}
+                    isLoading={isLoading}
+                />
             );
         }
 
@@ -2103,8 +2104,8 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                             sortConfig={sortConfig}
                             requestSort={requestSort}
                             selectedRequestIds={selectedRequestIds}
-                            onSelectOne={handleSelectOne}
                             onSelectAll={handleSelectAll}
+                            onSelectOne={handleSelectOne}
                             isBulkSelectMode={isBulkSelectMode}
                             onEnterBulkMode={() => setIsBulkSelectMode(true)}
                             notifications={notifications}
@@ -2172,229 +2173,16 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 />
             )}
             
-            {selectedRequest && (
-                <Modal
-                    isOpen={isDetailModalOpen}
-                    onClose={handleCloseDetailModal}
-                    title=""
-                    size="3xl"
-                    footerContent={renderApprovalActions()}
-                    disableContentPadding
-                >
-                    <div className="p-6">
-                        <Letterhead />
-
-                        {selectedRequest.isPrioritizedByCEO && (
-                            <div className="mb-6 p-3 flex items-start gap-3 text-sm bg-purple-50 border border-purple-200 rounded-md text-purple-800">
-                                <MegaphoneIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                {currentUser.role === 'Super Admin' ? (
-                                    <p>
-                                        Anda telah memprioritaskan permintaan ini pada {new Date(selectedRequest.ceoDispositionDate!).toLocaleString('id-ID')}. Tim inventori telah dinotifikasi.
-                                    </p>
-                                ) : (
-                                    <p>
-                                        <strong>Perhatian:</strong> Permintaan ini telah didisposisikan oleh CEO pada <strong>{new Date(selectedRequest.ceoDispositionDate!).toLocaleString('id-ID')}</strong> untuk segera diproses.
-                                    </p>
-                                )}
-                            </div>
-                        )}
-                        
-                        {selectedRequest.progressUpdateRequest && !selectedRequest.progressUpdateRequest.isAcknowledged && currentUser.role === 'Admin Purchase' && (
-                            <div className="mb-6 p-4 flex items-start gap-4 text-sm bg-blue-50 border border-blue-200 rounded-md text-blue-800">
-                                <InfoIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-semibold">Perhatian: Update Progres Diminta</p>
-                                    <p className="mt-1">
-                                        <span className="font-semibold">{selectedRequest.progressUpdateRequest.requestedBy}</span> meminta update progres untuk permintaan ini pada {new Date(selectedRequest.progressUpdateRequest.requestDate).toLocaleString('id-ID')}.
-                                    </p>
-                                    <button
-                                        onClick={handleAcknowledgeProgressUpdate}
-                                        disabled={isLoading}
-                                        className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
-                                    >
-                                        {isLoading ? <SpinnerIcon /> : <CheckIcon />}
-                                        Tandai Sudah Dilihat
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="text-center mb-6">
-                            <h3 className="text-xl font-bold uppercase text-tm-dark">Surat Permintaan Pembelian Barang</h3>
-                            <p className="text-sm text-tm-secondary">Nomor: {selectedRequest.id}</p>
-                        </div>
-
-                        <div className="space-y-6 text-sm">
-                            {/* Section I: Detail Dokumen & Pemohon */}
-                            <section>
-                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">I. Detail Dokumen</h4>
-                                <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
-                                    <PreviewItem label="Tanggal Request" value={new Date(selectedRequest.requestDate).toLocaleString('id-ID')} />
-                                    <PreviewItem label="Pemohon" value={selectedRequest.requester} />
-                                    <PreviewItem label="Divisi" value={selectedRequest.division} />
-                                    <PreviewItem label="Tipe Order">
-                                        <OrderIndicator order={selectedRequest.order} />
-                                    </PreviewItem>
-                                    <PreviewItem label="Status Saat Ini">
-                                        <RequestStatusIndicator status={selectedRequest.status} />
-                                    </PreviewItem>
-                                    {selectedRequest.order.type === 'Project Based' && (
-                                        <PreviewItem label="Nama Proyek" value={selectedRequest.order.project} />
-                                    )}
-                                </dl>
-                                {selectedRequest.order.type === 'Urgent' && (
-                                    <div className="mt-4">
-                                        <PreviewItem label="Justifikasi Urgent" fullWidth>
-                                            <p className="p-3 text-sm bg-amber-50 border border-amber-200 rounded-md italic">
-                                                "{selectedRequest.order.justification}"
-                                            </p>
-                                        </PreviewItem>
-                                    </div>
-                                )}
-                            </section>
-
-                            {/* Section II: Rincian Barang */}
-                            <section>
-                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">II. Rincian Barang yang Diminta</h4>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-gray-100 text-xs uppercase text-gray-700">
-                                            <tr>
-                                                <th className="p-2 w-10">No.</th>
-                                                <th className="p-2">Nama Barang</th>
-                                                <th className="p-2">Tipe/Brand</th>
-                                                <th className="p-2 text-center w-20">Jumlah</th>
-                                                <th className="p-2">Keterangan</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedRequest.items.map((item, index) => {
-                                                const isRejected = selectedRequest.itemStatuses?.[item.id]?.status === 'rejected';
-                                                const rejectionReasonText = selectedRequest.itemStatuses?.[item.id]?.reason;
-                                                return (
-                                                    <tr key={item.id} className={`border-b ${isRejected ? 'bg-red-50/50 text-gray-500' : ''}`}>
-                                                        <td className={`p-2 text-center ${isRejected ? 'line-through' : 'text-gray-800'}`}>{index + 1}.</td>
-                                                        <td className={`p-2 font-semibold ${isRejected ? 'line-through text-danger-text' : 'text-gray-800'}`}>
-                                                            {item.itemName}
-                                                            {isRejected && rejectionReasonText && (
-                                                                <Tooltip text={`Alasan: ${rejectionReasonText}`}>
-                                                                    <span className="ml-2 inline-block">
-                                                                        <InfoIcon className="w-4 h-4 text-danger" />
-                                                                    </span>
-                                                                </Tooltip>
-                                                            )}
-                                                        </td>
-                                                        <td className={`p-2 ${isRejected ? 'line-through' : 'text-gray-600'}`}>{item.itemTypeBrand}</td>
-                                                        <td className={`p-2 text-center font-medium ${isRejected ? 'line-through' : 'text-gray-800'}`}>{item.quantity} unit</td>
-                                                        <td className={`p-2 text-xs italic ${isRejected ? 'line-through' : 'text-gray-600'}`}>"{item.keterangan}"</td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                        {selectedRequest.totalValue && canViewPrice(currentUser.role) && (
-                                             <tfoot className="bg-gray-100">
-                                                <tr>
-                                                    <td colSpan={3} className="p-2 text-right font-bold text-gray-800">Estimasi Total Nilai:</td>
-                                                    <td colSpan={2} className="p-2 font-bold text-tm-primary">Rp {selectedRequest.totalValue.toLocaleString('id-ID')}</td>
-                                                </tr>
-                                            </tfoot>
-                                        )}
-                                    </table>
-                                </div>
-                            </section>
-                            
-                             {/* Section for Purchase Details Form */}
-                            {selectedRequest.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Admin Purchase' && (
-                                <PurchaseDetailsForm request={selectedRequest} onSubmit={handleSubmitForCeoApproval} />
-                            )}
-
-                             {/* Section to view Purchase Details */}
-                            {selectedRequest.purchaseDetails && canViewPrice(currentUser.role) && (
-                                <PurchaseDetailsView details={selectedRequest.purchaseDetails} />
-                            )}
-
-
-                            {/* Section III: Progres Pengadaan (if applicable) */}
-                            {showProcurement && (
-                                <section>
-                                    <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">III. Progres Pengadaan</h4>
-                                    <ProcurementTimeline request={selectedRequest} />
-                                </section>
-                            )}
-                            
-                            {selectedRequest.isRegistered && (
-                                <section className="pt-4 text-sm border-t">
-                                    <span className="font-semibold text-gray-600">Aset Terkait: </span>
-                                    {assets.filter(a => a.woRoIntNumber === selectedRequest.id).map(asset => (
-                                        <ClickableLink key={asset.id} onClick={() => onShowPreview({ type: 'asset', id: asset.id })}>
-                                            {asset.id}
-                                        </ClickableLink>
-                                    ))}
-                                </section>
-                            )}
-                            
-                            {/* Section IV: Progres Persetujuan */}
-                            <section className="pt-6">
-                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">{selectedRequest.status === ItemStatus.REJECTED ? 'Status Penolakan' : `${showProcurement ? 'IV.' : 'III.'} Progres Persetujuan`}</h4>
-                                {selectedRequest.status === ItemStatus.REJECTED ? (
-                                    <div className="p-4 text-center bg-danger-light rounded-lg">
-                                        <h4 className="text-lg font-bold text-danger-text">Permintaan Ditolak</h4>
-                                        <div className="flex justify-center my-4">
-                                            {selectedRequest.rejectedBy && selectedRequest.rejectionDate && (
-                                                <RejectionStamp 
-                                                    rejectorName={selectedRequest.rejectedBy} 
-                                                    rejectionDate={selectedRequest.rejectionDate}
-                                                    rejectorDivision={selectedRequest.rejectedByDivision}
-                                                />
-                                            )}
-                                        </div>
-                                        <p className="text-sm font-semibold text-gray-700">Alasan Penolakan:</p>
-                                        <p className="text-sm text-gray-600 italic">"{selectedRequest.rejectionReason}"</p>
-                                    </div>
-                                ) : selectedRequest.status === ItemStatus.CANCELLED ? (
-                                    <div className="p-4 text-center bg-gray-100 rounded-lg">
-                                        <h4 className="text-lg font-bold text-gray-700">Permintaan Dibatalkan</h4>
-                                        <p className="text-sm text-gray-600 mt-2">Permintaan ini telah dibatalkan oleh pemohon.</p>
-                                    </div>
-                                ) : (
-                                    (() => {
-                                        return (
-                                            <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-3 sm:gap-x-4">
-                                                <ApprovalBox title="Request" signer={selectedRequest.requester} date={selectedRequest.requestDate} division={selectedRequest.division} isSigned={true} />
-                                                <ApprovalBox 
-                                                    title="Logistik" 
-                                                    signer={selectedRequest.logisticApprover} 
-                                                    date={selectedRequest.logisticApprovalDate} 
-                                                    division={"Logistik"} 
-                                                    isSigned={!!selectedRequest.logisticApprover} 
-                                                />
-                                                <ApprovalBox 
-                                                    title="CEO / Approval" 
-                                                    signer={selectedRequest.finalApprover} 
-                                                    date={selectedRequest.finalApprovalDate} 
-                                                    division="Manajemen" 
-                                                    isSigned={!!selectedRequest.finalApprover} 
-                                                />
-                                            </div>
-                                        );
-                                    })()
-                                )}
-                            </section>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-
-             {isProcurementModalOpen && (
+            {isProcurementModalOpen && (
                 <Modal
                     isOpen={isProcurementModalOpen}
-                    onClose={() => { setIsProcurementModalOpen(false); setSelectedRequest(null); }}
+                    onClose={() => { setIsProcurementModalOpen(false); }}
                     title={`Mulai Pengadaan untuk ${selectedRequest?.id}`}
                     size="md"
                     hideDefaultCloseButton
                     footerContent={
                         <>
-                            <button onClick={() => { setIsProcurementModalOpen(false); setSelectedRequest(null); }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
+                            <button onClick={() => { setIsProcurementModalOpen(false); }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
                             <button onClick={handleConfirmProcurement} disabled={!estimatedDelivery || isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}Konfirmasi</button>
                         </>
                     }
@@ -2409,34 +2197,17 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 </Modal>
             )}
 
-            {isSelectiveRejectionModalOpen && selectedRequest && (
-                 <SelectiveRejectionModal
-                    isOpen={isSelectiveRejectionModalOpen}
+            {isReviewModalOpen && selectedRequest && (
+                 <RequestReviewModal
+                    isOpen={isReviewModalOpen}
                     onClose={() => {
-                        setIsSelectiveRejectionModalOpen(false);
-                        // Reopen detail modal if it was closed
-                        if (selectedRequest) {
-                            setIsDetailModalOpen(true);
-                        }
+                        setIsReviewModalOpen(false);
                     }}
                     request={selectedRequest}
-                    onConfirm={handleConfirmSelectiveRejection}
+                    onConfirm={handleConfirmReview}
                     isLoading={isLoading}
                 />
             )}
-            
-            <SimpleRejectionModal
-                isOpen={isSimpleRejectionModalOpen}
-                onClose={() => {
-                    setIsSimpleRejectionModalOpen(false);
-                    if (selectedRequest) {
-                        setIsDetailModalOpen(true);
-                    }
-                }}
-                request={selectedRequest}
-                onConfirm={handleConfirmSimpleRejection}
-                isLoading={isLoading}
-            />
 
             {selectedRequest && (
                 <Modal
@@ -2607,248 +2378,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = ({ currentUser, requests
                 </Modal>
             )}
         </div>
-    );
-};
-
-const ProcurementTimeline: React.FC<{ request: Request }> = ({ request }) => {
-    const statuses = [ItemStatus.APPROVED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED];
-    const currentStatusIndex = statuses.indexOf(request.status);
-
-    const getStepDetails = (status: ItemStatus) => {
-        switch (status) {
-            case ItemStatus.APPROVED:
-                return { label: 'Disetujui', icon: CheckIcon, date: request.finalApprovalDate };
-            case ItemStatus.PURCHASING:
-                return { label: 'Pengadaan', icon: ShoppingCartIcon, date: request.estimatedDeliveryDate ? `Estimasi: ${request.estimatedDeliveryDate}` : null };
-            case ItemStatus.IN_DELIVERY:
-                return { label: 'Dikirim', icon: TruckIcon, date: null };
-            case ItemStatus.ARRIVED:
-                return { label: 'Tiba', icon: ArchiveBoxIcon, date: request.arrivalDate ? `Pada: ${request.arrivalDate}`: null };
-            case ItemStatus.COMPLETED:
-                return { label: 'Selesai', icon: RegisterIcon, date: request.isRegistered ? 'Aset Dicatat' : null };
-            default:
-                return { label: 'Unknown', icon: CheckIcon, date: null };
-        }
-    };
-
-    return (
-        <div className="p-4 bg-gray-50 rounded-lg">
-            <ol className="flex items-start">
-                {statuses.map((status, index) => {
-                    const stepDetails = getStepDetails(status);
-                    const isCompleted = currentStatusIndex > index || (request.status === ItemStatus.COMPLETED && request.isRegistered);
-                    const isCurrent = currentStatusIndex === index && request.status !== ItemStatus.COMPLETED;
-                    
-                    const iconColor = isCompleted || isCurrent ? 'text-white' : 'text-gray-500';
-                    const bgColor = isCompleted ? 'bg-success' : isCurrent ? 'bg-tm-primary' : 'bg-gray-200';
-                    const textColor = isCompleted || isCurrent ? 'text-gray-800' : 'text-gray-500';
-                    const lineColor = isCompleted ? 'border-success' : 'border-gray-300';
-
-                    return (
-                        <li key={status} className="relative flex-1 flex flex-col items-center text-center">
-                            <div className="flex items-center w-full">
-                                <div className={`flex-1 h-0.5 ${index === 0 ? 'bg-transparent' : isCompleted ? 'bg-success' : 'bg-gray-300'}`}></div>
-                                <div className={`relative flex items-center justify-center w-10 h-10 rounded-full shrink-0 z-10 ${bgColor} transition-colors`}>
-                                   {isCompleted ? <CheckIcon className="w-5 h-5 text-white" /> : <stepDetails.icon className={`w-5 h-5 ${iconColor} transition-colors`} />}
-                                </div>
-                                <div className={`flex-1 h-0.5 ${index === statuses.length - 1 ? 'bg-transparent' : isCompleted ? 'bg-success' : 'bg-gray-300'}`}></div>
-                            </div>
-                            <div className="mt-2 w-full">
-                                <h3 className={`text-xs font-semibold ${textColor} transition-colors`}>{stepDetails.label}</h3>
-                                {stepDetails.date && <p className="text-[10px] text-gray-500">{stepDetails.date}</p>}
-                            </div>
-                        </li>
-                    );
-                })}
-            </ol>
-        </div>
-    );
-};
-
-const ApprovalBox: React.FC<{title: string; signer: string | null; date: string | null; division: string; isSigned: boolean}> = ({ title, signer, date, division, isSigned }) => {
-    const isApprovalStep = title === 'Logistik' || title === 'CEO / Approval';
-    
-    return (
-        <div>
-            <p className="font-semibold text-gray-600">{title}</p>
-            <div className="flex items-center justify-center mt-2 border border-gray-200 rounded-md h-32 bg-gray-50/50">
-                {isSigned && date ? (
-                    isApprovalStep ? (
-                        <ApprovalStamp approverName={signer!} approvalDate={date!} approverDivision={`Divisi ${division}`} />
-                    ) : (
-                        <SignatureStamp signerName={signer!} signatureDate={date!} signerDivision={`Divisi ${division}`} />
-                    )
-                ) : (
-                    <span className="text-sm italic text-gray-400">Menunggu Persetujuan</span>
-                )}
-            </div>
-            <div className="pt-1 mt-2 text-center">
-                <p className="text-sm text-gray-800 font-medium">({signer || '.........................'})</p>
-            </div>
-        </div>
-    );
-};
-
-const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?: React.ReactNode; fullWidth?: boolean; }> = ({ label, value, children, fullWidth = false }) => (
-    <div className={fullWidth ? 'sm:col-span-full' : ''}>
-        <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</dt>
-        <dd className="mt-1 text-gray-800">{value || children || '-'}</dd>
-    </div>
-);
-
-const RegistrationStagingModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    request: Request;
-    onInitiateRegistration: (item: RequestItem) => void;
-}> = ({ isOpen, onClose, request, onInitiateRegistration }) => {
-    return (
-        <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            title={`Pencatatan Aset untuk Request #${request.id}`}
-            size="xl"
-            hideDefaultCloseButton
-        >
-            <div className="space-y-4">
-                <p className="text-sm text-gray-600">
-                    Barang untuk request ini telah tiba. Silakan catat setiap item di bawah ini untuk dimasukkan ke dalam daftar aset.
-                </p>
-                <div className="space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar -mx-2 px-2">
-                    {request.items.map(item => {
-                        const registeredCount = request.partiallyRegisteredItems?.[item.id] || 0;
-                        const isCompleted = registeredCount >= item.quantity;
-                        const progress = (registeredCount / item.quantity) * 100;
-
-                        return (
-                            <div key={item.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div className="flex-1">
-                                    <p className="font-semibold text-gray-800">{item.itemName}</p>
-                                    <p className="text-xs text-gray-500">{item.itemTypeBrand}</p>
-                                    <div className="mt-2">
-                                        <div className="flex justify-between mb-1 text-xs">
-                                            <span className="font-medium text-gray-700">Progres Pencatatan</span>
-                                            <span className="text-gray-500">{registeredCount} / {item.quantity} Aset</span>
-                                        </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                            <div 
-                                                className={`h-2.5 rounded-full transition-all duration-500 ${isCompleted ? 'bg-success' : 'bg-tm-primary'}`} 
-                                                style={{ width: `${progress}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex-shrink-0">
-                                    <button 
-                                        onClick={() => onInitiateRegistration(item)}
-                                        disabled={isCompleted}
-                                        className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 text-sm font-semibold text-white transition-all duration-200 bg-tm-accent rounded-lg shadow-sm hover:bg-tm-primary disabled:bg-gray-400 disabled:cursor-not-allowed"
-                                    >
-                                        <RegisterIcon className="w-4 h-4"/>
-                                        {isCompleted ? 'Selesai' : `Catat (${item.quantity - registeredCount})`}
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        </Modal>
-    );
-}
-
-const PurchaseDetailsView: React.FC<{ details: PurchaseDetails }> = ({ details }) => (
-    <section>
-        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">Detail Pembelian (Rahasia)</h4>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3 text-sm">
-            <PreviewItem label="Harga Beli" value={`Rp ${details.purchasePrice.toLocaleString('id-ID')}`} />
-            <PreviewItem label="Vendor" value={details.vendor} />
-            <PreviewItem label="Tanggal Beli" value={new Date(details.purchaseDate).toLocaleDateString('id-ID')} />
-            <PreviewItem label="No. PO" value={details.poNumber} />
-            <PreviewItem label="No. Faktur" value={details.invoiceNumber} />
-            <PreviewItem label="Akhir Garansi" value={details.warrantyEndDate ? new Date(details.warrantyEndDate).toLocaleDateString('id-ID') : '-'} />
-            <PreviewItem label="Diisi oleh" value={`${details.filledBy} pada ${new Date(details.fillDate).toLocaleString('id-ID')}`} fullWidth />
-        </dl>
-    </section>
-);
-
-const PurchaseDetailsForm: React.FC<{
-    request: Request;
-    onSubmit: (requestId: string, data: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => void;
-}> = ({ request, onSubmit }) => {
-    const [formData, setFormData] = useState<Omit<PurchaseDetails, 'filledBy' | 'fillDate'>>({
-        purchasePrice: request.totalValue || 0,
-        vendor: '',
-        poNumber: request.id.replace('REQ', 'PO'),
-        invoiceNumber: '',
-        purchaseDate: new Date().toISOString().split('T')[0],
-        warrantyEndDate: null,
-    });
-    const [warrantyPeriod, setWarrantyPeriod] = useState<number | ''>('');
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleDateChange = (date: Date | null) => {
-        setFormData(prev => ({ ...prev, purchaseDate: date ? date.toISOString().split('T')[0] : '' }));
-    };
-
-    useEffect(() => {
-        if (formData.purchaseDate && warrantyPeriod) {
-            const purchaseD = new Date(formData.purchaseDate);
-            const newWarrantyDate = new Date(purchaseD.setMonth(purchaseD.getMonth() + Number(warrantyPeriod)));
-            setFormData(prev => ({ ...prev, warrantyEndDate: newWarrantyDate.toISOString().split('T')[0] }));
-        } else {
-            setFormData(prev => ({ ...prev, warrantyEndDate: null }));
-        }
-    }, [formData.purchaseDate, warrantyPeriod]);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        // Simulate API delay
-        setTimeout(() => {
-            onSubmit(request.id, formData);
-            setIsLoading(false);
-        }, 800);
-    };
-
-    return (
-        <section>
-            <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">III. Form Detail Pembelian</h4>
-            <form onSubmit={handleSubmit} className="p-4 space-y-4 bg-blue-50/50 border border-blue-200 rounded-lg">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-medium text-gray-600">Harga Beli Aktual (Rp)</label>
-                        <input type="number" value={formData.purchasePrice} onChange={e => setFormData(p => ({...p, purchasePrice: Number(e.target.value)}))} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
-                    </div>
-                     <div>
-                        <label className="block text-xs font-medium text-gray-600">Vendor / Toko</label>
-                        <input type="text" value={formData.vendor} onChange={e => setFormData(p => ({...p, vendor: e.target.value}))} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
-                    </div>
-                     <div>
-                        <label className="block text-xs font-medium text-gray-600">Nomor PO</label>
-                        <input type="text" value={formData.poNumber} onChange={e => setFormData(p => ({...p, poNumber: e.target.value}))} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
-                    </div>
-                     <div>
-                        <label className="block text-xs font-medium text-gray-600">Nomor Faktur</label>
-                        <input type="text" value={formData.invoiceNumber} onChange={e => setFormData(p => ({...p, invoiceNumber: e.target.value}))} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
-                    </div>
-                     <div>
-                        <label className="block text-xs font-medium text-gray-600">Tanggal Pembelian</label>
-                        <DatePicker id="purchase-date-form" selectedDate={new Date(formData.purchaseDate)} onDateChange={handleDateChange} />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-600">Masa Garansi (bulan)</label>
-                        <input type="number" value={warrantyPeriod} onChange={e => setWarrantyPeriod(e.target.value === '' ? '' : Number(e.target.value))} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm"/>
-                    </div>
-                </div>
-                 <div className="flex justify-end pt-2">
-                    <button type="submit" disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
-                        {isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}
-                        Submit untuk Persetujuan CEO
-                    </button>
-                </div>
-            </form>
-        </section>
     );
 };
 

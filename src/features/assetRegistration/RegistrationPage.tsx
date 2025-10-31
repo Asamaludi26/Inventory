@@ -89,8 +89,8 @@ export const getStatusClass = (status: AssetStatus) => {
     switch (status) {
         case AssetStatus.IN_USE: return 'bg-info-light text-info-text';
         case AssetStatus.IN_STORAGE: return 'bg-gray-100 text-gray-800';
-
-
+        case AssetStatus.UNDER_REPAIR: return 'bg-blue-100 text-blue-700';
+        case AssetStatus.OUT_FOR_REPAIR: return 'bg-purple-100 text-purple-700';
         case AssetStatus.DAMAGED: return 'bg-warning-light text-warning-text';
         case AssetStatus.DECOMMISSIONED: return 'bg-red-200 text-red-800';
         default: return 'bg-gray-100 text-gray-800';
@@ -384,6 +384,16 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
     const locationOptions = useMemo(() => assetLocations.map(loc => ({ value: loc, label: loc })), []);
 
     const canViewPrice = (role: User['role']) => ['Admin Purchase', 'Super Admin'].includes(role);
+    
+    const calculateWarrantyPeriod = (start: Date | null, end: Date | null): number | '' => {
+        if (start && end && end > start) {
+            const timeDiff = end.getTime() - start.getTime();
+            const dayDiff = timeDiff / (1000 * 3600 * 24);
+            const totalMonths = Math.round(dayDiff / 30.44); // Approximate months
+            return totalMonths > 0 ? totalMonths : '';
+        }
+        return '';
+    };
 
     const capitalizeFirstLetter = (string: string | undefined): string => {
         if (!string) return 'Unit';
@@ -407,17 +417,21 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
             setNotes(`Pencatatan dari request ${request.id}: ${itemToRegister.keterangan}`);
             setInitialUser(request.requester);
             
-            // Prefill purchase details, respecting role visibility
-            if (request.purchaseDetails) {
-                if (canViewPrice(currentUser.role)) {
-                    setPurchasePrice(request.purchaseDetails.purchasePrice);
-                }
-                setVendor(request.purchaseDetails.vendor);
-                setPoNumber(request.purchaseDetails.poNumber);
-                setInvoiceNumber(request.purchaseDetails.invoiceNumber);
-                setPurchaseDate(new Date(request.purchaseDetails.purchaseDate));
-                if (request.purchaseDetails.warrantyEndDate) {
-                    setWarrantyDate(new Date(request.purchaseDetails.warrantyEndDate));
+            if (request.purchaseDetails && request.purchaseDetails[itemToRegister.id]) {
+                const details = request.purchaseDetails[itemToRegister.id];
+                if (details) {
+                    if (canViewPrice(currentUser.role)) {
+                        setPurchasePrice(details.purchasePrice);
+                    }
+                    setVendor(details.vendor);
+                    setPoNumber(details.poNumber);
+                    setInvoiceNumber(details.invoiceNumber);
+                    
+                    const purchase = new Date(details.purchaseDate);
+                    const warrantyEnd = details.warrantyEndDate ? new Date(details.warrantyEndDate) : null;
+                    setPurchaseDate(purchase);
+                    setWarrantyDate(warrantyEnd);
+                    setWarrantyPeriod(calculateWarrantyPeriod(purchase, warrantyEnd));
                 }
             }
             
@@ -426,7 +440,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
 
             if (type?.trackingMethod === 'bulk') {
                 setQuantity(quantityToRegister);
-                setBulkItems([]); // Clear individual items for bulk
+                setBulkItems([]);
             } else {
                 setBulkItems(Array.from({ length: quantityToRegister }, (_, i) => ({ id: Date.now() + i, serialNumber: '', macAddress: '' })));
                 setQuantity(quantityToRegister);
@@ -446,20 +460,24 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
             setVendor(editingAsset.vendor ?? '');
             setPoNumber(editingAsset.poNumber ?? '');
             setInvoiceNumber(editingAsset.invoiceNumber ?? '');
-            setPurchaseDate(new Date(editingAsset.purchaseDate));
             setRegistrationDate(new Date(editingAsset.registrationDate));
-            setWarrantyDate(editingAsset.warrantyEndDate ? new Date(editingAsset.warrantyEndDate) : null);
             setCondition(editingAsset.condition);
             setLocation(editingAsset.location ?? 'Gudang Inventori');
             setLocationDetail(editingAsset.locationDetail ?? '');
             setInitialUser(editingAsset.currentUser ?? '');
             setNotes(editingAsset.notes ?? '');
-            setQuantity(1); // For editing, it's always one item.
+            setQuantity(1); 
             setBulkItems([{
                 id: Date.now(),
                 serialNumber: editingAsset.serialNumber || '',
                 macAddress: editingAsset.macAddress || '',
             }]);
+            
+            const purchase = new Date(editingAsset.purchaseDate);
+            const warrantyEnd = editingAsset.warrantyEndDate ? new Date(editingAsset.warrantyEndDate) : null;
+            setPurchaseDate(purchase);
+            setWarrantyDate(warrantyEnd);
+            setWarrantyPeriod(calculateWarrantyPeriod(purchase, warrantyEnd));
         }
     }, [isEditing, editingAsset, assetCategories]);
 
@@ -477,9 +495,9 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
     useEffect(() => {
         if (purchaseDate && warrantyPeriod) {
             const newWarrantyDate = new Date(purchaseDate);
-            newWarrantyDate.setMonth(newWarrantyDate.getMonth() + warrantyPeriod);
+            newWarrantyDate.setMonth(newWarrantyDate.getMonth() + Number(warrantyPeriod));
             setWarrantyDate(newWarrantyDate);
-        } else {
+        } else if (warrantyPeriod === '') {
             setWarrantyDate(null);
         }
     }, [purchaseDate, warrantyPeriod]);
@@ -639,6 +657,16 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                 </div>
 
                 <FormSection title="Informasi Dasar Aset" icon={<InfoIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
+                     {prefillData && (
+                        <div className="md:col-span-2 p-4 mb-2 border-l-4 rounded-r-lg bg-info-light border-tm-primary">
+                            <div className="flex items-start gap-3">
+                                <InfoIcon className="flex-shrink-0 w-5 h-5 mt-0.5 text-info-text" />
+                                <p className="text-sm text-info-text">
+                                    <strong>Info:</strong> Informasi dasar aset telah diisi otomatis dari data request. Kategori, Tipe, dan Model tidak dapat diubah untuk memastikan konsistensi.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:col-span-2">
                         <div>
                             <label htmlFor="category" className="block text-sm font-medium text-gray-700">Kategori Aset</label>
@@ -651,6 +679,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                                     emptyStateMessage="Belum ada kategori."
                                     emptyStateButtonLabel="Buka Pengaturan Kategori"
                                     onEmptyStateClick={() => setActivePage('kategori')}
+                                    disabled={!!prefillData}
                                 />
                             </div>
                         </div>
@@ -662,7 +691,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                                     value={assetTypeId}
                                     onChange={handleTypeChange}
                                     placeholder={selectedCategoryId ? '-- Pilih Tipe --' : 'Pilih kategori dahulu'}
-                                    disabled={!selectedCategoryId}
+                                    disabled={!selectedCategoryId || !!prefillData}
                                     emptyStateMessage="Tidak ada tipe untuk kategori ini."
                                     emptyStateButtonLabel="Tambah Tipe Aset"
                                     onEmptyStateClick={() => {
@@ -683,7 +712,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                                     value={assetName}
                                     onChange={handleModelChange}
                                     placeholder={assetTypeId ? '-- Pilih Model --' : 'Pilih tipe dahulu'}
-                                    disabled={!assetTypeId}
+                                    disabled={!assetTypeId || !!prefillData}
                                     emptyStateMessage="Tidak ada model untuk tipe ini."
                                     emptyStateButtonLabel="Tambah Model Barang"
                                     onEmptyStateClick={() => {
@@ -841,36 +870,48 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                     )}
                 </FormSection>
 
-                <FormSection title="Informasi Pembelian" icon={<DollarIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
-                    <div>
-                        <label htmlFor="purchasePrice" className="block text-sm font-medium text-gray-700">Harga Beli (Rp)</label>
-                        <input type="number" id="purchasePrice" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value === '' ? '' : parseFloat(e.target.value))} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: 3500000" disabled={!canViewPrice(currentUser.role)} />
-                    </div>
-                    <div>
-                        <label htmlFor="vendor" className="block text-sm font-medium text-gray-700">Vendor / Toko</label>
-                        <input type="text" id="vendor" value={vendor} onChange={e => setVendor(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: Distributor Resmi" />
-                    </div>
-                    <div>
-                        <label htmlFor="poNumber" className="block text-sm font-medium text-gray-700">Nomor PO</label>
-                        <input type="text" id="poNumber" value={poNumber} onChange={e => setPoNumber(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: PO-123/IV/2024" />
-                    </div>
-                    <div>
-                        <label htmlFor="invoiceNumber" className="block text-sm font-medium text-gray-700">Nomor Faktur</label>
-                        <input type="text" id="invoiceNumber" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: INV/VENDOR/2024/001" />
-                    </div>
-                    <div>
-                        <label htmlFor="purchaseDate" className="block text-sm font-medium text-gray-700">Tanggal Pembelian</label>
-                        <DatePicker id="purchaseDate" selectedDate={purchaseDate} onDateChange={setPurchaseDate} disableFutureDates />
-                    </div>
-                    <div>
-                        <label htmlFor="warrantyPeriod" className="block text-sm font-medium text-gray-700">Masa Garansi (bulan)</label>
-                        <input type="number" id="warrantyPeriod" value={warrantyPeriod} onChange={e => setWarrantyPeriod(e.target.value === '' ? '' : parseInt(e.target.value))} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Contoh: 12" />
-                    </div>
-                    <div className="md:col-span-2">
-                        <label htmlFor="warrantyEndDate" className="block text-sm font-medium text-gray-700">Akhir Garansi</label>
-                        <DatePicker id="warrantyEndDate" selectedDate={warrantyDate} onDateChange={setWarrantyDate} />
-                    </div>
-                </FormSection>
+                {canViewPrice(currentUser.role) && (
+                    <FormSection title="Informasi Pembelian" icon={<DollarIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
+                        {prefillData && (
+                            <div className="md:col-span-2 p-4 mb-2 border-l-4 rounded-r-lg bg-info-light border-tm-primary">
+                                <div className="flex items-start gap-3">
+                                    <InfoIcon className="flex-shrink-0 w-5 h-5 mt-0.5 text-info-text" />
+                                    <p className="text-sm text-info-text">
+                                        <strong>Info:</strong> Informasi pembelian telah diisi otomatis dari data request. Data ini tidak dapat diubah untuk memastikan konsistensi.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                        <div>
+                            <label htmlFor="purchasePrice" className="block text-sm font-medium text-gray-700">Harga Beli (Rp)</label>
+                            <input type="number" id="purchasePrice" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value === '' ? '' : parseFloat(e.target.value))} disabled={!!prefillData} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:text-gray-500" placeholder="Contoh: 3500000" />
+                        </div>
+                        <div>
+                            <label htmlFor="vendor" className="block text-sm font-medium text-gray-700">Vendor / Toko</label>
+                            <input type="text" id="vendor" value={vendor} onChange={e => setVendor(e.target.value)} disabled={!!prefillData} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:text-gray-500" placeholder="Contoh: Distributor Resmi" />
+                        </div>
+                        <div>
+                            <label htmlFor="poNumber" className="block text-sm font-medium text-gray-700">Nomor PO</label>
+                            <input type="text" id="poNumber" value={poNumber} onChange={e => setPoNumber(e.target.value)} disabled={!!prefillData} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:text-gray-500" placeholder="Contoh: PO-123/IV/2024" />
+                        </div>
+                        <div>
+                            <label htmlFor="invoiceNumber" className="block text-sm font-medium text-gray-700">Nomor Faktur</label>
+                            <input type="text" id="invoiceNumber" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} disabled={!!prefillData} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:text-gray-500" placeholder="Contoh: INV/VENDOR/2024/001" />
+                        </div>
+                        <div>
+                            <label htmlFor="purchaseDate" className="block text-sm font-medium text-gray-700">Tanggal Pembelian</label>
+                            <DatePicker id="purchaseDate" selectedDate={purchaseDate} onDateChange={setPurchaseDate} disableFutureDates disabled={!!prefillData} />
+                        </div>
+                        <div>
+                            <label htmlFor="warrantyPeriod" className="block text-sm font-medium text-gray-700">Masa Garansi (bulan)</label>
+                            <input type="number" id="warrantyPeriod" value={warrantyPeriod} onChange={e => setWarrantyPeriod(e.target.value === '' ? '' : parseInt(e.target.value))} disabled={!!prefillData} className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:text-gray-500" placeholder="Contoh: 12" />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="warrantyEndDate" className="block text-sm font-medium text-gray-700">Akhir Garansi</label>
+                            <DatePicker id="warrantyEndDate" selectedDate={warrantyDate} onDateChange={setWarrantyDate} disabled={!!prefillData} />
+                        </div>
+                    </FormSection>
+                )}
 
                 <FormSection title="Kondisi, Lokasi & Catatan" icon={<WrenchIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
                     <div>
@@ -2069,10 +2110,7 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = ({ currentUser, assets
                                     </p>
                                     {log.referenceId && (
                                         <div className="mt-1.5">
-                                            <ClickableLink 
-                                                onClick={() => onShowPreview({ type: log.referenceId?.startsWith('HO') ? 'handover' : log.referenceId?.startsWith('DSM') ? 'dismantle' : 'request', id: log.referenceId! })}
-                                                title={`Lihat detail untuk ${log.referenceId}`}
-                                            >
+                                            <ClickableLink onClick={() => onShowPreview({ type: log.referenceId?.startsWith('HO') ? 'handover' : log.referenceId?.startsWith('DSM') ? 'dismantle' : 'request', id: log.referenceId! })} title={`Lihat detail untuk ${log.referenceId}`}>
                                                 Lihat Dokumen: {log.referenceId}
                                             </ClickableLink>
                                         </div>

@@ -1,44 +1,87 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Page, User, Asset, Request, Handover, Dismantle, ItemStatus, AssetStatus, Customer, CustomerStatus, ActivityLogEntry, PreviewData, AssetCategory, Division, StandardItem, AssetType, RequestItem, ParsedScanResult, Notification, AssetCondition, Attachment } from './types';
+
+// Types and Enums
+// FIX: Splitting enums from type-only imports to resolve module resolution errors.
+import { 
+    ItemStatus, 
+    AssetStatus, 
+    CustomerStatus, 
+    AssetCondition 
+} from './types';
+import type { 
+    Page, 
+    User, 
+    Asset, 
+    Request, 
+    Handover, 
+    Dismantle, 
+    Customer, 
+    ActivityLogEntry, 
+    PreviewData, 
+    AssetCategory, 
+    Division, 
+    StandardItem, 
+    AssetType, 
+    RequestItem, 
+    ParsedScanResult, 
+    Notification,
+    Attachment 
+} from './types';
+
+// Services
+import * as api from './services/api';
+
+// Providers and Hooks
+import { NotificationProvider, useNotification } from './providers/NotificationProvider';
+
+// Layout Components
 import { Sidebar } from './components/layout/Sidebar';
+
+// UI Components
+import Modal from './components/ui/Modal';
+import { ModelManagementModal } from './components/ui/ModelManagementModal';
+import { TypeManagementModal } from './components/ui/TypeManagementModal';
+import { Avatar } from './components/ui/Avatar';
+
+// Icon Components
+import { MenuIcon } from './components/icons/MenuIcon';
+import { QrCodeIcon } from './components/icons/QrCodeIcon';
+import { CheckIcon } from './components/icons/CheckIcon';
+import { LogoutIcon } from './components/icons/LogoutIcon';
+import { ChevronDownIcon } from './components/icons/ChevronDownIcon';
+import { SpinnerIcon } from './components/icons/SpinnerIcon';
+import { ExclamationTriangleIcon } from './components/icons/ExclamationTriangleIcon';
+import { BellIcon } from './components/icons/BellIcon';
+import { InboxIcon } from './components/icons/InboxIcon';
+import { RequestIcon } from './components/icons/RequestIcon';
+import { MegaphoneIcon } from './components/icons/MegaphoneIcon';
+import { InfoIcon } from './components/icons/InfoIcon';
+import { CloseIcon } from './components/icons/CloseIcon';
+import { WrenchIcon } from './components/icons/WrenchIcon';
+import { RegisterIcon } from './components/icons/RegisterIcon';
+import { DashboardIcon } from './components/icons/DashboardIcon';
+import { PencilIcon } from './components/icons/PencilIcon';
+
+// Page / Feature Components
+import LoginPage from './features/auth/LoginPage';
 import DashboardPage from './features/dashboard/DashboardPage';
 import ItemRequestPage from './features/itemRequest/ItemRequestPage';
 import ItemRegistration from './features/assetRegistration/RegistrationPage';
 import ItemHandoverPage from './features/handover/HandoverPage';
 import ItemDismantlePage from './features/dismantle/ItemDismantlePage';
-import { AccountsPage } from './features/users/AccountsPage';
-import CustomerManagementPage from './features/customers/CustomerManagementPage';
-import { MenuIcon } from './components/icons/MenuIcon';
-import { NotificationProvider, useNotification } from './providers/NotificationProvider';
-import Modal from './components/ui/Modal';
-import { QrCodeIcon } from './components/icons/QrCodeIcon';
-import { CheckIcon } from './components/icons/CheckIcon';
+import RepairManagementPage from './features/repair/RepairManagementPage';
 import StockOverviewPage from './features/stock/StockOverviewPage';
-import PreviewModal from './features/preview/PreviewModal';
+import CustomerManagementPage from './features/customers/CustomerManagementPage';
+import { AccountsPage } from './features/users/AccountsPage';
 import CategoryManagementPage from './features/categories/CategoryManagementPage';
-import { ModelManagementModal } from './components/ui/ModelManagementModal';
-import { TypeManagementModal } from './components/ui/TypeManagementModal';
-import LoginPage from './features/auth/LoginPage';
-import { LogoutIcon } from './components/icons/LogoutIcon';
-import { ChevronDownIcon } from './components/icons/ChevronDownIcon';
-import { SpinnerIcon } from './components/icons/SpinnerIcon';
-import * as api from './services/api';
-import { ExclamationTriangleIcon } from './components/icons/ExclamationTriangleIcon';
-import { BellIcon } from './components/icons/BellIcon';
-import { InboxIcon } from './components/icons/InboxIcon';
-import { Avatar } from './components/ui/Avatar';
-import { RequestIcon } from './components/icons/RequestIcon';
-import { MegaphoneIcon } from './components/icons/MegaphoneIcon';
-import { InfoIcon } from './components/icons/InfoIcon';
-import { CloseIcon } from './components/icons/CloseIcon';
-import { parseScanData } from './utils/scanner';
+import PreviewModal from './features/preview/PreviewModal';
+
+// Feature Sub-components
 import ReportDamageModal from './features/stock/components/ReportDamageModal';
 import { StartRepairModal, CompleteRepairModal, DecommissionConfirmationModal, AddProgressUpdateModal } from './features/stock/components/RepairModals';
-import { WrenchIcon } from './components/icons/WrenchIcon';
-import RepairManagementPage from './features/repair/RepairManagementPage';
-import { RegisterIcon } from './components/icons/RegisterIcon';
-import { DashboardIcon } from './components/icons/DashboardIcon';
-import { PencilIcon } from './components/icons/PencilIcon';
+
+// Utilities
+import { parseScanData } from './utils/scanner';
 
 
 declare var Html5Qrcode: any;
@@ -824,10 +867,38 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       const customer = customers.find(c => c.id === customerId);
       if (!customer) return;
 
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2);
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const day = now.getDate().toString().padStart(2, '0');
+      const datePrefix = `${year}${month}${day}`;
+
+      const todayHandovers = handovers.filter(h => {
+          if (!h.docNumber) return false;
+          // Check if the docNumber starts with either of today's possible prefixes
+          return h.docNumber.startsWith(`HO-RO-${datePrefix}`) || h.docNumber.startsWith(`HO-${datePrefix}`);
+      });
+
+      const highestSequence = todayHandovers.reduce((max, h) => {
+          const parts = h.docNumber.split('-');
+          const sequence = parseInt(parts[parts.length - 1], 10); // Always take the last part
+          return sequence > max ? sequence : max;
+      }, 0);
+      
+      const newSequence = (highestSequence + 1).toString().padStart(3, '0');
+      const newDocNumber = `HO-${datePrefix}-${newSequence}`;
+
       const newHandoverId = `HO-${String(handovers.length + 1).padStart(3, '0')}`;
       const newHandover: Handover = {
-        id: newHandoverId, handoverDate: new Date().toISOString().split('T')[0], menyerahkan: currentUser.name, penerima: `${customer.name} (${customer.id})`, mengetahui: currentUser.name, woRoIntNumber: `INSTALL-${assetToInstall.id}`,
-        items: [{ id: Date.now(), assetId: assetToInstall.id, itemName: assetToInstall.name, itemTypeBrand: assetToInstall.brand, conditionNotes: 'Pemasangan baru ke pelanggan', quantity: 1, checked: true }], status: ItemStatus.COMPLETED
+        id: newHandoverId, 
+        docNumber: newDocNumber,
+        handoverDate: new Date().toISOString().split('T')[0], 
+        menyerahkan: currentUser.name, 
+        penerima: `${customer.name} (${customer.id})`, 
+        mengetahui: currentUser.name, 
+        woRoIntNumber: `INSTALL-${assetToInstall.id}`,
+        items: [{ id: Date.now(), assetId: assetToInstall.id, itemName: assetToInstall.name, itemTypeBrand: assetToInstall.brand, conditionNotes: 'Pemasangan baru ke pelanggan', quantity: 1, checked: true }], 
+        status: ItemStatus.COMPLETED
       };
       setAndPersist(setHandovers, (prev: Handover[]) => [newHandover, ...prev], 'app_handovers');
 
@@ -844,7 +915,8 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
   const handleCompleteRequestRegistration = (
     requestId: string,
     registeredItemInfo: { requestItemId: number; count: number }
-  ) => {
+  ): boolean => {
+    let allItemsRegistered = false;
     setAndPersist(setRequests, (prevRequests) => {
       const updatedRequests = [...prevRequests];
       const requestIndex = updatedRequests.findIndex(r => r.id === requestId);
@@ -860,39 +932,77 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       const newCount = currentCount + registeredItemInfo.count;
       updatedRequest.partiallyRegisteredItems[registeredItemInfo.requestItemId] = newCount;
       
-      const allItemsRegistered = updatedRequest.items.every(
+      allItemsRegistered = updatedRequest.items.every(
           item => (updatedRequest.partiallyRegisteredItems?.[item.id] || 0) >= item.quantity
       );
 
       if (allItemsRegistered) {
-          updatedRequest.isRegistered = true;
-          updatedRequest.status = ItemStatus.COMPLETED;
-          
-          const requesterUser = users.find(u => u.name === updatedRequest.requester);
-          if (requesterUser) {
-              addAppNotification({
-                  recipientId: requesterUser.id,
-                  actorName: currentUser.name,
-                  type: 'REQUEST_COMPLETED',
-                  referenceId: requestId,
-              });
-          }
-          const admins = users.filter(u => u.role === 'Admin Logistik' || u.role === 'Super Admin');
-          admins.forEach(admin => {
-              addAppNotification({
-                  recipientId: admin.id,
-                  actorName: currentUser.name,
-                  type: 'REQUEST_COMPLETED',
-                  referenceId: requestId,
-              });
-          });
-
-          addNotification(`Semua item untuk request ${requestId} telah dicatat. Status diubah menjadi Selesai.`, 'success');
+          updatedRequest.status = ItemStatus.AWAITING_HANDOVER;
+          addNotification(`Semua item untuk request ${requestId} telah dicatat. Status diubah menjadi Siap Serah Terima.`, 'success');
       }
       
       updatedRequests[requestIndex] = updatedRequest;
       return updatedRequests;
     }, 'app_requests');
+
+    return allItemsRegistered;
+  };
+  
+  const handleSaveHandover = (handoverData: Omit<Handover, 'id' | 'status'>) => {
+        const newHandover: Handover = {
+            ...handoverData,
+            id: `HO-${String(handovers.length + 1).padStart(3, '0')}`,
+            status: ItemStatus.COMPLETED,
+        };
+        setAndPersist(setHandovers, prev => [newHandover, ...prev], 'app_handovers');
+
+        handoverData.items.forEach(item => {
+            if (item.assetId) {
+                handleUpdateAsset(item.assetId, {
+                    status: AssetStatus.IN_USE,
+                    currentUser: handoverData.penerima,
+                    location: `Digunakan oleh ${handoverData.penerima}`,
+                }, {
+                    user: handoverData.menyerahkan,
+                    action: 'Serah Terima Internal',
+                    details: `Aset diserahkan kepada ${handoverData.penerima}.`,
+                    referenceId: newHandover.id,
+                });
+            }
+        });
+        
+        let targetPage: Page = 'handover';
+
+        // Finalize the request if the handover originated from it
+        if (handoverData.woRoIntNumber?.startsWith('REQ-')) {
+            targetPage = 'request'; 
+            const requestId = handoverData.woRoIntNumber;
+            setAndPersist(setRequests, prev => prev.map(r => 
+                r.id === requestId ? { ...r, isRegistered: true, status: ItemStatus.COMPLETED } : r
+            ), 'app_requests');
+
+            const originalRequest = requests.find(r => r.id === requestId);
+            if (originalRequest) {
+                const requesterUser = users.find(u => u.name === originalRequest.requester);
+                if (requesterUser) {
+                    addAppNotification({
+                        recipientId: requesterUser.id,
+                        actorName: currentUser.name,
+                        type: 'REQUEST_COMPLETED',
+                        referenceId: requestId,
+                    });
+                }
+            }
+        }
+        
+        addNotification(`Berita acara serah terima ${newHandover.docNumber} berhasil dibuat.`, 'success');
+        
+        // If navigating back to the handover list, pass state to reset the view to list.
+        if (targetPage === 'handover') {
+            handleSetActivePage(targetPage, { view: 'list' });
+        } else {
+            handleSetActivePage(targetPage);
+        }
   };
   
     const findReporter = (asset: Asset): User | undefined => {
@@ -1103,11 +1213,11 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       case 'dashboard':
         return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
       case 'request':
-        return <ItemRequestPage currentUser={currentUser} requests={requests} setRequests={(valueOrFn) => setAndPersist(setRequests, valueOrFn, 'app_requests')} assets={assets} assetCategories={assetCategories} divisions={divisions} onInitiateRegistration={handleInitiateRegistration} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} onShowPreview={handleShowPreview} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal} setActivePage={handleSetActivePage} users={users} notifications={notifications} addNotification={addAppNotification} markNotificationsAsRead={markNotificationsAsRead} />;
+        return <ItemRequestPage currentUser={currentUser} requests={requests} setRequests={(valueOrFn) => setAndPersist(setRequests, valueOrFn, 'app_requests')} assets={assets} assetCategories={assetCategories} divisions={divisions} onInitiateRegistration={handleInitiateRegistration} onInitiateHandoverFromRequest={handleInitiateHandoverFromRequest} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} onShowPreview={handleShowPreview} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal} setActivePage={handleSetActivePage} users={users} notifications={notifications} addNotification={addAppNotification} markNotificationsAsRead={markNotificationsAsRead} />;
       case 'registration':
         return <ItemRegistration currentUser={currentUser} assets={assets} setAssets={(valueOrFn) => setAndPersist(setAssets, valueOrFn, 'app_assets')} customers={customers} requests={requests} handovers={handovers} dismantles={dismantles} assetCategories={assetCategories} prefillData={prefillRegData} onClearPrefill={() => setPrefillRegData(null)} onRegistrationComplete={handleCompleteRequestRegistration} onInitiateHandover={handleInitiateHandover} onInitiateDismantle={handleInitiateDismantle} onInitiateInstallation={handleInitiateInstallation} assetToViewId={assetToViewId} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)} onShowPreview={handleShowPreview} setActivePage={handleSetActivePage} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal} setIsGlobalScannerOpen={setIsGlobalScannerOpen} setScanContext={setScanContext} setFormScanCallback={setFormScanCallback}/>;
       case 'handover':
-        return <ItemHandoverPage currentUser={currentUser} handovers={handovers} setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')} assets={assets} users={users} divisions={divisions} prefillData={prefillHoData} onClearPrefill={() => setPrefillHoData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={handleShowPreview}/>;
+        return <ItemHandoverPage currentUser={currentUser} handovers={handovers} setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')} assets={assets} users={users} divisions={divisions} prefillData={prefillHoData} onClearPrefill={() => setPrefillHoData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={handleShowPreview} onSave={handleSaveHandover} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} />;
       case 'dismantle':
         return <ItemDismantlePage currentUser={currentUser} dismantles={dismantles} setDismantles={(valueOrFn) => setAndPersist(setDismantles, valueOrFn, 'app_dismantles')} assets={assets} customers={customers} users={users} prefillData={prefillDmData} onClearPrefill={() => setPrefillDmData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={handleShowPreview} setActivePage={handleSetActivePage}/>;
       case 'stock':
@@ -1194,7 +1304,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                   </div>
               </div>
           </header>
-          <main className="flex-1">
+          <main className="flex-1 isolate">
               {renderPage()}
           </main>
         </div>

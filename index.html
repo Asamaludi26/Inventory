@@ -147,33 +147,13 @@
         transition: height 0.5s ease-out;
       }
 
-      /* General styles for printing */
+      /* Simplified styles for printing. The main logic is now in JS. */
       @media print {
         body {
           background-color: #fff !important;
         }
         .no-print {
           display: none !important;
-        }
-        .printable-area {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          height: auto;
-          padding: 0 !important;
-          margin: 0 !important;
-          box-shadow: none !important;
-          border: none !important;
-          border-radius: 0 !important;
-        }
-        body * {
-          visibility: hidden;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        .printable-area, .printable-area * {
-          visibility: visible;
         }
       }
 
@@ -190,7 +170,8 @@
     "react": "https://aistudiocdn.com/react@^19.1.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react-icons/": "https://esm.sh/react-icons/"
+    "react-icons/": "https://esm.sh/react-icons/",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0"
   }
 }
 </script>

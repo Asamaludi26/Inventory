@@ -344,7 +344,6 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
     
         let relevantAssets: Asset[];
     
-        // FIX: Changed role from 'Manager' to 'Leader' to match the UserRole type.
         if (currentUser.role === 'Leader' && currentUser.divisionId) {
             const userDivisionId = currentUser.divisionId;
             const allowedCategoryNames = new Set(
@@ -442,7 +441,7 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
         return aggregatedStock
             .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.brand.toLowerCase().includes(searchQuery.toLowerCase()))
             .filter(item => filters.category ? item.category === filters.category : true)
-            .filter(item => filters.brand ? item.brand : true)
+            .filter(item => filters.brand ? item.brand === item.brand : true)
             .filter(item => {
                 if (!filters.lowStockOnly) return true;
                 const key = `${item.name}|${item.brand}`;

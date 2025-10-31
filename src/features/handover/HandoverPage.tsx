@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry, PreviewData, Request, Division } from '../../types';
-import Modal from '../../components/ui/Modal';
 import { EyeIcon } from '../../components/icons/EyeIcon';
 import { TrashIcon } from '../../components/icons/TrashIcon';
 import { useNotification } from '../../providers/NotificationProvider';
@@ -21,10 +20,12 @@ import DatePicker from '../../components/ui/DatePicker';
 import { SignatureStamp } from '../../components/ui/SignatureStamp';
 import FloatingActionBar from '../../components/ui/FloatingActionBar';
 import { ExclamationTriangleIcon } from '../../components/icons/ExclamationTriangleIcon';
-import { ClickableLink } from '../../components/ui/ClickableLink';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { FilterIcon } from '../../components/icons/FilterIcon';
-import { Letterhead } from '../../components/ui/Letterhead';
+import { InfoIcon } from '../../components/icons/InfoIcon';
+import HandoverDetailPage from './HandoverDetailPage';
+// FIX: Add missing imports for Modal and CheckIcon to resolve 'Cannot find name' errors.
+import Modal from '../../components/ui/Modal';
 import { CheckIcon } from '../../components/icons/CheckIcon';
 
 interface ItemHandoverPageProps {
@@ -38,6 +39,9 @@ interface ItemHandoverPageProps {
     onClearPrefill: () => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
     onShowPreview: (data: PreviewData) => void;
+    onSave: (data: Omit<Handover, 'id' | 'status'>) => void;
+    initialFilters?: any;
+    onClearInitialFilters: () => void;
 }
 
 const getStatusClass = (status: ItemStatus) => {
@@ -111,7 +115,7 @@ const HandoverTable: React.FC<HandoverTableProps> = ({ handovers, onDetailClick,
                             />
                         </th>
                     )}
-                    <SortableHeader columnKey="id" sortConfig={sortConfig} requestSort={requestSort}>ID / Tanggal</SortableHeader>
+                    <SortableHeader columnKey="docNumber" sortConfig={sortConfig} requestSort={requestSort}>No. Dokumen / Tanggal</SortableHeader>
                     <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Pihak Terlibat</th>
                     <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Detail Barang</th>
                     <SortableHeader columnKey="status" sortConfig={sortConfig} requestSort={requestSort}>Status</SortableHeader>
@@ -137,8 +141,8 @@ const HandoverTable: React.FC<HandoverTableProps> = ({ handovers, onDetailClick,
                                 </td>
                             )}
                             <td id={`handover-id-${ho.id}`} className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-semibold text-gray-900">{ho.id}</div>
-                                <div className="text-xs text-gray-500">{ho.handoverDate}</div>
+                                <div className="text-sm font-semibold text-gray-900">{ho.docNumber}</div>
+                                <div className="text-xs text-gray-500">{new Date(ho.handoverDate).toLocaleDateString('id-ID')}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">{ho.menyerahkan}</div>
@@ -190,6 +194,7 @@ const HandoverTable: React.FC<HandoverTableProps> = ({ handovers, onDetailClick,
 
 const HandoverForm: React.FC<{ 
     currentUser: User;
+    handovers: Handover[];
     onSave: (data: Omit<Handover, 'id' | 'status'>) => void; 
     assets: Asset[]; 
     users: User[];
@@ -197,8 +202,9 @@ const HandoverForm: React.FC<{
     prefillData?: Asset | Request | null;
     onClearPrefill: () => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
-}> = ({ currentUser, onSave, assets, users, divisions, prefillData, onClearPrefill, onUpdateAsset }) => {
+}> = ({ currentUser, handovers, onSave, assets, users, divisions, prefillData, onClearPrefill, onUpdateAsset }) => {
     const [handoverDate, setHandoverDate] = useState<Date | null>(new Date());
+    const [docNumber, setDocNumber] = useState('');
     const [menyerahkan, setMenyerahkan] = useState('');
     const [penerima, setPenerima] = useState('');
     const [mengetahui, setMengetahui] = useState('');
@@ -213,9 +219,32 @@ const HandoverForm: React.FC<{
     const formId = "handover-form";
     const addNotification = useNotification();
     
-    const userOptions = useMemo(() => 
-        users.map(user => ({ value: user.name, label: user.name })), 
-    [users]);
+    const [selectedDivisionId, setSelectedDivisionId] = useState('');
+    
+    const isFromRequest = prefillData && 'requester' in prefillData;
+    
+    const divisionOptions = useMemo(() => [
+        { value: '', label: '-- Pilih Divisi --' },
+        ...divisions.map(d => ({ value: d.id.toString(), label: d.name }))
+    ], [divisions]);
+
+    const filteredUserOptions = useMemo(() => {
+        if (!selectedDivisionId) {
+            return [];
+        }
+        const userList = users.filter(u => u.divisionId?.toString() === selectedDivisionId);
+        return userList.map(user => ({
+            value: user.name,
+            label: user.name
+        }));
+    }, [users, selectedDivisionId]);
+
+    const handleDivisionChange = (divId: string) => {
+        setSelectedDivisionId(divId);
+        setPenerima(''); // Reset recipient when division changes
+    };
+
+    const ceo = useMemo(() => users.find(u => u.role === 'Super Admin'), [users]);
 
     const availableAssets = useMemo(() => {
         const inStorage = assets.filter(asset => asset.status === AssetStatus.IN_STORAGE);
@@ -244,23 +273,81 @@ const HandoverForm: React.FC<{
     };
 
     useEffect(() => {
+        const now = new Date();
+        const year = now.getFullYear().toString().slice(-2);
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const datePrefix = `${year}${month}${day}`;
+
+        // Determine the prefix based on whether it's from a request
+        const isFromRequest = prefillData && 'requester' in prefillData;
+        const prefix = isFromRequest ? `HO-RO-${datePrefix}` : `HO-${datePrefix}`;
+
+        const todayHandovers = handovers.filter(h => {
+            if (!h.docNumber) return false;
+            // Check if the docNumber starts with either of today's possible prefixes
+            return h.docNumber.startsWith(`HO-RO-${datePrefix}`) || h.docNumber.startsWith(`HO-${datePrefix}`);
+        });
+
+        const highestSequence = todayHandovers.reduce((max, h) => {
+            const parts = h.docNumber.split('-');
+            const sequence = parseInt(parts[parts.length - 1], 10); // Always take the last part
+            return sequence > max ? sequence : max;
+        }, 0);
+        
+        const newSequence = (highestSequence + 1).toString().padStart(3, '0');
+        const newDocNumber = `${prefix}-${newSequence}`;
+        
+        setDocNumber(newDocNumber);
+    }, [handovers, prefillData]);
+
+    useEffect(() => {
         setMenyerahkan(currentUser.name);
     }, [currentUser]);
 
     useEffect(() => {
+        if (ceo) {
+            setMengetahui(ceo.name);
+        }
+    }, [ceo]);
+
+    useEffect(() => {
         if (prefillData) {
             if ('requester' in prefillData) { // It's a Request object
-                setPenerima(prefillData.requester);
+                const recipientUser = users.find(u => u.name === prefillData.requester);
+                if (recipientUser) {
+                    setPenerima(recipientUser.name);
+                    setSelectedDivisionId(recipientUser.divisionId?.toString() || '');
+                }
                 setWoRoIntNumber(prefillData.id);
-                setItems(prefillData.items.map(item => ({
-                    id: Date.now() + Math.random(),
-                    assetId: '', // Admin must select this
-                    itemName: item.itemName,
-                    itemTypeBrand: item.itemTypeBrand,
-                    conditionNotes: 'Kondisi baik (dari stok)',
-                    quantity: item.quantity,
-                    checked: true
-                })));
+                
+                const registeredAssets = assets.filter(asset => 
+                    asset.woRoIntNumber === prefillData.id && asset.status === AssetStatus.IN_STORAGE
+                );
+
+                if (registeredAssets.length > 0) {
+                    setItems(registeredAssets.map(asset => ({
+                        id: Date.now() + Math.random(),
+                        assetId: asset.id,
+                        itemName: asset.name,
+                        itemTypeBrand: asset.brand,
+                        conditionNotes: asset.condition,
+                        quantity: 1,
+                        checked: true
+                    })));
+                } else {
+                     setItems(prefillData.items.map(item => ({
+                        id: Date.now() + Math.random(),
+                        assetId: '', 
+                        itemName: item.itemName,
+                        itemTypeBrand: item.itemTypeBrand,
+                        conditionNotes: 'Kondisi baik (dari stok)',
+                        quantity: item.quantity,
+                        checked: true
+                    })));
+                     addNotification('Aset yang baru dicatat tidak ditemukan di gudang. Harap pilih secara manual.', 'warning');
+                }
+
             } else { // It's an Asset object
                 setItems([{
                     id: Date.now(),
@@ -273,9 +360,8 @@ const HandoverForm: React.FC<{
                 }]);
                 setMenyerahkan(prefillData.currentUser || currentUser.name);
             }
-            onClearPrefill();
         }
-    }, [prefillData, currentUser.name, onClearPrefill]);
+    }, [prefillData, currentUser.name, assets, addNotification, users]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(([entry]) => setIsFooterVisible(entry.isIntersecting), { threshold: 0.1 });
@@ -327,6 +413,7 @@ const HandoverForm: React.FC<{
         setIsSubmitting(true);
         setTimeout(() => {
             onSave({
+                docNumber: docNumber,
                 handoverDate: handoverDate!.toISOString().split('T')[0],
                 menyerahkan,
                 penerima,
@@ -357,15 +444,56 @@ const HandoverForm: React.FC<{
                     <p className="font-semibold text-tm-secondary">BERITA ACARA SERAH TERIMA BARANG (INTERNAL)</p>
                 </div>
                 
+                {isFromRequest && (
+                    <div className="p-4 mb-4 border-l-4 rounded-r-lg bg-blue-50 border-tm-primary">
+                        <div className="flex items-start gap-3">
+                            <InfoIcon className="flex-shrink-0 w-5 h-5 mt-0.5 text-tm-primary" />
+                            <p className="text-sm text-blue-800">
+                                <strong>Info:</strong> Penerima, divisi, dan detail barang telah diatur secara otomatis berdasarkan data dari request aset asli
+                                (<span className="font-mono">{woRoIntNumber}</span>) untuk memastikan akurasi data.
+                            </p>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="p-4 border-t border-b border-gray-200">
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Tanggal</label>
                             <DatePicker id="handoverDate" selectedDate={handoverDate} onDateChange={setHandoverDate} />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">No. WO/RO/Internal</label>
+                            <label htmlFor="docNumber" className="block text-sm font-medium text-gray-700">No. Dokumen</label>
+                            <input 
+                                type="text" 
+                                id="docNumber" 
+                                value={docNumber}
+                                readOnly
+                                className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-100 border border-gray-200 rounded-lg shadow-sm sm:text-sm" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">No. Referensi (WO/RO/Request)</label>
                             <input type="text" value={woRoIntNumber} onChange={e => setWoRoIntNumber(e.target.value)} className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Divisi</label>
+                             <CustomSelect 
+                                options={divisionOptions} 
+                                value={selectedDivisionId}
+                                onChange={handleDivisionChange}
+                                disabled={isFromRequest}
+                            />
+                        </div>
+                         <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">Penerima</label>
+                            <CustomSelect 
+                                options={filteredUserOptions} 
+                                value={penerima} 
+                                onChange={setPenerima} 
+                                placeholder={selectedDivisionId ? "-- Pilih Nama Penerima --" : "Pilih divisi terlebih dahulu"}
+                                disabled={!selectedDivisionId || isFromRequest}
+                            />
                         </div>
                     </div>
                 </div>
@@ -374,7 +502,7 @@ const HandoverForm: React.FC<{
                     <h3 className="text-lg font-semibold text-tm-dark">Detail Barang</h3>
                      <div className="flex items-center justify-between">
                         <p className="text-sm text-gray-600">Daftar aset yang diserahterimakan.</p>
-                        <button type="button" onClick={handleAddItem} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-accent hover:bg-tm-primary">
+                        <button type="button" onClick={handleAddItem} disabled={isFromRequest} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-accent hover:bg-tm-primary disabled:bg-gray-400 disabled:cursor-not-allowed">
                             Tambah Aset
                         </button>
                     </div>
@@ -385,7 +513,7 @@ const HandoverForm: React.FC<{
                                 <div className="absolute flex items-center justify-center w-8 h-8 font-bold text-white rounded-full -top-4 -left-4 bg-tm-primary">
                                     {index + 1}
                                 </div>
-                                {items.length > 1 && (
+                                {items.length > 1 && !isFromRequest && (
                                     <div className="absolute top-2 right-2">
                                         <button type="button" onClick={() => handleRemoveItem(item.id)} className="flex items-center justify-center w-8 h-8 text-gray-400 transition-colors rounded-full hover:bg-red-100 hover:text-red-500">
                                             <TrashIcon className="w-5 h-5"/>
@@ -395,7 +523,7 @@ const HandoverForm: React.FC<{
                                 <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium text-gray-600">Pilih Aset</label>
-                                        <CustomSelect options={assetOptions} value={item.assetId || ''} onChange={value => handleAssetSelection(item.id, value)} placeholder="-- Pilih Aset dari Stok --" />
+                                        <CustomSelect options={assetOptions} value={item.assetId || ''} onChange={value => handleAssetSelection(item.id, value)} placeholder="-- Pilih Aset dari Stok --" disabled={isFromRequest} />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-600">Nama Barang</label>
@@ -418,30 +546,30 @@ const HandoverForm: React.FC<{
                 <div className="pt-8 mt-6 border-t border-gray-200">
                      <div className="grid grid-cols-1 text-center gap-y-8 md:grid-cols-3 md:gap-x-8">
                         <div>
-                            <label htmlFor="menyerahkan" className="font-medium text-gray-700">Yang Menyerahkan</label>
+                            <p className="font-medium text-gray-700">Yang Menyerahkan</p>
                             <div className="flex items-center justify-center mt-2 h-28">
                                 {menyerahkan && <SignatureStamp signerName={menyerahkan} signatureDate={handoverDate?.toISOString() || ''} signerDivision={getDivisionForUser(menyerahkan)} />}
                             </div>
-                            <div className="mt-2 border-t border-gray-400 pt-1">
-                                <CustomSelect options={userOptions} value={menyerahkan} onChange={setMenyerahkan} placeholder="( Nama Jelas )" />
+                            <div className="pt-1 mt-2 border-t border-gray-400">
+                                <p className="w-full p-1 text-sm text-center text-gray-800 rounded-md">{menyerahkan || 'Nama Jelas'}</p>
                             </div>
                         </div>
                         <div>
-                            <label htmlFor="penerima" className="font-medium text-gray-700">Penerima</label>
+                            <p className="font-medium text-gray-700">Penerima</p>
                             <div className="flex items-center justify-center mt-2 h-28">
-                                {penerima && <SignatureStamp signerName={penerima} signatureDate={handoverDate?.toISOString() || ''} signerDivision={getDivisionForUser(penerima)} />}
+                                {penerima ? <SignatureStamp signerName={penerima} signatureDate={handoverDate?.toISOString() || ''} signerDivision={getDivisionForUser(penerima)} /> : <span className="text-sm italic text-gray-400">Pilih penerima di atas</span>}
                             </div>
-                            <div className="mt-2 border-t border-gray-400 pt-1">
-                                <CustomSelect options={userOptions} value={penerima} onChange={setPenerima} placeholder="( Nama Jelas )" />
+                             <div className="pt-1 mt-2 border-t border-gray-400">
+                                <p className="w-full p-1 text-sm text-center text-gray-800 rounded-md">{penerima || 'Nama Jelas'}</p>
                             </div>
                         </div>
                         <div>
-                            <label htmlFor="mengetahui" className="font-medium text-gray-700">Mengetahui</label>
+                            <p className="font-medium text-gray-700">Mengetahui</p>
                             <div className="flex items-center justify-center mt-2 h-28">
                                 {mengetahui && <SignatureStamp signerName={mengetahui} signatureDate={handoverDate?.toISOString() || ''} signerDivision={getDivisionForUser(mengetahui)} />}
                             </div>
-                            <div className="mt-2 border-t border-gray-400 pt-1">
-                                <CustomSelect options={userOptions} value={mengetahui} onChange={setMengetahui} placeholder="( Nama Jelas )" />
+                            <div className="pt-1 mt-2 border-t border-gray-400">
+                                <p className="w-full p-1 text-sm text-center text-gray-800 rounded-md">{mengetahui || 'Nama Jelas'}</p>
                             </div>
                         </div>
                     </div>
@@ -459,11 +587,10 @@ const HandoverForm: React.FC<{
 };
 
 const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
-    const { currentUser, handovers, setHandovers, assets, users, divisions, prefillData, onClearPrefill, onUpdateAsset, onShowPreview } = props;
+    const { currentUser, handovers, setHandovers, assets, users, divisions, prefillData, onClearPrefill, onUpdateAsset, onShowPreview, onSave, initialFilters, onClearInitialFilters } = props;
 
-    const [view, setView] = useState<'list' | 'form'>('list');
+    const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
     const [selectedHandover, setSelectedHandover] = useState<Handover | null>(null);
-    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [handoverToDeleteId, setHandoverToDeleteId] = useState<string | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState(false);
     const [isBulkSelectMode, setIsBulkSelectMode] = useState(false);
@@ -482,55 +609,43 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const addNotification = useNotification();
-
-    const getDivisionForUser = (userName: string): string => {
-        if (!userName) return '';
-        const user = users.find(u => u.name === userName);
-        if (!user || !user.divisionId) return '';
-        const division = divisions.find(d => d.id === user.divisionId);
-        return division ? `Divisi ${division.name}` : '';
-    };
     
     useEffect(() => {
         if (prefillData) setView('form');
     }, [prefillData]);
     
-    const handleSetView = (newView: 'list' | 'form') => {
+    useEffect(() => {
+        if (initialFilters?.view === 'list') {
+            setView('list');
+            onClearInitialFilters(); // Consume the state
+        }
+    }, [initialFilters, onClearInitialFilters]);
+
+    const handleSetView = (newView: 'list' | 'form' | 'detail') => {
         if (newView === 'list' && prefillData) onClearPrefill();
         setView(newView);
     };
 
-    const handleCreateHandover = (data: Omit<Handover, 'id' | 'status'>) => {
-        const newHandover: Handover = {
-            ...data,
-            id: `HO-${String(handovers.length + 1).padStart(3, '0')}`,
-            status: ItemStatus.COMPLETED,
-        };
-        setHandovers(prev => [newHandover, ...prev]);
-
-        data.items.forEach(item => {
-            if (item.assetId) {
-                onUpdateAsset(item.assetId, {
-                    status: AssetStatus.IN_USE,
-                    currentUser: data.penerima,
-                    location: `Digunakan oleh ${data.penerima}`,
-                }, {
-                    user: data.menyerahkan,
-                    action: 'Serah Terima Internal',
-                    details: `Aset diserahkan kepada ${data.penerima}.`,
-                    referenceId: newHandover.id,
-                });
-            }
-        });
-
-        addNotification('Berita acara serah terima berhasil dibuat.', 'success');
-        handleSetView('list');
-    };
-    
     const handleShowDetails = (handover: Handover) => {
         setSelectedHandover(handover);
-        setIsDetailModalOpen(true);
+        setView('detail');
     };
+    
+    const handleCompleteHandover = () => {
+        if (!selectedHandover) return;
+        setIsLoading(true);
+
+        setTimeout(() => {
+            const updatedHandover: Handover = { ...selectedHandover, status: ItemStatus.COMPLETED };
+            
+            setHandovers(prev => prev.map(d => d.id === updatedHandover.id ? updatedHandover : d));
+
+            addNotification('Handover telah diselesaikan.', 'success');
+            setIsLoading(false);
+            setView('list');
+            setSelectedHandover(null);
+        }, 1000);
+    }
     
      useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -585,7 +700,7 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
         return tempHandovers.filter(ho => {
             const searchLower = searchQuery.toLowerCase();
             return (
-                ho.id.toLowerCase().includes(searchLower) ||
+                ho.docNumber.toLowerCase().includes(searchLower) ||
                 ho.menyerahkan.toLowerCase().includes(searchLower) ||
                 ho.penerima.toLowerCase().includes(searchLower) ||
                 ho.items.some(item => item.itemName.toLowerCase().includes(searchLower))
@@ -660,7 +775,7 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
     const handleSelectOne = (id: string) => {
         setSelectedHandoverIds(prev => prev.includes(id) ? prev.filter(hid => hid !== id) : [...prev, id]);
     };
-
+    
     const statusOptions = Object.values(ItemStatus).filter(s => [ItemStatus.COMPLETED, ItemStatus.IN_PROGRESS, ItemStatus.PENDING].includes(s)).map(s => ({ value: s, label: s }));
 
     const renderContent = () => {
@@ -674,9 +789,27 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
                         </button>
                     </div>
                     <div className="p-4 sm:p-6 bg-white border border-gray-200/80 rounded-xl shadow-md">
-                        <HandoverForm {...props} onSave={handleCreateHandover} />
+                        <HandoverForm {...props} onSave={onSave} />
                     </div>
                 </div>
+            );
+        }
+
+        if (view === 'detail' && selectedHandover) {
+            return (
+                <HandoverDetailPage
+                    handover={selectedHandover}
+                    currentUser={currentUser}
+                    onBackToList={() => {
+                        setView('list');
+                        setSelectedHandover(null);
+                    }}
+                    users={users}
+                    divisions={divisions}
+                    onShowPreview={onShowPreview}
+                    onComplete={handleCompleteHandover}
+                    isLoading={isLoading}
+                />
             );
         }
 
@@ -698,7 +831,7 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
                     <div className="flex flex-wrap items-center gap-4">
                         <div className="relative flex-grow">
                             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"><SearchIcon className="w-5 h-5 text-gray-400" /></div>
-                            <input type="text" placeholder="Cari ID, Pihak, Barang..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 py-2 pl-10 pr-4 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent" />
+                            <input type="text" placeholder="Cari No. Dokumen, Pihak, Barang..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 py-2 pl-10 pr-4 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent" />
                         </div>
                         <div className="relative" ref={filterPanelRef}>
                             <button
@@ -784,87 +917,6 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
     return (
         <div className={view === 'form' ? 'pb-24' : ''}>
             {renderContent()}
-
-            {selectedHandover && (
-                <Modal 
-                    isOpen={isDetailModalOpen} 
-                    onClose={() => setIsDetailModalOpen(false)} 
-                    title="" 
-                    size="3xl"
-                    disableContentPadding
-                    footerContent={
-                        selectedHandover.status === ItemStatus.IN_PROGRESS ? (
-                            <button
-                                onClick={() => addNotification('Fungsi ini belum diimplementasikan.', 'info')}
-                                disabled={isLoading}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-success rounded-lg shadow-sm hover:bg-green-700 disabled:bg-green-400"
-                            >
-                                {isLoading ? <SpinnerIcon className="w-4 h-4"/> : <CheckIcon className="w-4 h-4"/>}
-                                {isLoading ? 'Memproses...' : 'Selesaikan Handover'}
-                            </button>
-                        ) : null
-                    }
-                >
-                      <div className="p-6">
-                        <Letterhead />
-                        <div className="text-center mb-6">
-                            <h3 className="text-xl font-bold uppercase text-tm-dark">Berita Acara Serah Terima Barang</h3>
-                            <p className="text-sm text-tm-secondary">Nomor: {selectedHandover.id}</p>
-                        </div>
-                        
-                        <div className="space-y-6 text-sm">
-                           <section>
-                                <p className="mb-2 text-gray-800">Pada hari ini, tanggal {new Date(selectedHandover.handoverDate).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}, telah dilaksanakan serah terima barang internal dengan rincian sebagai berikut:</p>
-                                <dl className="grid grid-cols-2 gap-x-6 gap-y-2 p-3 bg-gray-50 border rounded-md">
-                                    <div><dt className="text-gray-500">Pihak Pertama (Yang Menyerahkan)</dt><dd className="font-medium text-gray-900"><ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedHandover.menyerahkan})}>{selectedHandover.menyerahkan}</ClickableLink></dd></div>
-                                    <div><dt className="text-gray-500">Pihak Kedua (Yang Menerima)</dt><dd className="font-medium text-gray-900"><ClickableLink onClick={() => onShowPreview({type: 'user', id: selectedHandover.penerima})}>{selectedHandover.penerima}</ClickableLink></dd></div>
-                                </dl>
-                            </section>
-                            
-                            <section>
-                                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">Rincian Barang</h4>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-gray-100 text-xs uppercase text-gray-700">
-                                            <tr>
-                                                <th className="p-2 w-10">No.</th>
-                                                <th className="p-2">Nama Barang</th>
-                                                <th className="p-2">ID Aset</th>
-                                                <th className="p-2">Kondisi</th>
-                                                <th className="p-2 text-center">Jumlah</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedHandover.items.map((item, index) => (
-                                                <tr key={item.id} className="border-b">
-                                                    <td className="p-2 text-center text-gray-800">{index + 1}.</td>
-                                                    <td className="p-2 font-semibold text-gray-800">{item.itemName}</td>
-                                                    <td className="p-2 text-gray-600 font-mono">
-                                                        <ClickableLink onClick={() => onShowPreview({type: 'asset', id: item.assetId!})}>
-                                                            {item.assetId}
-                                                        </ClickableLink>
-                                                    </td>
-                                                    <td className="p-2 text-gray-600">{item.conditionNotes}</td>
-                                                    <td className="p-2 text-center font-medium text-gray-800">{item.quantity} unit</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </section>
-                            <section className="pt-6">
-                            <h4 className="font-semibold text-gray-800 border-b pb-1 mb-6">Persetujuan</h4>
-                                <p className="text-xs text-center text-gray-500 mb-6">Demikian Berita Acara ini dibuat untuk dipergunakan sebagaimana mestinya.</p>
-                                <div className="grid grid-cols-1 text-sm text-center gap-y-6 sm:grid-cols-3">
-                                    <div><p className="font-semibold text-gray-600">Yang Menyerahkan,</p><div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.menyerahkan} signatureDate={selectedHandover.handoverDate} signerDivision={getDivisionForUser(selectedHandover.menyerahkan)} /></div><div className="pt-1 mt-2"><p>({selectedHandover.menyerahkan})</p></div></div>
-                                    <div><p className="font-semibold text-gray-600">Penerima,</p><div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.penerima} signatureDate={selectedHandover.handoverDate} signerDivision={getDivisionForUser(selectedHandover.penerima)} /></div><div className="pt-1 mt-2"><p>({selectedHandover.penerima})</p></div></div>
-                                    <div><p className="font-semibold text-gray-600">Mengetahui,</p><div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={selectedHandover.mengetahui} signatureDate={selectedHandover.handoverDate} signerDivision={getDivisionForUser(selectedHandover.mengetahui)} /></div><div className="pt-1 mt-2"><p>({selectedHandover.mengetahui})</p></div></div>
-                                </div>
-                            </section>
-                        </div>
-                    </div>
-                </Modal>
-            )}
 
             {handoverToDeleteId && (
                 <Modal isOpen={!!handoverToDeleteId} onClose={() => setHandoverToDeleteId(null)} title="Konfirmasi Hapus" hideDefaultCloseButton>
