@@ -43,7 +43,7 @@ const allMenuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
   {
     id: 'assetManagement',
-    label: 'Manajemen Aset',
+    label: 'Pusat Aset',
     icon: AssetIcon,
     children: [
       { id: 'registration', label: 'Catat Aset', icon: RegisterIcon, roles: ['Admin Logistik', 'Super Admin'] },
@@ -54,8 +54,7 @@ const allMenuItems: MenuItem[] = [
         icon: RequestIcon,
         children: [
           { id: 'request-new', page: 'request', label: 'Request Baru', icon: RequestIcon },
-          { id: 'request-stock', page: 'request-stock', label: 'Request Stok', icon: BoxIcon },
-          { id: 'request-loan', page: 'request-loan', label: 'Request Pinjam', icon: HandoverIcon },
+          { id: 'request-loan', page: 'request-pinjam', label: 'Request Pinjam', icon: JournalCheckIcon },
         ],
       },
       { id: 'handover', label: 'Handover Aset', icon: HandoverIcon, roles: ['Admin Logistik', 'Super Admin'] },

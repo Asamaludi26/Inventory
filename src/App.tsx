@@ -65,7 +65,7 @@ import { PencilIcon } from './components/icons/PencilIcon';
 // Page / Feature Components
 import LoginPage from './features/auth/LoginPage';
 import DashboardPage from './features/dashboard/DashboardPage';
-import ItemRequestPage from './features/itemRequest/ItemRequestPage';
+import RequestHubPage from './features/requests/RequestHubPage';
 import ItemRegistration from './features/assetRegistration/RegistrationPage';
 import ItemHandoverPage from './features/handover/HandoverPage';
 import ItemDismantlePage from './features/dismantle/ItemDismantlePage';
@@ -1213,7 +1213,28 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       case 'dashboard':
         return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
       case 'request':
-        return <ItemRequestPage currentUser={currentUser} requests={requests} setRequests={(valueOrFn) => setAndPersist(setRequests, valueOrFn, 'app_requests')} assets={assets} assetCategories={assetCategories} divisions={divisions} onInitiateRegistration={handleInitiateRegistration} onInitiateHandoverFromRequest={handleInitiateHandoverFromRequest} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} onShowPreview={handleShowPreview} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal} setActivePage={handleSetActivePage} users={users} notifications={notifications} addNotification={addAppNotification} markNotificationsAsRead={markNotificationsAsRead} />;
+      case 'request-pinjam':
+        return <RequestHubPage 
+                  activePage={activePage}
+                  currentUser={currentUser} 
+                  requests={requests} 
+                  setRequests={(valueOrFn) => setAndPersist(setRequests, valueOrFn, 'app_requests')} 
+                  assets={assets} 
+                  assetCategories={assetCategories} 
+                  divisions={divisions} 
+                  onInitiateRegistration={handleInitiateRegistration} 
+                  onInitiateHandoverFromRequest={handleInitiateHandoverFromRequest} 
+                  initialFilters={pageInitialState} 
+                  onClearInitialFilters={clearPageInitialState} 
+                  onShowPreview={handleShowPreview} 
+                  openModelModal={handleOpenModelModal} 
+                  openTypeModal={handleOpenTypeModal} 
+                  setActivePage={handleSetActivePage} 
+                  users={users} 
+                  notifications={notifications} 
+                  addNotification={addAppNotification} 
+                  markNotificationsAsRead={markNotificationsAsRead} 
+                />;
       case 'registration':
         return <ItemRegistration currentUser={currentUser} assets={assets} setAssets={(valueOrFn) => setAndPersist(setAssets, valueOrFn, 'app_assets')} customers={customers} requests={requests} handovers={handovers} dismantles={dismantles} assetCategories={assetCategories} prefillData={prefillRegData} onClearPrefill={() => setPrefillRegData(null)} onRegistrationComplete={handleCompleteRequestRegistration} onInitiateHandover={handleInitiateHandover} onInitiateDismantle={handleInitiateDismantle} onInitiateInstallation={handleInitiateInstallation} assetToViewId={assetToViewId} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)} onShowPreview={handleShowPreview} setActivePage={handleSetActivePage} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal} setIsGlobalScannerOpen={setIsGlobalScannerOpen} setScanContext={setScanContext} setFormScanCallback={setFormScanCallback}/>;
       case 'handover':
@@ -1230,10 +1251,6 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         return <CategoryManagementPage currentUser={currentUser} categories={assetCategories} setCategories={(valueOrFn) => setAndPersist(setAssetCategories, valueOrFn, 'app_assetCategories')} divisions={divisions} assets={assets} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal}/>;
       case 'customers':
         return <CustomerManagementPage currentUser={currentUser} customers={customers} setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} assets={assets} onInitiateDismantle={handleInitiateDismantle} onShowPreview={handleShowPreview} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)}/>;
-      case 'request-stock':
-        return <UnderConstructionPage title="Request Stok" setActivePage={handleSetActivePage} />;
-      case 'request-loan':
-        return <UnderConstructionPage title="Request Pinjam" setActivePage={handleSetActivePage} />;
       default:
         return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
     }

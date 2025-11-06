@@ -1,4 +1,5 @@
 
+
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Asset, Request, Handover, Dismantle, Customer, AssetStatus, ItemStatus, Page, PreviewData, AssetCategory, Division, OrderType, OrderDetails, User, UserRole } from '../../types';
 import { WrenchIcon } from '../../components/icons/WrenchIcon';
@@ -25,7 +26,8 @@ import { BoxIcon } from '../../components/icons/BoxIcon';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { PercentIcon } from '../../components/icons/PercentIcon';
 import { HistoryIcon } from '../../components/icons/HistoryIcon';
-import { RequestStatusIndicator } from '../itemRequest/components/RequestStatus';
+// FIX: The import path for RequestStatusIndicator was incorrect, pointing to an empty file. Corrected to point to the actual component location.
+import { RequestStatusIndicator } from '../requests/new/components/RequestStatus';
 import { InboxIcon } from '../../components/icons/InboxIcon';
 import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
 import { useSortableData, SortConfig } from '../../hooks/useSortableData';

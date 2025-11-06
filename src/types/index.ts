@@ -54,8 +54,7 @@ export type Page =
     | 'customers'
     | 'pengaturan-pengguna'
     | 'kategori'
-    | 'request-stock'
-    | 'request-loan';
+    | 'request-pinjam';
 
 export type PreviewData = 
     | { type: 'asset'; id: string }
@@ -207,7 +206,7 @@ export interface PurchaseDetails {
     fillDate: string;
 }
 
-export type ActivityType = 'creation' | 'status_change' | 'comment' | 'priority_change';
+export type ActivityType = 'creation' | 'status_change' | 'comment' | 'priority_change' | 'revision';
 
 export interface Activity {
     id: number;
@@ -219,6 +218,12 @@ export interface Activity {
         oldStatus?: ItemStatus;
         newStatus?: ItemStatus;
         text?: string;
+        revisions?: {
+            itemName: string;
+            originalQuantity: number;
+            approvedQuantity: number;
+            reason: string;
+        }[];
         [key: string]: any;
     };
 }

@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Asset, AssetCondition, User } from '../../../types';
 import Modal from '../../../components/ui/Modal';

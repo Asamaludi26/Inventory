@@ -1,45 +1,43 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../types';
-import Modal from '../../components/ui/Modal';
-import { CloseIcon } from '../../components/icons/CloseIcon';
-import DatePicker from '../../components/ui/DatePicker';
-import { EyeIcon } from '../../components/icons/EyeIcon';
-import { TrashIcon } from '../../components/icons/TrashIcon';
-import FloatingActionBar from '../../components/ui/FloatingActionBar';
-import { useNotification } from '../../providers/NotificationProvider';
-import { InboxIcon } from '../../components/icons/InboxIcon';
-import { useSortableData, SortConfig } from '../../hooks/useSortableData';
-import { SortAscIcon } from '../../components/icons/SortAscIcon';
-import { SortDescIcon } from '../../components/icons/SortDescIcon';
-import { SortIcon } from '../../components/icons/SortIcon';
-import { exportToCSV } from '../../utils/csvExporter';
-import { Checkbox } from '../../components/ui/Checkbox';
-import { useLongPress } from '../../hooks/useLongPress';
-import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
-import { SearchIcon } from '../../components/icons/SearchIcon';
-import { PaginationControls } from '../../components/ui/PaginationControls';
-import { RegisterIcon } from '../../components/icons/RegisterIcon';
-import { ExclamationTriangleIcon } from '../../components/icons/ExclamationTriangleIcon';
-import { Tooltip } from '../../components/ui/Tooltip';
-import { CustomSelect } from '../../components/ui/CustomSelect';
-import { FilterIcon } from '../../components/icons/FilterIcon';
-import { RequestIcon } from '../../components/icons/RequestIcon';
-import { CheckIcon } from '../../components/icons/CheckIcon';
-import { BellIcon } from '../../components/icons/BellIcon';
-import { MegaphoneIcon } from '../../components/icons/MegaphoneIcon';
-import { InfoIcon } from '../../components/icons/InfoIcon';
-import { ExportIcon } from '../../components/icons/ExportIcon';
+import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../../types';
+import Modal from '../../../components/ui/Modal';
+import { CloseIcon } from '../../../components/icons/CloseIcon';
+import DatePicker from '../../../components/ui/DatePicker';
+import { EyeIcon } from '../../../components/icons/EyeIcon';
+import { TrashIcon } from '../../../components/icons/TrashIcon';
+import FloatingActionBar from '../../../components/ui/FloatingActionBar';
+import { useNotification } from '../../../providers/NotificationProvider';
+import { InboxIcon } from '../../../components/icons/InboxIcon';
+import { useSortableData, SortConfig } from '../../../hooks/useSortableData';
+import { SortAscIcon } from '../../../components/icons/SortAscIcon';
+import { SortDescIcon } from '../../../components/icons/SortDescIcon';
+import { SortIcon } from '../../../components/icons/SortIcon';
+import { exportToCSV } from '../../../utils/csvExporter';
+import { Checkbox } from '../../../components/ui/Checkbox';
+import { useLongPress } from '../../../hooks/useLongPress';
+import { SpinnerIcon } from '../../../components/icons/SpinnerIcon';
+import { SearchIcon } from '../../../components/icons/SearchIcon';
+import { PaginationControls } from '../../../components/ui/PaginationControls';
+import { RegisterIcon } from '../../../components/icons/RegisterIcon';
+import { ExclamationTriangleIcon } from '../../../components/icons/ExclamationTriangleIcon';
+import { Tooltip } from '../../../components/ui/Tooltip';
+import { CustomSelect } from '../../../components/ui/CustomSelect';
+import { FilterIcon } from '../../../components/icons/FilterIcon';
+import { RequestIcon } from '../../../components/icons/RequestIcon';
+import { CheckIcon } from '../../../components/icons/CheckIcon';
+import { BellIcon } from '../../../components/icons/BellIcon';
+import { MegaphoneIcon } from '../../../components/icons/MegaphoneIcon';
+import { InfoIcon } from '../../../components/icons/InfoIcon';
+import { ExportIcon } from '../../../components/icons/ExportIcon';
 import { RequestStatusIndicator, OrderIndicator } from './components/RequestStatus';
-import RequestDetailPage from './RequestDetailPage';
-// FIX: Import SignatureStamp to resolve 'Cannot find name' error.
-import { SignatureStamp } from '../../components/ui/SignatureStamp';
-// FIX: Import PencilIcon to resolve 'Cannot find name' error.
-import { PencilIcon } from '../../components/icons/PencilIcon';
+import NewRequestDetailPage from './NewRequestDetailPage';
+import { SignatureStamp } from '../../../components/ui/SignatureStamp';
+import { PencilIcon } from '../../../components/icons/PencilIcon';
 
 
 const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].includes(role);
 
-interface ItemRequestPageProps {
+interface NewRequestPageProps {
     currentUser: User;
     requests: Request[];
     setRequests: React.Dispatch<React.SetStateAction<Request[]>>;
@@ -700,6 +698,7 @@ const RequestForm: React.FC<{
     </>
 )};
 
+// FIX: Define missing FollowUpConfirmationModal component.
 const FollowUpConfirmationModal: React.FC<{
     request: Request | null;
     onClose: () => void;
@@ -745,6 +744,7 @@ const FollowUpConfirmationModal: React.FC<{
     );
 };
 
+// FIX: Define missing RequestReviewModal component.
 const RequestReviewModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -958,7 +958,7 @@ const RequestReviewModal: React.FC<{
     );
 };
 
-// FIX: Define RegistrationStagingModal component to fix 'Cannot find name' error.
+// FIX: Define missing RegistrationStagingModal component.
 const RegistrationStagingModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -1023,8 +1023,7 @@ const RegistrationStagingModal: React.FC<{
     );
 };
 
-
-const ItemRequestPage: React.FC<ItemRequestPageProps> = (props) => {
+const NewRequestPage: React.FC<NewRequestPageProps> = (props) => {
     const { currentUser, requests, setRequests, assets, assetCategories, divisions, onInitiateRegistration, onInitiateHandoverFromRequest, initialFilters, onClearInitialFilters, onShowPreview, openModelModal, openTypeModal, setActivePage, users, notifications, addNotification, markNotificationsAsRead } = props;
     const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
     const [itemToPrefill, setItemToPrefill] = useState<{ name: string; brand: string } | null>(null);
@@ -1314,6 +1313,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = (props) => {
             const newItemStatuses = { ...(selectedRequest.itemStatuses || {}) };
             const today = new Date().toISOString();
             let hasAtLeastOneApproval = false;
+            const revisions: { itemName: string; originalQuantity: number; approvedQuantity: number; reason: string; }[] = [];
     
             for (const itemIdStr in adjustments) {
                 const itemId = parseInt(itemIdStr, 10);
@@ -1326,6 +1326,12 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = (props) => {
                         reason: reason,
                         approvedQuantity: approvedQuantity,
                     };
+                     revisions.push({
+                        itemName: originalItem.itemName,
+                        originalQuantity: originalItem.quantity,
+                        approvedQuantity: approvedQuantity,
+                        reason: reason,
+                    });
                 } else if (newItemStatuses[itemId]) {
                     delete newItemStatuses[itemId]; // Reverted to full approval, so clear status
                 }
@@ -1371,6 +1377,20 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = (props) => {
                 itemStatuses: newItemStatuses,
                 ...approvalUpdates,
             };
+
+            if (revisions.length > 0) {
+                const newRevisionActivity: Activity = {
+                    id: Date.now(),
+                    author: currentUser.name,
+                    timestamp: today,
+                    type: 'revision',
+                    parentId: undefined,
+                    payload: {
+                        revisions: revisions,
+                    }
+                };
+                updatedRequest.activityLog = [newRevisionActivity, ...(updatedRequest.activityLog || [])];
+            }
     
             setRequests(prev => prev.map(r => r.id === selectedRequest.id ? updatedRequest : r));
             addNotificationUI(`Tinjauan untuk request #${selectedRequest.id} telah disimpan.`, 'success');
@@ -1927,7 +1947,7 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = (props) => {
 
         if (view === 'detail' && selectedRequest) {
             return (
-                <RequestDetailPage
+                <NewRequestDetailPage
                     request={selectedRequest}
                     onUpdateRequest={(updatedRequest) => {
                         setRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r));
@@ -1956,7 +1976,6 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = (props) => {
                     onRequestProgressUpdate={handleRequestProgressUpdate}
                     onFollowUpToCeo={handleFollowUpToCeo}
                     onInitiateHandoverFromRequest={onInitiateHandoverFromRequest}
-                    // FIX: Pass missing 'divisions' prop to RequestDetailPage
                     divisions={divisions}
                     isLoading={isLoading}
                 />
@@ -2381,4 +2400,4 @@ const ItemRequestPage: React.FC<ItemRequestPageProps> = (props) => {
     );
 };
 
-export default ItemRequestPage;
+export default NewRequestPage;

@@ -41,7 +41,7 @@ Halaman Dashboard memberikan gambaran umum kondisi inventori dan tugas-tugas yan
 
 #### Membuat Request Aset
 Ini adalah fitur untuk mengajukan permintaan pengadaan barang/aset baru.
-1.  Buka halaman **Manajemen Aset > Request Aset**.
+1.  Buka halaman **Pusat Aset > Request Aset**.
 2.  Klik tombol **"Buat Request Baru"**.
 3.  Isi detail formulir:
     - **Tanggal & Tipe Order**: Pilih tipe order. Jika Anda seorang **Leader**, Anda dapat memilih `Urgent` atau `Project Based` dan wajib mengisi justifikasi/nama proyek.
@@ -58,7 +58,7 @@ Jika request Anda belum diproses, Anda dapat mengirim notifikasi pengingat kepad
 2.  Klik tombol **"Follow Up"** pada baris request tersebut. Admin akan menerima notifikasi. Fitur ini hanya dapat digunakan sekali dalam 24 jam per request.
 
 #### Melihat & Melaporkan Aset Pribadi
-1.  Buka halaman **Manajemen Aset > Stok Aset**. Halaman ini akan secara otomatis menampilkan daftar aset yang terdaftar atas nama Anda.
+1.  Buka halaman **Pusat Aset > Stok Aset**. Halaman ini akan secara otomatis menampilkan daftar aset yang terdaftar atas nama Anda.
 2.  Untuk melaporkan kerusakan, temukan aset yang rusak, lalu klik tombol **"Laporkan"** (ikon kunci pas).
 3.  Isi formulir laporan kerusakan dengan detail masalah dan lampirkan foto jika perlu.
 4.  Kirim laporan. Tim Admin akan menerima notifikasi dan menindaklanjuti.
@@ -66,7 +66,7 @@ Jika request Anda belum diproses, Anda dapat mengirim notifikasi pengingat kepad
 ### 3.2. Untuk Admin (Admin Logistik & Admin Purchase) & Super Admin
 
 #### Mengelola Request Aset (Utama untuk Admin Purchase)
-1.  Buka halaman **Manajemen Aset > Request Aset**.
+1.  Buka halaman **Pusat Aset > Request Aset**.
 2.  Request yang memerlukan persetujuan akan muncul di bagian atas atau dapat difilter.
 3.  Klik pada sebuah request untuk melihat detailnya.
 4.  Di halaman detail, Anda dapat:
@@ -79,21 +79,21 @@ Jika request Anda belum diproses, Anda dapat mengirim notifikasi pengingat kepad
 #### Mencatat Aset Baru (Utama untuk Admin Logistik)
 Fitur ini digunakan untuk mendaftarkan barang yang telah tiba ke dalam sistem sebagai aset.
 1.  **Dari Request**: Di halaman **Request Aset**, cari request yang statusnya **"Telah Tiba"**. Klik tombol **"Catat Aset"**.
-2.  **Manual**: Buka halaman **Manajemen Aset > Catat Aset** dan klik **"Catat Aset Baru"**.
+2.  **Manual**: Buka halaman **Pusat Aset > Catat Aset** dan klik **"Catat Aset Baru"**.
 3.  Isi formulir pencatatan secara lengkap:
     - **Informasi Dasar**: Kategori, Tipe, dan Model Aset.
     - **Detail Unit**: Masukkan Nomor Seri dan MAC Address. Anda bisa menggunakan tombol **Pindai QR** untuk mengisinya secara otomatis.
 4.  Klik **"Simpan Aset Baru"**.
 
 #### Mengelola Stok Aset
-Buka **Manajemen Aset > Stok Aset** untuk melihat ringkasan semua tipe aset yang ada di perusahaan.
+Buka **Pusat Aset > Stok Aset** untuk melihat ringkasan semua tipe aset yang ada di perusahaan.
 -   Lihat jumlah aset di gudang, yang sedang digunakan, dan yang rusak.
 -   Filter berdasarkan kategori, brand, atau status stok (misal: "Stok Menipis").
 -   Mulai permintaan baru langsung dari item yang stoknya habis.
 
 #### Mengelola Handover (Serah Terima Internal) (Utama untuk Admin Logistik)
 Fitur ini mencatat perpindahan aset dari satu staf/divisi ke staf/divisi lain.
-1.  Buka halaman **Manajemen Aset > Handover Aset**.
+1.  Buka halaman **Pusat Aset > Handover Aset**.
 2.  Klik **"Buat Handover Baru"**.
 3.  Isi formulir Berita Acara: pilih aset dari gudang dan pihak yang terlibat.
 4.  Klik **"Proses Handover"**. Status aset akan otomatis berubah menjadi "Digunakan".
@@ -105,7 +105,7 @@ Fitur ini mencatat perpindahan aset dari satu staf/divisi ke staf/divisi lain.
 4.  Setelah aset tiba di gudang, Admin Gudang harus membuka detail dismantle ini dan mengklik **"Acknowledge & Complete"** untuk mengembalikan aset ke stok.
 
 #### Mengelola Perbaikan Aset (Utama untuk Admin Logistik)
-1.  Buka **Manajemen Aset > Perbaikan Aset**.
+1.  Buka halaman **Pusat Aset > Perbaikan Aset**.
 2.  Halaman ini menampilkan semua aset yang dilaporkan rusak atau sedang dalam perbaikan.
 3.  Klik **"Mulai Perbaikan"** pada aset yang rusak untuk mencatat teknisi/vendor dan estimasi selesai.
 4.  Gunakan tombol **"Update"** atau **"Selesaikan"** untuk memperbarui status perbaikan.

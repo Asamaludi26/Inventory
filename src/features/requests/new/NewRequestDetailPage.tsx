@@ -1,38 +1,38 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Request, User, Asset, ItemStatus, PurchaseDetails, UserRole, RequestItem, AssetCategory, Activity, ActivityType, Division } from '../../types';
-import { DetailPageLayout } from '../../components/layout/DetailPageLayout';
-import { Letterhead } from '../../components/ui/Letterhead';
-import { MegaphoneIcon } from '../../components/icons/MegaphoneIcon';
-import { InfoIcon } from '../../components/icons/InfoIcon';
-import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
-import { CheckIcon } from '../../components/icons/CheckIcon';
+import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../../types';
+import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
+import { Letterhead } from '../../../components/ui/Letterhead';
+import { MegaphoneIcon } from '../../../components/icons/MegaphoneIcon';
+import { InfoIcon } from '../../../components/icons/InfoIcon';
+import { SpinnerIcon } from '../../../components/icons/SpinnerIcon';
+import { CheckIcon } from '../../../components/icons/CheckIcon';
 import { RequestStatusIndicator, OrderIndicator } from './components/RequestStatus';
-import { Tooltip } from '../../components/ui/Tooltip';
-import { ApprovalStamp } from '../../components/ui/ApprovalStamp';
-import { RejectionStamp } from '../../components/ui/RejectionStamp';
-import { SignatureStamp } from '../../components/ui/SignatureStamp';
-import DatePicker from '../../components/ui/DatePicker';
-import { ShoppingCartIcon } from '../../components/icons/ShoppingCartIcon';
-import { TruckIcon } from '../../components/icons/TruckIcon';
-import { ArchiveBoxIcon } from '../../components/icons/ArchiveBoxIcon';
-import { RegisterIcon } from '../../components/icons/RegisterIcon';
-import { HandoverIcon } from '../../components/icons/HandoverIcon';
-import { BellIcon } from '../../components/icons/BellIcon';
-import { ClickableLink } from '../../components/ui/ClickableLink';
-import { useNotification } from '../../providers/NotificationProvider';
-import { CloseIcon } from '../../components/icons/CloseIcon';
-import { ChevronsRightIcon } from '../../components/icons/ChevronsRightIcon';
-import { ChevronsLeftIcon } from '../../components/icons/ChevronsLeftIcon';
-import { ChevronDownIcon } from '../../components/icons/ChevronDownIcon';
-import { DownloadIcon } from '../../components/icons/DownloadIcon';
-import { PrintIcon } from '../../components/icons/PrintIcon';
-import { Avatar } from '../../components/ui/Avatar';
-import Modal from '../../components/ui/Modal';
-import { PencilIcon } from '../../components/icons/PencilIcon';
-import { TrashIcon } from '../../components/icons/TrashIcon';
-import { ExclamationTriangleIcon } from '../../components/icons/ExclamationTriangleIcon';
-import { SendIcon } from '../../components/icons/SendIcon';
-import { ReplyIcon } from '../../components/icons/ReplyIcon';
+import { Tooltip } from '../../../components/ui/Tooltip';
+import { ApprovalStamp } from '../../../components/ui/ApprovalStamp';
+import { RejectionStamp } from '../../../components/ui/RejectionStamp';
+import { SignatureStamp } from '../../../components/ui/SignatureStamp';
+import DatePicker from '../../../components/ui/DatePicker';
+import { ShoppingCartIcon } from '../../../components/icons/ShoppingCartIcon';
+import { TruckIcon } from '../../../components/icons/TruckIcon';
+import { ArchiveBoxIcon } from '../../../components/icons/ArchiveBoxIcon';
+import { RegisterIcon } from '../../../components/icons/RegisterIcon';
+import { HandoverIcon } from '../../../components/icons/HandoverIcon';
+import { BellIcon } from '../../../components/icons/BellIcon';
+import { ClickableLink } from '../../../components/ui/ClickableLink';
+import { useNotification } from '../../../providers/NotificationProvider';
+import { CloseIcon } from '../../../components/icons/CloseIcon';
+import { ChevronsRightIcon } from '../../../components/icons/ChevronsRightIcon';
+import { ChevronsLeftIcon } from '../../../components/icons/ChevronsLeftIcon';
+import { ChevronDownIcon } from '../../../components/icons/ChevronDownIcon';
+import { DownloadIcon } from '../../../components/icons/DownloadIcon';
+import { PrintIcon } from '../../../components/icons/PrintIcon';
+import { Avatar } from '../../../components/ui/Avatar';
+import Modal from '../../../components/ui/Modal';
+import { PencilIcon } from '../../../components/icons/PencilIcon';
+import { TrashIcon } from '../../../components/icons/TrashIcon';
+import { ExclamationTriangleIcon } from '../../../components/icons/ExclamationTriangleIcon';
+import { SendIcon } from '../../../components/icons/SendIcon';
+import { ReplyIcon } from '../../../components/icons/ReplyIcon';
 
 
 interface RequestDetailPageProps {
@@ -121,7 +121,8 @@ const ProcurementProgressCard: React.FC<{ request: Request, assets: Asset[] }> =
     
     const steps = [
         { status: ItemStatus.APPROVED, label: 'Disetujui', icon: CheckIcon, date: request.finalApprovalDate },
-        { status: ItemStatus.PURCHASING, label: 'Pengadaan', icon: ShoppingCartIcon, date: request.purchaseDetails ? new Date(Math.max(...Object.values(request.purchaseDetails).map(d => new Date((d as PurchaseDetails).purchaseDate).getTime()))).toISOString() : null },
+        // FIX: Explicitly type 'd' as PurchaseDetails to resolve type inference issue with Object.values.
+        { status: ItemStatus.PURCHASING, label: 'Pengadaan', icon: ShoppingCartIcon, date: request.purchaseDetails ? new Date(Math.max(...Object.values(request.purchaseDetails).map((d: PurchaseDetails) => new Date(d.purchaseDate).getTime()))).toISOString() : null },
         { status: ItemStatus.IN_DELIVERY, label: 'Pengiriman', icon: TruckIcon, date: request.actualShipmentDate || null },
         { status: ItemStatus.ARRIVED, label: 'Tiba', icon: ArchiveBoxIcon, date: request.arrivalDate },
         { status: ItemStatus.AWAITING_HANDOVER, label: 'Dicatat', icon: RegisterIcon, date: lastRegistrationDate },
@@ -422,10 +423,11 @@ const StatusAndActionSidebar: React.FC<RequestDetailPageProps & {
     );
 };
 
-const RequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
+const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
     const { request, currentUser, assets, onBackToList, onShowPreview, users, onSubmitForCeoApproval, assetCategories, onUpdateRequest } = props;
     const [isActionSidebarExpanded, setIsActionSidebarExpanded] = useState(true);
     const [itemPurchaseDetails, setItemPurchaseDetails] = useState<Record<number, Omit<PurchaseDetails, 'filledBy' | 'fillDate'>>>({});
+    const [itemWarrantyPeriods, setItemWarrantyPeriods] = useState<Record<number, number | ''>>({});
     const [isDownloading, setIsDownloading] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
     const addNotification = useNotification();
@@ -629,6 +631,72 @@ const RequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
         });
     };
 
+     const handlePurchaseDetailFieldChange = (
+        itemId: number,
+        field: keyof Omit<PurchaseDetails, 'filledBy' | 'fillDate'>,
+        value: string | number | Date | null
+    ) => {
+        setItemPurchaseDetails(prev => {
+            const currentDetails = prev[itemId] || {
+                purchasePrice: 0,
+                vendor: '',
+                poNumber: '',
+                invoiceNumber: '',
+                purchaseDate: new Date().toISOString().split('T')[0],
+                warrantyEndDate: null,
+            };
+            
+            const finalValue = value instanceof Date ? value.toISOString().split('T')[0] : value;
+            
+            return {
+                ...prev,
+                [itemId]: {
+                    ...currentDetails,
+                    [field]: finalValue
+                }
+            };
+        });
+    };
+    
+    const handleWarrantyPeriodChange = (itemId: number, period: number | '') => {
+        setItemWarrantyPeriods(prev => ({...prev, [itemId]: period}));
+        
+        const purchaseDate = itemPurchaseDetails[itemId]?.purchaseDate;
+        if (purchaseDate) {
+            if (period === '' || period < 0) {
+                handlePurchaseDetailFieldChange(itemId, 'warrantyEndDate', null);
+            } else {
+                const d = new Date(purchaseDate);
+                const expectedMonth = (d.getMonth() + Number(period)) % 12;
+                d.setMonth(d.getMonth() + Number(period));
+                if (d.getMonth() !== expectedMonth) {
+                    d.setDate(0);
+                }
+                handlePurchaseDetailFieldChange(itemId, 'warrantyEndDate', d);
+            }
+        }
+    }
+    
+    const handleWarrantyEndDateChange = (itemId: number, date: Date | null) => {
+        handlePurchaseDetailFieldChange(itemId, 'warrantyEndDate', date);
+    
+        const purchaseDateStr = itemPurchaseDetails[itemId]?.purchaseDate;
+        if (purchaseDateStr && date && date > new Date(purchaseDateStr)) {
+            const pDate = new Date(purchaseDateStr);
+            let months = (date.getFullYear() - pDate.getFullYear()) * 12;
+            months -= pDate.getMonth();
+            months += date.getMonth();
+            
+            if (date.getDate() < pDate.getDate()) {
+                months--;
+            }
+    
+            setItemWarrantyPeriods(prev => ({...prev, [itemId]: months <= 0 ? '' : months}));
+        } else {
+            setItemWarrantyPeriods(prev => ({...prev, [itemId]: ''}));
+        }
+    }
+
 
     const isPurchaseFormValid = useMemo(() => {
         if (request.status !== ItemStatus.LOGISTIC_APPROVED || currentUser.role !== 'Admin Purchase') {
@@ -648,29 +716,31 @@ const RequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
 
     const calculatedTotalValue = useMemo(() => {
         if (request.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Admin Purchase') {
-            return Object.values(itemPurchaseDetails).reduce((sum, details) => {
-                const price = Number((details as any).purchasePrice) || 0;
+            // FIX: Explicitly type 'details' to resolve type inference issue with Object.values.
+            return Object.values(itemPurchaseDetails).reduce((sum, details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => {
+                const price = Number(details.purchasePrice) || 0;
                 return sum + price;
             }, 0);
         }
         
         if (request.purchaseDetails) {
-            return Object.values(request.purchaseDetails).reduce((sum, details) => {
-                const price = Number((details as any).purchasePrice) || 0;
+            // FIX: Explicitly type 'details' to resolve type inference issue with Object.values.
+            return Object.values(request.purchaseDetails).reduce((sum, details: PurchaseDetails) => {
+                const price = Number(details.purchasePrice) || 0;
                 return sum + price;
             }, 0);
         }
     
         return request.totalValue;
     }, [request, itemPurchaseDetails, currentUser.role]);
-
+    
     const handlePurchaseDetailChange = (itemId: number, details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => {
         setItemPurchaseDetails(prev => ({
             ...prev,
             [itemId]: details,
         }));
     };
-    
+
     const handleFinalSubmitForApproval = () => {
         if (!isPurchaseFormValid) {
             addNotification('Harap isi semua detail pembelian yang wajib diisi (Harga, Vendor, No. PO, No. Faktur).', 'error');
@@ -796,7 +866,6 @@ const RequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
 
                                         const isPartiallyApproved = isAdjusted && approvedQuantity > 0 && approvedQuantity < item.quantity;
                                         const isRejected = isAdjusted && approvedQuantity === 0;
-                                        const reason = itemStatus?.reason;
                                         
                                         let rowClass = 'border-b';
                                         if (isRejected) rowClass += ' bg-red-50/60';
@@ -814,50 +883,23 @@ const RequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                                         if (foundType && foundType.unitOfMeasure) {
                                             unitOfMeasure = foundType.unitOfMeasure;
                                         }
-
+                                        
                                         return (
-                                            <React.Fragment key={item.id}>
-                                                <tr className={rowClass}>
-                                                    <td className={`p-3 text-center align-top ${isRejected ? 'text-gray-500' : 'text-gray-800'}`}>{index + 1}.</td>
-                                                    <td className="p-3 font-semibold align-top">
-                                                        <div className={`flex items-center gap-2 ${isRejected ? 'text-danger-text line-through' : 'text-gray-800'}`}>
-                                                            <span>{item.itemName}</span>
-                                                            {isRejected && <span className="px-2 py-0.5 text-xs font-bold text-white bg-danger rounded-full no-underline">Ditolak</span>}
-                                                            {isPartiallyApproved && <span className="px-2 py-0.5 text-xs font-bold text-white bg-amber-500 rounded-full">Direvisi</span>}
-                                                        </div>
-                                                    </td>
-                                                    <td className={`p-3 align-top ${isRejected ? 'text-gray-500 line-through' : 'text-gray-600'}`}>{item.itemTypeBrand}</td>
-                                                    <td className="p-3 text-center font-medium align-top">
-                                                        {isAdjusted ? (
-                                                            <div className="flex items-baseline justify-center gap-1">
-                                                                <strong className={`text-lg ${isRejected ? 'text-danger-text' : (isPartiallyApproved ? 'text-amber-700' : 'text-gray-800')}`}>{approvedQuantity}</strong>
-                                                                <span className="text-sm text-gray-500 line-through">/ {item.quantity}</span>
-                                                                <span className="text-sm text-gray-500 ml-1">{unitOfMeasure}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <span>
-                                                                <strong className="text-sm text-gray-800">{item.quantity}</strong>
-                                                                <span className="text-sm text-gray-500 ml-1">{unitOfMeasure}</span>
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className={`p-3 text-xs italic align-top ${isRejected ? 'text-gray-500 line-through' : 'text-gray-600'}`}>"{item.keterangan}"</td>
-                                                </tr>
-                                                {(isRejected || isPartiallyApproved) && reason && (
-                                                    <tr className={rowClass}>
-                                                        <td />
-                                                        <td colSpan={4} className="py-2 px-3 pb-3">
-                                                            <div className={`flex items-start gap-2 text-xs p-2 rounded-md ${isRejected ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
-                                                                <InfoIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                                                <div>
-                                                                    <strong className="font-semibold">Catatan dari approver:</strong>
-                                                                    <p className="italic">"{reason}"</p>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </React.Fragment>
+                                            <tr key={item.id} className={rowClass}>
+                                                <td className={`p-3 text-center align-top ${isRejected ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{index + 1}.</td>
+                                                <td className="p-3 font-semibold align-top">
+                                                    <div className={`flex items-center gap-2 ${isRejected ? 'text-danger-text line-through' : 'text-gray-800'}`}>
+                                                        <span>{item.itemName}</span>
+                                                        {isPartiallyApproved && <span className="px-2 py-0.5 text-xs font-bold text-white bg-amber-500 rounded-full">Direvisi</span>}
+                                                    </div>
+                                                </td>
+                                                <td className={`p-3 align-top ${isRejected ? 'text-gray-500 line-through' : 'text-gray-600'}`}>{item.itemTypeBrand}</td>
+                                                <td className={`p-3 text-center font-medium align-top ${isRejected ? 'text-sm text-gray-500 line-through' : 'text-gray-700'}`}>
+                                                     <strong className="">{item.quantity}</strong>
+                                                     <span className="ml-1">{unitOfMeasure}</span>
+                                                </td>
+                                                <td className={`p-3 text-xs italic align-top ${isRejected ? 'text-gray-500 line-through' : 'text-gray-600'}`}>"{item.keterangan}"</td>
+                                            </tr>
                                         );
                                     })}
                                 </tbody>
@@ -865,7 +907,7 @@ const RequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                                      <tfoot className="bg-gray-100">
                                         <tr>
                                             <td colSpan={5} className="p-2 text-center font-bold text-gray-800">
-                                                Estimasi Total Harga: Rp. {calculatedTotalValue.toLocaleString('id-ID')}
+                                                Total Harga: Rp. {calculatedTotalValue.toLocaleString('id-ID')}
                                             </td>
                                         </tr>
                                      </tfoot>
@@ -963,7 +1005,7 @@ const RequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                     {/* Activity List */}
                     <div className="px-6 pb-6">
                         <CommentThread
-                            activities={(request.activityLog || []).filter(a => !a.parentId)}
+                            activities={(request.activityLog || []).filter(a => !a.parentId).sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())}
                             allActivities={request.activityLog || []}
                             level={0}
                             onStartReply={handleStartReply}
@@ -982,10 +1024,7 @@ const RequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
 
             {activityToDelete && (
                 <Modal isOpen={!!activityToDelete} onClose={() => setActivityToDelete(null)} title="Hapus Komentar?" size="sm" zIndex="z-[70]"
-                    footerContent={<>
-                        <button onClick={() => setActivityToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                        <button onClick={handleDelete} className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">Ya, Hapus</button>
-                    </>}>
+                    footerContent={<><button onClick={() => setActivityToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleDelete} className="px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">Ya, Hapus</button></>}>
                     <p className="text-sm text-gray-600">Anda yakin ingin menghapus komentar ini secara permanen?</p>
                 </Modal>
             )}
@@ -1057,6 +1096,54 @@ const CommentThread: React.FC<{
                             </div>
                         </div>
                     );
+                }
+
+                if (activity.type === 'revision') {
+                    return (
+                        <div key={activity.id} className={`flex items-start space-x-3 ${level > 0 ? 'ml-10' : ''}`}>
+                            <Avatar name={activity.author} className="w-10 h-10 flex-shrink-0" />
+                            <div className="flex-1">
+                                <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-lg shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <PencilIcon className="w-4 h-4 text-amber-700" />
+                                            <p className="text-sm font-semibold text-gray-800">{activity.author} memberikan revisi</p>
+                                        </div>
+                                        <p className="text-xs text-gray-400" title={new Date(activity.timestamp).toLocaleString('id-ID')}>{formatRelativeTime(activity.timestamp)}</p>
+                                    </div>
+                                    <div className="mt-2 space-y-2">
+                                        {activity.payload.revisions?.map((rev, index) => {
+                                            const rejectedQuantity = rev.originalQuantity - rev.approvedQuantity;
+                                            const isFullyRejected = rev.approvedQuantity === 0;
+
+                                            return (
+                                                <div key={index} className="text-sm border-t border-amber-200/80 pt-2 first:border-t-0 first:pt-0">
+                                                    <p className="font-semibold text-gray-700">{rev.itemName}</p>
+                                                    
+                                                    {isFullyRejected ? (
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            <span className="font-semibold text-danger-text">Ditolak:</span>
+                                                            <span className="text-gray-600">{rev.originalQuantity} diajukan,</span>
+                                                            <span className="font-bold text-danger-text">{rejectedQuantity} ditolak</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                                                            <span className="font-semibold text-amber-800">Revisi:</span>
+                                                            <span className="text-gray-600">{rev.originalQuantity} diajukan,</span>
+                                                            <span className="font-bold text-success-text">{rev.approvedQuantity} disetujui,</span>
+                                                            <span className="font-bold text-danger-text">{rejectedQuantity} ditolak</span>
+                                                        </div>
+                                                    )}
+
+                                                    <p className="text-xs text-gray-600 italic mt-1">Alasan: "{rev.reason}"</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )
                 }
 
                 return (
@@ -1170,30 +1257,6 @@ const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?:
     <div className={fullWidth ? 'sm:col-span-full' : ''}><dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</dt><dd className="mt-1 text-gray-800">{value || children || '-'}</dd></div>
 );
 
-const PurchaseDetailsView: React.FC<{ request: Request, details: Record<number, PurchaseDetails> }> = ({ request, details }) => (
-    <section>
-        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">III. Detail Pembelian</h4>
-        <div className="space-y-4">
-            {Object.entries(details).map(([itemId, itemDetails]) => {
-                const item = request.items.find(i => i.id.toString() === itemId);
-                return (
-                    <div key={itemId} className="p-3 bg-gray-50/50 border rounded-lg">
-                        <p className="font-semibold text-tm-dark">{item?.itemName || 'Item Tidak Ditemukan'}</p>
-                        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3 text-sm mt-2">
-                            <PreviewItem label="Harga" value={`Rp ${itemDetails.purchasePrice.toLocaleString('id-ID')}`} />
-                            <PreviewItem label="Vendor" value={itemDetails.vendor} />
-                            <PreviewItem label="Tanggal Beli" value={new Date(itemDetails.purchaseDate).toLocaleDateString('id-ID')} />
-                            <PreviewItem label="No. PO" value={itemDetails.poNumber} />
-                            <PreviewItem label="No. Faktur" value={itemDetails.invoiceNumber} />
-                            <PreviewItem label="Akhir Garansi" value={itemDetails.warrantyEndDate ? new Date(itemDetails.warrantyEndDate).toLocaleDateString('id-ID') : '-'} />
-                        </dl>
-                        <p className="text-xs text-right text-gray-400 mt-2">Diisi oleh {itemDetails.filledBy} pada {new Date(itemDetails.fillDate).toLocaleString('id-ID')}</p>
-                    </div>
-                );
-            })}
-        </div>
-    </section>
-);
 const ItemPurchaseDetailsForm: React.FC<{
     item: RequestItem;
     onChange: (details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => void;
@@ -1288,12 +1351,9 @@ const ItemPurchaseDetailsForm: React.FC<{
                             <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
-                        <div className="sm:col-span-2">
-                            <label className="block font-medium text-gray-700">Tanggal Beli <span className="text-danger">*</span></label>
-                            <DatePicker id={`pd-${item.id}`} selectedDate={purchaseDate} onDateChange={setPurchaseDate} disableFutureDates />
-                        </div>
-                        <div className="sm:col-span-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
+
+                    <div>
                              <label className="font-medium text-gray-700">Masa Garansi (bulan)</label>
                              <input
                                 type="number"
@@ -1303,7 +1363,16 @@ const ItemPurchaseDetailsForm: React.FC<{
                                 className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
                             />
                         </div>
-                        <div className="sm:col-span-2">
+
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
+                        <div className="sm:col-span-3">
+                            <label className="block font-medium text-gray-700">Tanggal Beli <span className="text-danger">*</span></label>
+                            <DatePicker id={`pd-${item.id}`} selectedDate={purchaseDate} onDateChange={setPurchaseDate} disableFutureDates />
+                        </div>
+    
+                        <div className="sm:col-span-3">
                             <label className="block font-medium text-gray-700">Akhir Garansi</label>
                             <DatePicker id={`we-${item.id}`} selectedDate={warrantyEndDate} onDateChange={handleWarrantyEndDateChange} />
                         </div>
@@ -1314,5 +1383,48 @@ const ItemPurchaseDetailsForm: React.FC<{
     );
 };
 
+const PurchaseDetailsView: React.FC<{ request: Request, details: Record<number, PurchaseDetails> }> = ({ request, details }) => (
+    <section>
+        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">Detail Pembelian</h4>
+        <div className="overflow-x-auto -mx-2">
+            <table className="min-w-full text-left text-sm">
+                <thead className="bg-gray-100 text-xs uppercase text-gray-700">
+                    <tr>
+                        <th className="p-3">Nama Barang</th>
+                        <th className="p-3 text-right">Harga</th>
+                        <th className="p-3">Vendor</th>
+                        <th className="p-3">Tgl Beli</th>
+                        <th className="p-3">Akhir Garansi</th>
+                        <th className="p-3">No. PO / Faktur</th>
+                        <th className="p-3">Diisi Oleh</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {/* FIX: Explicitly type the destructured array from Object.entries to resolve type inference issues. */}
+                    {Object.entries(details).map(([itemId, itemDetails]: [string, PurchaseDetails]) => {
+                        const item = request.items.find(i => i.id.toString() === itemId);
+                        return (
+                            <tr key={itemId} className="bg-white">
+                                <td className="p-3 font-semibold text-gray-800">{item?.itemName || 'N/A'}</td>
+                                <td className="p-3 text-right font-mono text-gray-800">Rp {itemDetails.purchasePrice.toLocaleString('id-ID')}</td>
+                                <td className="p-3 text-gray-600">{itemDetails.vendor}</td>
+                                <td className="p-3 text-gray-600 whitespace-nowrap">{new Date(itemDetails.purchaseDate).toLocaleDateString('id-ID')}</td>
+                                <td className="p-3 text-gray-600 whitespace-nowrap">{itemDetails.warrantyEndDate ? new Date(itemDetails.warrantyEndDate).toLocaleDateString('id-ID') : '-'}</td>
+                                <td className="p-3 text-gray-600">
+                                    <div className="font-mono">{itemDetails.poNumber}</div>
+                                    <div className="text-xs text-gray-500">{itemDetails.invoiceNumber}</div>
+                                </td>
+                                <td className="p-3 text-gray-600">
+                                    <div>{itemDetails.filledBy}</div>
+                                    <div className="text-xs text-gray-500">{new Date(itemDetails.fillDate).toLocaleDateString('id-ID')}</div>
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    </section>
+);
 
-export default RequestDetailPage;
+export default NewRequestDetailPage;

@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { ItemStatus, OrderDetails } from '../../../types';
+import { ItemStatus, OrderDetails } from '../../../../types';
 import { BsClock, BsPatchCheck, BsClipboardCheck, BsCheckCircleFill, BsXCircleFill, BsSlashCircle } from 'react-icons/bs';
-import { ShoppingCartIcon } from '../../../components/icons/ShoppingCartIcon';
-import { TruckIcon } from '../../../components/icons/TruckIcon';
-import { ArchiveBoxIcon } from '../../../components/icons/ArchiveBoxIcon';
-import { RegisterIcon } from '../../../components/icons/RegisterIcon';
-import { SpinnerIcon } from '../../../components/icons/SpinnerIcon';
-import { InfoIcon } from '../../../components/icons/InfoIcon';
+import { ShoppingCartIcon } from '../../../../components/icons/ShoppingCartIcon';
+import { TruckIcon } from '../../../../components/icons/TruckIcon';
+import { ArchiveBoxIcon } from '../../../../components/icons/ArchiveBoxIcon';
+import { RegisterIcon } from '../../../../components/icons/RegisterIcon';
+import { SpinnerIcon } from '../../../../components/icons/SpinnerIcon';
+import { InfoIcon } from '../../../../components/icons/InfoIcon';
 
 export const getStatusClass = (status: ItemStatus) => {
     switch (status) {
