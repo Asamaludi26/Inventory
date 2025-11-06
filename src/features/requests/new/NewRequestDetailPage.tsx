@@ -121,7 +121,6 @@ const ProcurementProgressCard: React.FC<{ request: Request, assets: Asset[] }> =
     
     const steps = [
         { status: ItemStatus.APPROVED, label: 'Disetujui', icon: CheckIcon, date: request.finalApprovalDate },
-        // FIX: Explicitly type 'd' as PurchaseDetails to resolve type inference issue with Object.values.
         { status: ItemStatus.PURCHASING, label: 'Pengadaan', icon: ShoppingCartIcon, date: request.purchaseDetails ? new Date(Math.max(...Object.values(request.purchaseDetails).map((d: PurchaseDetails) => new Date(d.purchaseDate).getTime()))).toISOString() : null },
         { status: ItemStatus.IN_DELIVERY, label: 'Pengiriman', icon: TruckIcon, date: request.actualShipmentDate || null },
         { status: ItemStatus.ARRIVED, label: 'Tiba', icon: ArchiveBoxIcon, date: request.arrivalDate },
@@ -667,8 +666,10 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                 handlePurchaseDetailFieldChange(itemId, 'warrantyEndDate', null);
             } else {
                 const d = new Date(purchaseDate);
-                const expectedMonth = (d.getMonth() + Number(period)) % 12;
-                d.setMonth(d.getMonth() + Number(period));
+                // FIX: Removed redundant Number() cast. `period` is already a number here.
+                const expectedMonth = (d.getMonth() + period) % 12;
+                // FIX: Removed redundant Number() cast. `period` is already a number here.
+                d.setMonth(d.getMonth() + period);
                 if (d.getMonth() !== expectedMonth) {
                     d.setDate(0);
                 }
@@ -688,7 +689,7 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
             months += date.getMonth();
             
             if (date.getDate() < pDate.getDate()) {
-                months--;
+                // months--;
             }
     
             setItemWarrantyPeriods(prev => ({...prev, [itemId]: months <= 0 ? '' : months}));
@@ -702,21 +703,29 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
         if (request.status !== ItemStatus.LOGISTIC_APPROVED || currentUser.role !== 'Admin Purchase') {
             return true;
         }
-        if (Object.keys(itemPurchaseDetails).length !== request.items.length) {
+
+        const approvedItems = request.items.filter(item => {
+            const itemStatus = request.itemStatuses?.[item.id];
+            return itemStatus === undefined || itemStatus.approvedQuantity > 0;
+        });
+
+        if (approvedItems.length === 0) {
             return false;
         }
-        return Object.values(itemPurchaseDetails).every(detail => {
-            return detail.purchasePrice && detail.purchasePrice > 0 &&
+
+        return approvedItems.every(item => {
+            const detail = itemPurchaseDetails[item.id];
+            return detail &&
+                   detail.purchasePrice && detail.purchasePrice > 0 &&
                    detail.vendor.trim() !== '' &&
                    detail.poNumber.trim() !== '' &&
                    detail.invoiceNumber.trim() !== '' &&
                    detail.purchaseDate;
         });
-    }, [itemPurchaseDetails, request.items, request.status, currentUser.role]);
+    }, [itemPurchaseDetails, request.items, request.itemStatuses, request.status, currentUser.role]);
 
     const calculatedTotalValue = useMemo(() => {
         if (request.status === ItemStatus.LOGISTIC_APPROVED && currentUser.role === 'Admin Purchase') {
-            // FIX: Explicitly type 'details' to resolve type inference issue with Object.values.
             return Object.values(itemPurchaseDetails).reduce((sum, details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => {
                 const price = Number(details.purchasePrice) || 0;
                 return sum + price;
@@ -724,7 +733,6 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
         }
         
         if (request.purchaseDetails) {
-            // FIX: Explicitly type 'details' to resolve type inference issue with Object.values.
             return Object.values(request.purchaseDetails).reduce((sum, details: PurchaseDetails) => {
                 const price = Number(details.purchasePrice) || 0;
                 return sum + price;
@@ -743,7 +751,7 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
 
     const handleFinalSubmitForApproval = () => {
         if (!isPurchaseFormValid) {
-            addNotification('Harap isi semua detail pembelian yang wajib diisi (Harga, Vendor, No. PO, No. Faktur).', 'error');
+            addNotification('Harap isi semua detail pembelian yang wajib diisi untuk item yang disetujui.', 'error');
             return;
         }
         onSubmitForCeoApproval(request.id, itemPurchaseDetails);
@@ -815,7 +823,7 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
 
                     <div className="text-center">
                         <h3 className="text-xl font-bold uppercase text-tm-dark">Surat Permintaan Pembelian Barang</h3>
-                        <p className="text-sm text-tm-secondary">Nomor: {request.id}</p>
+                        <p className="text-sm text-tm-secondary">Nomor: ${request.id}</p>
                     </div>
                     
                     <section>
@@ -886,17 +894,29 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                                         
                                         return (
                                             <tr key={item.id} className={rowClass}>
-                                                <td className={`p-3 text-center align-top ${isRejected ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{index + 1}.</td>
+                                                <td className={`p-3 text-center align-top ${isRejected ? 'text-gray-500' : 'text-gray-800'}`}>
+                                                    {isRejected ? <s className="text-gray-400">{index + 1}.</s> : `${index + 1}.`}
+                                                </td>
                                                 <td className="p-3 font-semibold align-top">
-                                                    <div className={`flex items-center gap-2 ${isRejected ? 'text-danger-text line-through' : 'text-gray-800'}`}>
-                                                        <span>{item.itemName}</span>
+                                                    <div className={`flex items-center gap-2 ${isRejected ? 'text-danger-text' : 'text-gray-800'}`}>
+                                                        <span className={isRejected ? 'line-through' : ''}>{item.itemName}</span>
                                                         {isPartiallyApproved && <span className="px-2 py-0.5 text-xs font-bold text-white bg-amber-500 rounded-full">Direvisi</span>}
+                                                        {isRejected && <span className="px-2 py-0.5 text-xs font-bold text-white bg-danger rounded-full">Ditolak</span>}
                                                     </div>
                                                 </td>
                                                 <td className={`p-3 align-top ${isRejected ? 'text-gray-500 line-through' : 'text-gray-600'}`}>{item.itemTypeBrand}</td>
-                                                <td className={`p-3 text-center font-medium align-top ${isRejected ? 'text-sm text-gray-500 line-through' : 'text-gray-700'}`}>
-                                                     <strong className="">{item.quantity}</strong>
-                                                     <span className="ml-1">{unitOfMeasure}</span>
+                                                <td className="p-3 text-center font-medium align-top">
+                                                    <div className="flex flex-col items-center leading-tight">
+                                                        {isAdjusted ? (
+                                                            <>
+                                                                <s className="text-xs text-gray-500">{item.quantity}</s>
+                                                                <strong className={`text-base ${isRejected ? 'text-danger-text' : 'text-amber-700'}`}>{approvedQuantity}</strong>
+                                                            </>
+                                                        ) : (
+                                                            <strong className="text-base text-gray-800">{item.quantity}</strong>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs text-gray-600">{unitOfMeasure}</span>
                                                 </td>
                                                 <td className={`p-3 text-xs italic align-top ${isRejected ? 'text-gray-500 line-through' : 'text-gray-600'}`}>"{item.keterangan}"</td>
                                             </tr>
@@ -920,13 +940,19 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                         <section className="p-4 mt-6 border-t-2 border-dashed no-print">
                             <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">Formulir Detail Pembelian</h4>
                             <div className="space-y-4">
-                                {request.items.map(item => (
-                                    <ItemPurchaseDetailsForm
-                                        key={item.id}
-                                        item={item}
-                                        onChange={(details) => handlePurchaseDetailChange(item.id, details)}
-                                    />
-                                ))}
+                                {request.items.map(item => {
+                                    const approvedQuantity = request.itemStatuses?.[item.id]?.approvedQuantity ?? item.quantity;
+                                    const isRejected = approvedQuantity === 0;
+                                    return (
+                                        <ItemPurchaseDetailsForm
+                                            key={item.id}
+                                            item={item}
+                                            approvedQuantity={approvedQuantity}
+                                            onChange={(details) => handlePurchaseDetailChange(item.id, details)}
+                                            isDisabled={isRejected}
+                                        />
+                                    );
+                                })}
                             </div>
                         </section>
                     )}
@@ -1257,10 +1283,14 @@ const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?:
     <div className={fullWidth ? 'sm:col-span-full' : ''}><dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</dt><dd className="mt-1 text-gray-800">{value || children || '-'}</dd></div>
 );
 
-const ItemPurchaseDetailsForm: React.FC<{
+interface ItemPurchaseDetailsFormProps {
     item: RequestItem;
+    approvedQuantity: number;
     onChange: (details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => void;
-}> = ({ item, onChange }) => {
+    isDisabled?: boolean;
+}
+
+const ItemPurchaseDetailsForm: React.FC<ItemPurchaseDetailsFormProps> = ({ item, approvedQuantity, onChange, isDisabled = false }) => {
     const [purchasePrice, setPurchasePrice] = useState<number | ''>('');
     const [vendor, setVendor] = useState('');
     const [poNumber, setPoNumber] = useState('');
@@ -1268,12 +1298,12 @@ const ItemPurchaseDetailsForm: React.FC<{
     const [purchaseDate, setPurchaseDate] = useState<Date | null>(new Date());
     const [warrantyEndDate, setWarrantyEndDate] = useState<Date | null>(null);
     const [warrantyPeriod, setWarrantyPeriod] = useState<number | ''>('');
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(!isDisabled);
 
     useEffect(() => {
         if (purchaseDate && warrantyPeriod && warrantyPeriod > 0) {
             const d = new Date(purchaseDate);
-            const expectedMonth = (d.getMonth() + Number(warrantyPeriod)) % 12;
+            const expectedMonth = (Number(d.getMonth()) + Number(warrantyPeriod)) % 12;
             d.setMonth(d.getMonth() + Number(warrantyPeriod));
             if (d.getMonth() !== expectedMonth) {
                 d.setDate(0);
@@ -1286,16 +1316,14 @@ const ItemPurchaseDetailsForm: React.FC<{
         setWarrantyEndDate(date);
 
         if (purchaseDate && date && date > purchaseDate) {
-            let months = (date.getFullYear() - purchaseDate.getFullYear()) * 12;
-            months -= purchaseDate.getMonth();
-            months += date.getMonth();
+            const pDate = new Date(purchaseDate);
+            // FIX: Refactor date difference calculation to avoid type errors.
+            const months = (date.getFullYear() - pDate.getFullYear()) * 12 + (date.getMonth() - pDate.getMonth());
             
-            if (date.getDate() < purchaseDate.getDate()) {
-                months--;
-            }
-
+            // FIX: Use the local state setter `setWarrantyPeriod` instead of `setItemWarrantyPeriods`.
             setWarrantyPeriod(months <= 0 ? '' : months);
         } else {
+            // FIX: Use the local state setter `setWarrantyPeriod` instead of `setItemWarrantyPeriods`.
             setWarrantyPeriod('');
         }
     };
@@ -1312,72 +1340,84 @@ const ItemPurchaseDetailsForm: React.FC<{
     }, [purchasePrice, vendor, poNumber, invoiceNumber, purchaseDate, warrantyEndDate, onChange]);
 
     return (
-        <div className="border border-gray-200 rounded-lg bg-white shadow-sm">
-            <button type="button" onClick={() => setIsExpanded(p => !p)} className="flex items-center justify-between w-full p-3 font-semibold text-left text-gray-700 bg-gray-50/70 hover:bg-gray-100">
-                <span>{item.itemName} ({item.itemTypeBrand}) - {item.quantity} unit</span>
-                <ChevronDownIcon className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <div className={`border border-gray-200 rounded-lg shadow-sm transition-colors ${isDisabled ? 'bg-gray-100/70' : 'bg-white'}`}>
+            <button
+                type="button"
+                onClick={() => !isDisabled && setIsExpanded(p => !p)}
+                disabled={isDisabled}
+                className={`flex items-center justify-between w-full p-3 font-semibold text-left text-gray-700 ${isDisabled ? 'cursor-not-allowed' : 'hover:bg-gray-100'} ${isExpanded && !isDisabled ? 'bg-gray-50/70' : ''}`}
+            >
+                <span className={`${isDisabled ? 'line-through text-gray-500' : ''}`}>
+                    {item.itemName} ({item.itemTypeBrand}) - {approvedQuantity} unit
+                </span>
+                <div className="flex items-center gap-2">
+                    {isDisabled && <span className="px-2 py-0.5 text-xs font-bold text-white bg-danger rounded-full">DITOLAK</span>}
+                    {!isDisabled && <ChevronDownIcon className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
+                </div>
             </button>
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[1000px]' : 'max-h-0'}`}>
-                <div className="p-4 space-y-4 text-sm border-t">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <label className="font-medium text-gray-700">Harga Beli Total (Rp) <span className="text-danger">*</span></label>
-                            <div className="relative mt-1">
-                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                    <span className="text-gray-500 sm:text-sm">Rp</span>
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded && !isDisabled ? 'max-h-[1000px]' : 'max-h-0'}`}>
+                <fieldset disabled={isDisabled}>
+                    <div className="p-4 space-y-4 text-sm border-t">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label className="font-medium text-gray-700">Harga Beli Total (Rp) <span className="text-danger">*</span></label>
+                                <div className="relative mt-1">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <span className="text-gray-500 sm:text-sm">Rp</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={purchasePrice === '' ? '' : purchasePrice.toLocaleString('id-ID')}
+                                        onChange={e => {
+                                            const numericValue = e.target.value.replace(/\D/g, '');
+                                            setPurchasePrice(numericValue === '' ? '' : Number(numericValue));
+                                        }}
+                                        required
+                                        className="block w-full py-2 pl-8 pr-3 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
+                                    />
                                 </div>
-                                <input
-                                    type="text"
-                                    value={purchasePrice === '' ? '' : purchasePrice.toLocaleString('id-ID')}
-                                    onChange={e => {
-                                        const numericValue = e.target.value.replace(/\D/g, '');
-                                        setPurchasePrice(numericValue === '' ? '' : Number(numericValue));
-                                    }}
-                                    required
-                                    className="block w-full py-2 pl-8 pr-3 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
-                                />
+                            </div>
+                            <div>
+                                <label className="font-medium text-gray-700">Vendor <span className="text-danger">*</span></label>
+                                <input type="text" value={vendor} onChange={e => setVendor(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="font-medium text-gray-700">No. Purchase Order <span className="text-danger">*</span></label>
+                                <input type="text" value={poNumber} onChange={e => setPoNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="font-medium text-gray-700">No. Faktur <span className="text-danger">*</span></label>
+                                <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
                             </div>
                         </div>
-                        <div>
-                            <label className="font-medium text-gray-700">Vendor <span className="text-danger">*</span></label>
-                            <input type="text" value={vendor} onChange={e => setVendor(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
-                        </div>
-                        <div>
-                            <label className="font-medium text-gray-700">No. Purchase Order <span className="text-danger">*</span></label>
-                            <input type="text" value={poNumber} onChange={e => setPoNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
-                        </div>
-                        <div>
-                            <label className="font-medium text-gray-700">No. Faktur <span className="text-danger">*</span></label>
-                            <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
 
-                    <div>
-                             <label className="font-medium text-gray-700">Masa Garansi (bulan)</label>
-                             <input
-                                type="number"
-                                value={warrantyPeriod}
-                                onChange={e => setWarrantyPeriod(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                                min="0"
-                                className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
-                            />
+                        <div>
+                                <label className="font-medium text-gray-700">Masa Garansi (bulan)</label>
+                                <input
+                                    type="number"
+                                    value={warrantyPeriod}
+                                    onChange={e => setWarrantyPeriod(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                                    min="0"
+                                    className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
+                                />
+                            </div>
+
                         </div>
 
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
-                        <div className="sm:col-span-3">
-                            <label className="block font-medium text-gray-700">Tanggal Beli <span className="text-danger">*</span></label>
-                            <DatePicker id={`pd-${item.id}`} selectedDate={purchaseDate} onDateChange={setPurchaseDate} disableFutureDates />
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
+                            <div className="sm:col-span-3">
+                                <label className="block font-medium text-gray-700">Tanggal Beli <span className="text-danger">*</span></label>
+                                <DatePicker id={`pd-${item.id}`} selectedDate={purchaseDate} onDateChange={setPurchaseDate} disableFutureDates />
+                            </div>
+        
+                            <div className="sm:col-span-3">
+                                <label className="block font-medium text-gray-700">Akhir Garansi</label>
+                                <DatePicker id={`we-${item.id}`} selectedDate={warrantyEndDate} onDateChange={handleWarrantyEndDateChange} />
+                            </div>
                         </div>
-    
-                        <div className="sm:col-span-3">
-                            <label className="block font-medium text-gray-700">Akhir Garansi</label>
-                            <DatePicker id={`we-${item.id}`} selectedDate={warrantyEndDate} onDateChange={handleWarrantyEndDateChange} />
-                        </div>
                     </div>
-                </div>
+                </fieldset>
             </div>
         </div>
     );
@@ -1400,26 +1440,47 @@ const PurchaseDetailsView: React.FC<{ request: Request, details: Record<number, 
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                    {/* FIX: Explicitly type the destructured array from Object.entries to resolve type inference issues. */}
-                    {Object.entries(details).map(([itemId, itemDetails]: [string, PurchaseDetails]) => {
-                        const item = request.items.find(i => i.id.toString() === itemId);
-                        return (
-                            <tr key={itemId} className="bg-white">
-                                <td className="p-3 font-semibold text-gray-800">{item?.itemName || 'N/A'}</td>
-                                <td className="p-3 text-right font-mono text-gray-800">Rp {itemDetails.purchasePrice.toLocaleString('id-ID')}</td>
-                                <td className="p-3 text-gray-600">{itemDetails.vendor}</td>
-                                <td className="p-3 text-gray-600 whitespace-nowrap">{new Date(itemDetails.purchaseDate).toLocaleDateString('id-ID')}</td>
-                                <td className="p-3 text-gray-600 whitespace-nowrap">{itemDetails.warrantyEndDate ? new Date(itemDetails.warrantyEndDate).toLocaleDateString('id-ID') : '-'}</td>
-                                <td className="p-3 text-gray-600">
-                                    <div className="font-mono">{itemDetails.poNumber}</div>
-                                    <div className="text-xs text-gray-500">{itemDetails.invoiceNumber}</div>
-                                </td>
-                                <td className="p-3 text-gray-600">
-                                    <div>{itemDetails.filledBy}</div>
-                                    <div className="text-xs text-gray-500">{new Date(itemDetails.fillDate).toLocaleDateString('id-ID')}</div>
-                                </td>
-                            </tr>
-                        );
+                    {request.items.map(item => {
+                        const isRejected = request.itemStatuses?.[item.id]?.approvedQuantity === 0;
+                        const itemDetails = details[item.id];
+
+                        if (isRejected) {
+                            return (
+                                <tr key={item.id} className="bg-red-50/60 text-gray-500">
+                                    <td className="p-3 font-semibold">
+                                        <div className="flex items-center gap-2">
+                                            <span className="line-through">{item.itemName}</span>
+                                            <span className="px-2 py-0.5 text-xs font-bold text-white bg-danger rounded-full no-underline">DITOLAK</span>
+                                        </div>
+                                    </td>
+                                    <td colSpan={6} className="p-3 italic">
+                                        {request.itemStatuses?.[item.id]?.reason || 'Item ditolak saat proses review.'}
+                                    </td>
+                                </tr>
+                            );
+                        }
+                        
+                        if (itemDetails) {
+                             return (
+                                <tr key={item.id} className="bg-white">
+                                    <td className="p-3 font-semibold text-gray-800">{item.itemName || 'N/A'}</td>
+                                    <td className="p-3 text-right font-mono text-gray-800">Rp {(itemDetails.purchasePrice as unknown as number).toLocaleString('id-ID')}</td>
+                                    <td className="p-3 text-gray-600">{itemDetails.vendor}</td>
+                                    <td className="p-3 text-gray-600 whitespace-nowrap">{new Date(itemDetails.purchaseDate).toLocaleDateString('id-ID')}</td>
+                                    <td className="p-3 text-gray-600 whitespace-nowrap">{itemDetails.warrantyEndDate ? new Date(itemDetails.warrantyEndDate).toLocaleDateString('id-ID') : '-'}</td>
+                                    <td className="p-3 text-gray-600">
+                                        <div className="font-mono">{itemDetails.poNumber}</div>
+                                        <div className="text-xs text-gray-500">{itemDetails.invoiceNumber}</div>
+                                    </td>
+                                    <td className="p-3 text-gray-600">
+                                        <div>{itemDetails.filledBy}</div>
+                                        <div className="text-xs text-gray-500">{new Date(itemDetails.fillDate).toLocaleDateString('id-ID')}</div>
+                                    </td>
+                                </tr>
+                            );
+                        }
+
+                        return null;
                     })}
                 </tbody>
             </table>

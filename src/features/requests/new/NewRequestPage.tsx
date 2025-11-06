@@ -791,6 +791,7 @@ const RequestReviewModal: React.FC<{
     const handleAdjustmentChange = (itemId: number, field: 'approvedQuantity' | 'reason', value: string) => {
         const item = request.items.find(i => i.id === itemId);
         if (!item) return;
+        const maxQuantity = request.itemStatuses?.[item.id]?.approvedQuantity ?? item.quantity;
 
         let newValue = value;
         if (field === 'approvedQuantity') {
@@ -798,7 +799,7 @@ const RequestReviewModal: React.FC<{
                 newValue = '';
             } else {
                 const numValue = parseInt(value, 10);
-                if (isNaN(numValue) || numValue < 0 || numValue > item.quantity) return;
+                if (isNaN(numValue) || numValue < 0 || numValue > maxQuantity) return;
                 newValue = numValue.toString();
             }
         }
@@ -814,10 +815,11 @@ const RequestReviewModal: React.FC<{
         
         const item = request.items.find(i => i.id === itemId);
         if (!item) return;
+        const maxQuantity = request.itemStatuses?.[item.id]?.approvedQuantity ?? item.quantity;
 
-        let newQuantity = item.quantity;
+        let newQuantity = maxQuantity;
         if (action === 'reject') newQuantity = 0;
-        else if (action === 'partial') newQuantity = Math.max(1, item.quantity - 1);
+        else if (action === 'partial') newQuantity = Math.max(0, maxQuantity - 1);
         
         setAdjustments(prev => ({
             ...prev,
@@ -829,14 +831,15 @@ const RequestReviewModal: React.FC<{
     const isSubmissionValid = useMemo(() => {
         return request.items.every(item => {
             const adj = adjustments[item.id];
+            const maxQuantity = request.itemStatuses?.[item.id]?.approvedQuantity ?? item.quantity;
             if (!adj || adj.approvedQuantity === '') return false;
             const approvedQty = Number(adj.approvedQuantity);
-            if (approvedQty < item.quantity) {
+            if (approvedQty < maxQuantity) {
                 return adj.reason.trim() !== '';
             }
             return true;
         });
-    }, [adjustments, request.items]);
+    }, [adjustments, request.items, request.itemStatuses]);
 
     const handleSubmit = () => {
         if (!isSubmissionValid) {
@@ -890,6 +893,7 @@ const RequestReviewModal: React.FC<{
                 </div>
                 <div className="pt-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar -m-2 p-2">
                     {request.items.map(item => {
+                        const maxQuantity = request.itemStatuses?.[item.id]?.approvedQuantity ?? item.quantity;
                         const currentAction = itemActions[item.id];
                         const adj = adjustments[item.id];
                         const showReason = currentAction === 'reject' || currentAction === 'partial';
@@ -899,19 +903,19 @@ const RequestReviewModal: React.FC<{
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <p className="font-semibold text-gray-800">{item.itemName}</p>
-                                        <p className="text-xs text-gray-500">{item.itemTypeBrand} &bull; Diminta: {item.quantity} unit</p>
+                                        <p className="text-xs text-gray-500">{item.itemTypeBrand} &bull; Diminta: {item.quantity} unit &bull; Maks: {maxQuantity} unit</p>
                                     </div>
                                 </div>
                                 
                                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    {item.quantity === 1 ? (
+                                    {maxQuantity === 1 ? (
                                         <>
                                             <ActionButton text="Setujui (1)" icon={CheckIcon} isActive={currentAction === 'approve'} onClick={() => handleActionChange(item.id, 'approve')} />
                                             <ActionButton text="Tolak (0)" icon={CloseIcon} isActive={currentAction === 'reject'} onClick={() => handleActionChange(item.id, 'reject')} />
                                         </>
                                     ) : (
                                         <>
-                                            <ActionButton text={`Setujui Semua (${item.quantity})`} icon={CheckIcon} isActive={currentAction === 'approve'} onClick={() => handleActionChange(item.id, 'approve')} />
+                                            <ActionButton text={`Setujui Semua (${maxQuantity})`} icon={CheckIcon} isActive={currentAction === 'approve'} onClick={() => handleActionChange(item.id, 'approve')} />
                                             <ActionButton text="Setujui Sebagian" icon={PencilIcon} isActive={currentAction === 'partial'} onClick={() => handleActionChange(item.id, 'partial')} />
                                             <ActionButton text="Tolak Semua (0)" icon={CloseIcon} isActive={currentAction === 'reject'} onClick={() => handleActionChange(item.id, 'reject')} />
                                         </>
@@ -927,11 +931,11 @@ const RequestReviewModal: React.FC<{
                                                 id={`qty-${item.id}`}
                                                 value={adj?.approvedQuantity ?? ''}
                                                 onChange={(e) => handleAdjustmentChange(item.id, 'approvedQuantity', e.target.value)}
-                                                min="1"
-                                                max={item.quantity - 1}
+                                                min="0"
+                                                max={maxQuantity}
                                                 className="block w-24 px-2 py-1 text-center font-semibold text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-tm-accent focus:border-tm-accent"
                                             />
-                                            <span className="text-sm text-gray-500">/ {item.quantity} unit</span>
+                                            <span className="text-sm text-gray-500">/ {maxQuantity} unit</span>
                                         </div>
                                     </div>
                                 )}
@@ -965,6 +969,15 @@ const RegistrationStagingModal: React.FC<{
     request: Request;
     onInitiateRegistration: (item: RequestItem) => void;
 }> = ({ isOpen, onClose, request, onInitiateRegistration }) => {
+    
+    const itemsToRegister = useMemo(() => {
+        return request.items.filter(item => {
+            const approvedQty = request.itemStatuses?.[item.id]?.approvedQuantity;
+            // Keep if not revised, or if revised quantity is greater than 0
+            return approvedQty === undefined || approvedQty > 0;
+        });
+    }, [request.items, request.itemStatuses]);
+    
     return (
         <Modal
             isOpen={isOpen}
@@ -979,9 +992,10 @@ const RegistrationStagingModal: React.FC<{
                     Satu atau lebih item dari permintaan ini telah tiba. Pilih item di bawah ini untuk memulai proses pencatatan sebagai aset.
                 </p>
                 <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar border rounded-lg p-3 bg-gray-50/50">
-                    {request.items.map(item => {
+                    {itemsToRegister.map(item => {
+                        const approvedQuantity = request.itemStatuses?.[item.id]?.approvedQuantity ?? item.quantity;
                         const registeredCount = request.partiallyRegisteredItems?.[item.id] || 0;
-                        const remainingCount = item.quantity - registeredCount;
+                        const remainingCount = approvedQuantity - registeredCount;
                         const isCompleted = remainingCount <= 0;
 
                         return (
@@ -1002,8 +1016,8 @@ const RegistrationStagingModal: React.FC<{
                                 </div>
                                 <div className="mt-2 pt-2 border-t text-xs">
                                     <div className="flex justify-between">
-                                        <span className="text-gray-600">Total diminta:</span>
-                                        <span className="font-medium text-gray-800">{item.quantity} unit</span>
+                                        <span className="text-gray-600">Total disetujui:</span>
+                                        <span className="font-medium text-gray-800">{approvedQuantity} unit</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Sudah dicatat:</span>
@@ -1017,6 +1031,12 @@ const RegistrationStagingModal: React.FC<{
                             </div>
                         );
                     })}
+                    {itemsToRegister.length === 0 && (
+                        <div className="p-8 text-center text-gray-500">
+                            <InboxIcon className="w-12 h-12 mx-auto text-gray-400" />
+                            <p className="mt-2 font-medium">Semua item yang disetujui telah dicatat.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </Modal>
@@ -1320,7 +1340,7 @@ const NewRequestPage: React.FC<NewRequestPageProps> = (props) => {
                 const { approvedQuantity, reason } = adjustments[itemId];
                 const originalItem = selectedRequest.items.find(i => i.id === itemId);
     
-                if (originalItem && approvedQuantity < originalItem.quantity) {
+                if (originalItem && approvedQuantity < (newItemStatuses[itemId]?.approvedQuantity ?? originalItem.quantity)) {
                     newItemStatuses[itemId] = {
                         status: 'rejected',
                         reason: reason,
@@ -1332,7 +1352,7 @@ const NewRequestPage: React.FC<NewRequestPageProps> = (props) => {
                         approvedQuantity: approvedQuantity,
                         reason: reason,
                     });
-                } else if (newItemStatuses[itemId]) {
+                } else if (originalItem && approvedQuantity === originalItem.quantity && newItemStatuses[itemId]) {
                     delete newItemStatuses[itemId]; // Reverted to full approval, so clear status
                 }
     

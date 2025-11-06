@@ -932,13 +932,15 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       const newCount = currentCount + registeredItemInfo.count;
       updatedRequest.partiallyRegisteredItems[registeredItemInfo.requestItemId] = newCount;
       
-      allItemsRegistered = updatedRequest.items.every(
-          item => (updatedRequest.partiallyRegisteredItems?.[item.id] || 0) >= item.quantity
-      );
+      allItemsRegistered = updatedRequest.items.every(item => {
+          const approvedQuantity = updatedRequest.itemStatuses?.[item.id]?.approvedQuantity ?? item.quantity;
+          const registeredCount = updatedRequest.partiallyRegisteredItems?.[item.id] || 0;
+          return registeredCount >= approvedQuantity;
+      });
 
       if (allItemsRegistered) {
           updatedRequest.status = ItemStatus.AWAITING_HANDOVER;
-          addNotification(`Semua item untuk request ${requestId} telah dicatat. Status diubah menjadi Siap Serah Terima.`, 'success');
+          addNotification(`Semua item yang disetujui untuk request ${requestId} telah dicatat. Status diubah menjadi Siap Serah Terima.`, 'success');
       }
       
       updatedRequests[requestIndex] = updatedRequest;
@@ -978,7 +980,13 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
             targetPage = 'request'; 
             const requestId = handoverData.woRoIntNumber;
             setAndPersist(setRequests, prev => prev.map(r => 
-                r.id === requestId ? { ...r, isRegistered: true, status: ItemStatus.COMPLETED } : r
+                r.id === requestId ? { 
+                    ...r, 
+                    isRegistered: true, 
+                    status: ItemStatus.COMPLETED,
+                    completionDate: new Date().toISOString(),
+                    completedBy: currentUser.name,
+                } : r
             ), 'app_requests');
 
             const originalRequest = requests.find(r => r.id === requestId);
