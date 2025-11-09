@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Asset, AssetStatus, Page, PreviewData, AssetCategory, Handover, User, AssetCondition } from '../../types';
+import { Asset, AssetStatus, Page, PreviewData, AssetCategory, Handover, User, AssetCondition, Division } from '../../types';
 import { useSortableData, SortConfig } from '../../hooks/useSortableData';
 import { PaginationControls } from '../../components/ui/PaginationControls';
 import { SearchIcon } from '../../components/icons/SearchIcon';
@@ -33,6 +33,8 @@ interface StockOverviewPageProps {
     currentUser: User;
     assets: Asset[];
     assetCategories: AssetCategory[];
+    users: User[];
+    divisions: Division[];
     setActivePage: (page: Page, filters?: any) => void;
     onShowPreview: (data: PreviewData) => void;
     initialFilters?: any;
@@ -228,7 +230,7 @@ const AssetCard: React.FC<{
 };
 
 
-const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, assets, assetCategories, setActivePage, onShowPreview, initialFilters, onClearInitialFilters, handovers, requests, onReportDamage }) => {
+const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, assets, assetCategories, users, divisions, setActivePage, onShowPreview, initialFilters, onClearInitialFilters, handovers, requests, onReportDamage }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(9); // Adjusted for card layout
@@ -338,28 +340,24 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
 
     // --- ADMIN/MANAGER-SPECIFIC LOGIC ---
     const aggregatedStock = useMemo<StockItem[]>(() => {
-        if (currentUser.role === 'Staff') return []; // Don't compute for staff
+        if (currentUser.role === 'Staff') return [];
         
         const stockMap = new Map<string, StockItem>();
-    
-        let relevantAssets: Asset[];
-    
-        if (currentUser.role === 'Leader' && currentUser.divisionId) {
-            const userDivisionId = currentUser.divisionId;
-            const allowedCategoryNames = new Set(
-                assetCategories
-                    .filter(cat => cat.associatedDivisions.length === 0 || cat.associatedDivisions.includes(userDivisionId))
-                    .map(cat => cat.name)
-            );
-            relevantAssets = assets.filter(asset => allowedCategoryNames.has(asset.category));
-        } else {
-            relevantAssets = assets;
-        }
+        
+        const isLeader = currentUser.role === 'Leader' && currentUser.divisionId;
+        const userDivisionId = currentUser.divisionId;
+        
+        const divisionUserNames = isLeader ? new Set(users.filter(u => u.divisionId === userDivisionId).map(u => u.name)) : new Set();
+        const allowedCategoryNames = isLeader ? new Set(
+            assetCategories
+                .filter(cat => cat.associatedDivisions.length === 0 || cat.associatedDivisions.includes(userDivisionId!))
+                .map(cat => cat.name)
+        ) : new Set();
 
-        const activeAssets = relevantAssets.filter(asset => asset.status !== AssetStatus.DECOMMISSIONED);
+        const activeAssets = assets.filter(asset => asset.status !== AssetStatus.DECOMMISSIONED);
 
         activeAssets.forEach(asset => {
-            const key = `${asset.name}|${asset.brand}`;
+             const key = `${asset.name}|${asset.brand}`;
             if (!stockMap.has(key)) {
                 const category = assetCategories.find(c => c.name === asset.category);
                 const type = category?.types.find(t => t.name === asset.type);
@@ -376,25 +374,52 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                     trackingMethod: type?.trackingMethod || 'individual',
                 });
             }
-
-            const current = stockMap.get(key)!;
-            current.total++;
-
-            switch (asset.status) {
-                case AssetStatus.IN_STORAGE: 
-                    current.inStorage++;
-                    if (asset.purchasePrice) {
-                        current.valueInStorage += asset.purchasePrice;
-                    }
-                    break;
-                case AssetStatus.IN_USE: current.inUse++; break;
-                case AssetStatus.DAMAGED: current.damaged++; break;
-                default: break;
-            }
         });
 
-        return Array.from(stockMap.values());
-    }, [assets, assetCategories, currentUser]);
+        if (isLeader) {
+            activeAssets.forEach(asset => {
+                const isRelevantInStorage = asset.status === AssetStatus.IN_STORAGE && allowedCategoryNames.has(asset.category);
+                const isRelevantInUseOrDamaged = asset.status !== AssetStatus.IN_STORAGE && asset.currentUser && divisionUserNames.has(asset.currentUser);
+
+                if (isRelevantInStorage || isRelevantInUseOrDamaged) {
+                    const key = `${asset.name}|${asset.brand}`;
+                    const current = stockMap.get(key)!;
+                    current.total++;
+                    switch (asset.status) {
+                        case AssetStatus.IN_STORAGE: 
+                            current.inStorage++;
+                            if (asset.purchasePrice) current.valueInStorage += asset.purchasePrice;
+                            break;
+                        case AssetStatus.IN_USE: current.inUse++; break;
+                        case AssetStatus.DAMAGED:
+                        case AssetStatus.UNDER_REPAIR:
+                        case AssetStatus.OUT_FOR_REPAIR:
+                            current.damaged++; break;
+                    }
+                }
+            });
+        } else { // Admins and SuperAdmins
+             activeAssets.forEach(asset => {
+                const key = `${asset.name}|${asset.brand}`;
+                const current = stockMap.get(key)!;
+                current.total++;
+                switch (asset.status) {
+                    case AssetStatus.IN_STORAGE:
+                        current.inStorage++;
+                        if (asset.purchasePrice) current.valueInStorage += asset.purchasePrice;
+                        break;
+                    case AssetStatus.IN_USE: current.inUse++; break;
+                    case AssetStatus.DAMAGED:
+                    case AssetStatus.UNDER_REPAIR:
+                    case AssetStatus.OUT_FOR_REPAIR:
+                        current.damaged++; break;
+                }
+            });
+        }
+
+        return Array.from(stockMap.values()).filter(item => item.total > 0);
+
+    }, [assets, assetCategories, currentUser, users, divisions]);
     
     const summaryData = useMemo(() => {
         if (currentUser.role === 'Staff') return null;

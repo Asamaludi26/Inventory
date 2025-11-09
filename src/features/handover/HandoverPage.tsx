@@ -207,7 +207,7 @@ const HandoverForm: React.FC<{
 }> = ({ currentUser, handovers, onSave, assets, users, divisions, prefillData, onClearPrefill, onUpdateAsset }) => {
     const [handoverDate, setHandoverDate] = useState<Date | null>(new Date());
     const [docNumber, setDocNumber] = useState('');
-    const [menyerahkan, setMenyerahkan] = useState('');
+    const [menyerahkan, setMenyerahkan] = useState(currentUser.name);
     const [penerima, setPenerima] = useState('');
     const [mengetahui, setMengetahui] = useState('');
     const [woRoIntNumber, setWoRoIntNumber] = useState('');
@@ -248,23 +248,40 @@ const HandoverForm: React.FC<{
 
     const ceo = useMemo(() => users.find(u => u.role === 'Super Admin'), [users]);
 
-    const availableAssets = useMemo(() => {
-        const inStorage = assets.filter(asset => asset.status === AssetStatus.IN_STORAGE);
-        const inUse = assets.filter(asset => asset.status === AssetStatus.IN_USE);
-        return { inStorage, inUse };
-    }, [assets]);
+    const availableAssetsForSelection = useMemo(() => {
+        const canAccessWarehouse = ['Admin Logistik', 'Super Admin', 'Leader'].includes(currentUser.role);
+
+        if (isFromRequest || (!isFromRequest && canAccessWarehouse)) {
+            // For requests OR if user is an admin/leader doing a manual handover,
+            // assets are from central storage.
+            return assets.filter(asset => asset.status === AssetStatus.IN_STORAGE);
+        } else {
+            // For manual handovers by Staff, assets are those belonging to them.
+            return assets.filter(asset => asset.currentUser === menyerahkan && asset.status === AssetStatus.IN_USE);
+        }
+    }, [assets, isFromRequest, menyerahkan, currentUser.role]);
 
     const assetOptions = useMemo(() => {
-        const inStorageOptions = availableAssets.inStorage.map(asset => ({
-            value: asset.id,
-            label: `${asset.name} (${asset.id}) - Di Gudang`
-        }));
-        const inUseOptions = availableAssets.inUse.map(asset => ({
-            value: asset.id,
-            label: `${asset.name} (${asset.id}) - Digunakan!`
-        }));
-        return [...inStorageOptions, ...inUseOptions];
-    }, [availableAssets]);
+        const prefilledAssetId = (prefillData && 'id' in prefillData && !isFromRequest) ? (prefillData as Asset).id : null;
+        
+        const optionAssets = [...availableAssetsForSelection];
+        // Ensure the pre-filled asset is in the list, even if its status/user is slightly off.
+        if (prefilledAssetId && !optionAssets.some(a => a.id === prefilledAssetId)) {
+            const prefilledAsset = assets.find(a => a.id === prefilledAssetId);
+            if (prefilledAsset) {
+                optionAssets.push(prefilledAsset);
+            }
+        }
+
+        return optionAssets.map(asset => {
+            let labelSuffix = '';
+            if (asset.status === AssetStatus.IN_STORAGE) labelSuffix = ' - Di Gudang';
+            return {
+                value: asset.id,
+                label: `${asset.name} (${asset.id})${labelSuffix}`
+            };
+        });
+    }, [availableAssetsForSelection, prefillData, assets, isFromRequest]);
 
     const getDivisionForUser = (userName: string): string => {
         if (!userName) return '';
@@ -421,8 +438,7 @@ const HandoverForm: React.FC<{
     };
     
     const handleAssetSelection = (id: number, selectedAssetId: string) => {
-        const allAvailable = [...availableAssets.inStorage, ...availableAssets.inUse];
-        const selectedAsset = allAvailable.find(asset => asset.id === selectedAssetId);
+        const selectedAsset = assets.find(asset => asset.id === selectedAssetId);
         
         setItems(items.map(item => 
             item.id === id 

@@ -57,7 +57,7 @@ const allMenuItems: MenuItem[] = [
           { id: 'request-loan', page: 'request-pinjam', label: 'Request Pinjam', icon: JournalCheckIcon },
         ],
       },
-      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon, roles: ['Admin Logistik', 'Super Admin'] },
+      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon },
       { id: 'dismantle', label: 'Dismantle Aset', icon: DismantleIcon, roles: ['Admin Logistik', 'Super Admin'] },
       { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Admin Logistik', 'Super Admin'] },
     ],

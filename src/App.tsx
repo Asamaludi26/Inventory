@@ -1217,7 +1217,6 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
 
   const staffRestrictedPages: Page[] = [
     'registration',
-    'handover',
     'dismantle',
     'repair',
     'customers',
@@ -1277,7 +1276,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       case 'dismantle':
         return <ItemDismantlePage currentUser={currentUser} dismantles={dismantles} setDismantles={(valueOrFn) => setAndPersist(setDismantles, valueOrFn, 'app_dismantles')} assets={assets} customers={customers} users={users} prefillData={prefillDmData} onClearPrefill={() => setPrefillDmData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={handleShowPreview} setActivePage={handleSetActivePage}/>;
       case 'stock':
-        return <StockOverviewPage currentUser={currentUser} assets={assets} assetCategories={assetCategories} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} handovers={handovers} requests={requests} onReportDamage={setAssetToReport} />;
+        return <StockOverviewPage currentUser={currentUser} assets={assets} assetCategories={assetCategories} users={users} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} handovers={handovers} requests={requests} onReportDamage={setAssetToReport} />;
       case 'repair':
         return <RepairManagementPage currentUser={currentUser} assets={assets} users={users} onShowPreview={handleShowPreview} onStartRepair={setAssetToStartRepair} onAddProgressUpdate={setAssetToUpdateProgress} onReceiveFromRepair={handleReceiveFromRepair} onCompleteRepair={setAssetToCompleteRepair} onDecommission={setAssetToDecommission} />;
       case 'pengaturan-pengguna':
