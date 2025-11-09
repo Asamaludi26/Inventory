@@ -1285,6 +1285,12 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         return <CategoryManagementPage currentUser={currentUser} categories={assetCategories} setCategories={(valueOrFn) => setAndPersist(setAssetCategories, valueOrFn, 'app_assetCategories')} divisions={divisions} assets={assets} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal}/>;
       case 'customers':
         return <CustomerManagementPage currentUser={currentUser} customers={customers} setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} assets={assets} onInitiateDismantle={handleInitiateDismantle} onShowPreview={handleShowPreview} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)}/>;
+      case 'customer-installation-form':
+        return <UnderConstructionPage title="Formulir Instalasi Pelanggan" setActivePage={handleSetActivePage} />;
+      case 'customer-maintenance-form':
+        return <UnderConstructionPage title="Formulir Maintenance Pelanggan" setActivePage={handleSetActivePage} />;
+      case 'customer-dismantle-form':
+        return <UnderConstructionPage title="Formulir Dismantle Pelanggan" setActivePage={handleSetActivePage} />;
       default:
         return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
     }

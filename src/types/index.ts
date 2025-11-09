@@ -10,6 +10,9 @@ export type Page =
   | 'stock'
   | 'repair'
   | 'customers'
+  | 'customer-installation-form'
+  | 'customer-maintenance-form'
+  | 'customer-dismantle-form'
   | 'pengaturan-pengguna'
   | 'kategori';
 

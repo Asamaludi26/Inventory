@@ -62,7 +62,18 @@ const allMenuItems: MenuItem[] = [
       { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Admin Logistik', 'Super Admin'] },
     ],
   },
-  { id: 'customers', label: 'Daftar Pelanggan', icon: CustomerIcon, roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'] },
+  {
+    id: 'customerManagement',
+    label: 'Manajemen Pelanggan',
+    icon: CustomerIcon,
+    roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'],
+    children: [
+      { id: 'customers', label: 'Daftar Pelanggan', icon: UsersIcon },
+      { id: 'customer-installation-form', page: 'customer-installation-form', label: 'Form Instalasi', icon: FileSignatureIcon },
+      { id: 'customer-maintenance-form', page: 'customer-maintenance-form', label: 'Form Maintenance', icon: WrenchIcon },
+      { id: 'customer-dismantle-form', page: 'customer-dismantle-form', label: 'Form Dismantle', icon: DismantleIcon },
+    ],
+  },
   {
     id: 'settings',
     label: 'Pengaturan',
@@ -232,10 +243,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                                 onClick={() => setOpenMenus(prev => ({...prev, [item.id]: !prev[item.id]}))}
                                 className={`flex items-center justify-between w-full px-4 py-2.5 my-1 rounded-md text-sm font-medium transition-colors duration-200 group focus:outline-none ${isParentActive ? 'text-white' : 'text-gray-400'} hover:bg-gray-700/40 hover:text-white`}
                             >
-                                <div className="flex items-center">
-                                    <item.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isParentActive ? 'text-white' : 'text-gray-500'}`} />
-                                    <span>{item.label}</span>
-                                </div>
+                                <item.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isParentActive ? 'text-white' : 'text-gray-500'}`} />
+                                <span className="flex-1 text-left">{item.label}</span>
                                 <ChevronDownIcon className={`w-5 h-5 transform transition-transform duration-200 ${openMenus[item.id] ? 'rotate-180' : 'rotate-0'}`} />
                             </button>
                             <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openMenus[item.id] ? 'max-h-96' : 'max-h-0'}`}>
@@ -261,10 +270,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                                                     onClick={() => setOpenMenus(prev => ({...prev, [child.id]: !prev[child.id]}))}
                                                     className={`flex items-center justify-between w-full px-4 py-2.5 my-1 rounded-md text-sm font-medium transition-colors duration-200 group focus:outline-none ${isChildParentActive ? 'text-white' : 'text-gray-400'} hover:bg-gray-700/40 hover:text-white`}
                                                 >
-                                                    <div className="flex items-center">
-                                                        <child.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isChildParentActive ? 'text-white' : 'text-gray-500'}`} />
-                                                        <span>{child.label}</span>
-                                                    </div>
+                                                    <child.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isChildParentActive ? 'text-white' : 'text-gray-500'}`} />
+                                                    <span className="flex-1 text-left">{child.label}</span>
                                                     <ChevronDownIcon className={`w-5 h-5 transform transition-transform duration-200 ${openMenus[child.id] ? 'rotate-180' : 'rotate-0'}`} />
                                                 </button>
                                                 <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openMenus[child.id] ? 'max-h-96' : 'max-h-0'}`}>
