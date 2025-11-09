@@ -18,7 +18,9 @@ import {
     Handover,
     Dismantle,
     OrderDetails,
-    Notification
+    Notification,
+    LoanRequest,
+    LoanRequestStatus
 } from '../types';
 
 // --- CONFIGURATION ---
@@ -214,10 +216,19 @@ const generateMockAssets = () => {
         
         let status: AssetStatus = AssetStatus.IN_STORAGE;
         let condition: AssetCondition = AssetCondition.BRAND_NEW;
-        let currentUser: string | null = null;
+        let currentUser: string | null = 'Gudang Inventori';
         let location: string | null = 'Gudang Inventori';
         let isDismantled = false;
         let dismantleInfo: Asset['dismantleInfo'] = undefined;
+
+        const templateCategory = initialAssetCategories.find(c => c.name === template.category);
+        const templateType = templateCategory?.types.find(t => t.name === template.type);
+
+        let serialNumber: string | undefined;
+        if (templateType?.trackingMethod !== 'bulk') {
+            serialNumber = `${template.brand.slice(0, 3).toUpperCase()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        }
+
 
         // --- Logic for Status & Allocation ---
         const decision = Math.random();
@@ -290,7 +301,7 @@ const generateMockAssets = () => {
 
         allAssets.push({
             id, name: template.name, category: template.category, type: template.type, brand: template.brand,
-            serialNumber: `${template.brand.slice(0, 3).toUpperCase()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+            serialNumber,
             macAddress: `00:0A:95:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}`,
             registrationDate: registrationDate.toISOString().split('T')[0],
             recordedBy: 'Alice Johnson',
@@ -457,6 +468,83 @@ export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT
 
     return request;
 });
+
+// FIX: Change mock loan requests to use 'items' array instead of 'assetId' and 'assetName'
+export const mockLoanRequests: LoanRequest[] = [
+    {
+        id: 'LREQ-001',
+        requester: 'Citra Lestari',
+        division: 'Teknisi',
+        items: [{
+            id: 1,
+            itemName: 'Laptop ThinkPad T480',
+            brand: 'Lenovo',
+            quantity: 1,
+            returnDate: new Date(new Date(NOW).setDate(NOW.getDate() + 5)).toISOString().split('T')[0],
+        }],
+        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 2)).toISOString(),
+        status: LoanRequestStatus.PENDING,
+        notes: 'Dibutuhkan untuk pengerjaan proyek klien di luar kantor selama seminggu.'
+    },
+    {
+        id: 'LREQ-002',
+        requester: 'Manager NOC',
+        division: 'NOC',
+        items: [{
+            id: 1,
+            itemName: 'OTDR AQ7280',
+            brand: 'Yokogawa',
+            quantity: 1,
+            returnDate: new Date(new Date(NOW).setDate(NOW.getDate() - 1)).toISOString().split('T')[0],
+        }],
+        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 5)).toISOString(),
+        status: LoanRequestStatus.RETURNED,
+        approver: 'Alice Johnson',
+        approvalDate: new Date(new Date(NOW).setDate(NOW.getDate() - 4)).toISOString(),
+        actualReturnDate: new Date(new Date(NOW).setDate(NOW.getDate() - 1)).toISOString(),
+        handoverId: 'HO-LREQ-002',
+// FIX: Added missing 'notes' property.
+        notes: null
+    },
+    {
+        id: 'LREQ-003',
+        requester: 'Citra Lestari',
+        division: 'Teknisi',
+        items: [{
+            id: 1,
+            itemName: 'Fusion Splicer 90S',
+            brand: 'Fujikura',
+            quantity: 1,
+            returnDate: new Date(new Date(NOW).setDate(NOW.getDate() - 2)).toISOString().split('T')[0],
+        }],
+        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 10)).toISOString(),
+        status: LoanRequestStatus.OVERDUE,
+        approver: 'Alice Johnson',
+        approvalDate: new Date(new Date(NOW).setDate(NOW.getDate() - 9)).toISOString(),
+        handoverId: 'HO-LREQ-003',
+// FIX: Added missing 'notes' property.
+        notes: 'Pekerjaan splicing di area baru.'
+    },
+     {
+        id: 'LREQ-004',
+        requester: 'Eko Pratama',
+        division: 'Teknisi',
+        items: [{
+            id: 1,
+            itemName: 'Laptop ThinkPad T480',
+            brand: 'Lenovo',
+            quantity: 1,
+            returnDate: new Date(new Date(NOW).setDate(NOW.getDate() + 10)).toISOString().split('T')[0],
+        }],
+        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 3)).toISOString(),
+        status: LoanRequestStatus.REJECTED,
+        approver: 'Alice Johnson',
+        approvalDate: new Date(new Date(NOW).setDate(NOW.getDate() - 3)).toISOString(),
+        rejectionReason: 'Semua laptop teknisi sedang digunakan atau dalam perbaikan.',
+// FIX: Added missing 'notes' property.
+        notes: 'Untuk presentasi proyek.'
+    },
+];
 
 // 7. NOTIFICATIONS
 export const mockNotifications: Notification[] = [

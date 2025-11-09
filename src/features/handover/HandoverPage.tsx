@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry, PreviewData, Request, Division } from '../../types';
+// FIX: Add LoanRequest to the type import to handle prefilling from loan requests.
+import { Handover, ItemStatus, HandoverItem, Asset, AssetStatus, User, ActivityLogEntry, PreviewData, Request, Division, LoanRequest } from '../../types';
 import { EyeIcon } from '../../components/icons/EyeIcon';
 import { TrashIcon } from '../../components/icons/TrashIcon';
 import { useNotification } from '../../providers/NotificationProvider';
@@ -35,7 +36,8 @@ interface ItemHandoverPageProps {
     assets: Asset[];
     users: User[];
     divisions: Division[];
-    prefillData?: Asset | Request | null;
+    // FIX: Update prefillData to accept LoanRequest in addition to Asset and Request.
+    prefillData?: Asset | Request | LoanRequest | null;
     onClearPrefill: () => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
     onShowPreview: (data: PreviewData) => void;
@@ -199,7 +201,7 @@ const HandoverForm: React.FC<{
     assets: Asset[]; 
     users: User[];
     divisions: Division[];
-    prefillData?: Asset | Request | null;
+    prefillData?: Asset | Request | LoanRequest | null;
     onClearPrefill: () => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
 }> = ({ currentUser, handovers, onSave, assets, users, divisions, prefillData, onClearPrefill, onUpdateAsset }) => {
@@ -280,8 +282,8 @@ const HandoverForm: React.FC<{
         const datePrefix = `${year}${month}${day}`;
 
         // Determine the prefix based on whether it's from a request
-        const isFromRequest = prefillData && 'requester' in prefillData;
-        const prefix = isFromRequest ? `HO-RO-${datePrefix}` : `HO-${datePrefix}`;
+        const isFromAnyRequest = prefillData && 'requester' in prefillData;
+        const prefix = isFromAnyRequest ? `HO-RO-${datePrefix}` : `HO-${datePrefix}`;
 
         const todayHandovers = handovers.filter(h => {
             if (!h.docNumber) return false;
@@ -311,43 +313,81 @@ const HandoverForm: React.FC<{
         }
     }, [ceo]);
 
+    // FIX: Update useEffect to differentiate between Request and LoanRequest for prefilling form data.
     useEffect(() => {
         if (prefillData) {
-            if ('requester' in prefillData) { // It's a Request object
-                const recipientUser = users.find(u => u.name === prefillData.requester);
-                if (recipientUser) {
-                    setPenerima(recipientUser.name);
-                    setSelectedDivisionId(recipientUser.divisionId?.toString() || '');
-                }
-                setWoRoIntNumber(prefillData.id);
-                
-                const registeredAssets = assets.filter(asset => 
-                    asset.woRoIntNumber === prefillData.id && asset.status === AssetStatus.IN_STORAGE
-                );
+            if ('requester' in prefillData) { // It's a Request or LoanRequest object
+                if ('order' in prefillData) { // It's a Request object
+                    const request = prefillData;
+                    const recipientUser = users.find(u => u.name === request.requester);
+                    if (recipientUser) {
+                        setPenerima(recipientUser.name);
+                        setSelectedDivisionId(recipientUser.divisionId?.toString() || '');
+                    }
+                    setWoRoIntNumber(request.id);
+                    
+                    const registeredAssets = assets.filter(asset => 
+                        asset.woRoIntNumber === request.id && asset.status === AssetStatus.IN_STORAGE
+                    );
 
-                if (registeredAssets.length > 0) {
-                    setItems(registeredAssets.map(asset => ({
-                        id: Date.now() + Math.random(),
-                        assetId: asset.id,
-                        itemName: asset.name,
-                        itemTypeBrand: asset.brand,
-                        conditionNotes: asset.condition,
-                        quantity: 1,
-                        checked: true
-                    })));
-                } else {
-                     setItems(prefillData.items.map(item => ({
-                        id: Date.now() + Math.random(),
-                        assetId: '', 
-                        itemName: item.itemName,
-                        itemTypeBrand: item.itemTypeBrand,
-                        conditionNotes: 'Kondisi baik (dari stok)',
-                        quantity: item.quantity,
-                        checked: true
-                    })));
-                     addNotification('Aset yang baru dicatat tidak ditemukan di gudang. Harap pilih secara manual.', 'warning');
-                }
+                    if (registeredAssets.length > 0) {
+                        setItems(registeredAssets.map(asset => ({
+                            id: Date.now() + Math.random(),
+                            assetId: asset.id,
+                            itemName: asset.name,
+                            itemTypeBrand: asset.brand,
+                            conditionNotes: asset.condition,
+                            quantity: 1,
+                            checked: true
+                        })));
+                    } else {
+                            setItems(request.items.map(item => ({
+                            id: Date.now() + Math.random(),
+                            assetId: '', 
+                            itemName: item.itemName,
+                            itemTypeBrand: item.itemTypeBrand,
+                            conditionNotes: 'Kondisi baik (dari stok)',
+                            quantity: item.quantity,
+                            checked: true
+                        })));
+                            addNotification('Aset yang baru dicatat tidak ditemukan di gudang. Harap pilih secara manual.', 'warning');
+                    }
+                } else { // It's a LoanRequest object
+                    const loanRequest = prefillData as LoanRequest;
+                    const recipientUser = users.find(u => u.name === loanRequest.requester);
+                    if (recipientUser) {
+                        setPenerima(recipientUser.name);
+                        setSelectedDivisionId(recipientUser.divisionId?.toString() || '');
+                    }
+                    setWoRoIntNumber(loanRequest.id);
 
+                    if (loanRequest.assignedAssetIds) {
+                        const assignedAssetIdsFlat = Object.values(loanRequest.assignedAssetIds).flat();
+                        const assignedAssets = assets.filter(asset => assignedAssetIdsFlat.includes(asset.id));
+                        if (assignedAssets.length > 0) {
+                            setItems(assignedAssets.map(asset => ({
+                                id: Date.now() + Math.random(),
+                                assetId: asset.id,
+                                itemName: asset.name,
+                                itemTypeBrand: asset.brand,
+                                conditionNotes: asset.condition,
+                                quantity: 1,
+                                checked: true
+                            })));
+                        }
+                    } else {
+                        setItems(loanRequest.items.map(item => ({
+                            id: Date.now() + Math.random(),
+                            assetId: '',
+                            itemName: item.itemName,
+                            itemTypeBrand: item.brand,
+                            conditionNotes: 'Kondisi baik (dari stok)',
+                            quantity: item.quantity,
+                            checked: true
+                        })));
+                        addNotification('Aset untuk pinjaman ini belum ditetapkan oleh admin. Harap pilih secara manual.', 'warning');
+                    }
+                }
             } else { // It's an Asset object
                 setItems([{
                     id: Date.now(),
@@ -968,5 +1008,4 @@ const ItemHandoverPage: React.FC<ItemHandoverPageProps> = (props) => {
         </div>
     );
 };
-
 export default ItemHandoverPage;

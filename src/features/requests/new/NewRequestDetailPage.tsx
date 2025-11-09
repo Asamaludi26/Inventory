@@ -666,10 +666,8 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                 handlePurchaseDetailFieldChange(itemId, 'warrantyEndDate', null);
             } else {
                 const d = new Date(purchaseDate);
-                // FIX: Removed redundant Number() cast. `period` is already a number here.
-                const expectedMonth = (d.getMonth() + period) % 12;
-                // FIX: Removed redundant Number() cast. `period` is already a number here.
-                d.setMonth(d.getMonth() + period);
+                const expectedMonth = (d.getMonth() + Number(period)) % 12;
+                d.setMonth(d.getMonth() + Number(period));
                 if (d.getMonth() !== expectedMonth) {
                     d.setDate(0);
                 }
@@ -689,7 +687,7 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
             months += date.getMonth();
             
             if (date.getDate() < pDate.getDate()) {
-                // months--;
+                months--;
             }
     
             setItemWarrantyPeriods(prev => ({...prev, [itemId]: months <= 0 ? '' : months}));
@@ -1303,7 +1301,7 @@ const ItemPurchaseDetailsForm: React.FC<ItemPurchaseDetailsFormProps> = ({ item,
     useEffect(() => {
         if (purchaseDate && warrantyPeriod && warrantyPeriod > 0) {
             const d = new Date(purchaseDate);
-            const expectedMonth = (Number(d.getMonth()) + Number(warrantyPeriod)) % 12;
+            const expectedMonth = (d.getMonth() + Number(warrantyPeriod)) % 12;
             d.setMonth(d.getMonth() + Number(warrantyPeriod));
             if (d.getMonth() !== expectedMonth) {
                 d.setDate(0);
@@ -1317,13 +1315,14 @@ const ItemPurchaseDetailsForm: React.FC<ItemPurchaseDetailsFormProps> = ({ item,
 
         if (purchaseDate && date && date > purchaseDate) {
             const pDate = new Date(purchaseDate);
-            // FIX: Refactor date difference calculation to avoid type errors.
-            const months = (date.getFullYear() - pDate.getFullYear()) * 12 + (date.getMonth() - pDate.getMonth());
+            let months = (date.getFullYear() - pDate.getFullYear()) * 12 + (date.getMonth() - pDate.getMonth());
             
-            // FIX: Use the local state setter `setWarrantyPeriod` instead of `setItemWarrantyPeriods`.
+            if (date.getDate() < pDate.getDate()) {
+                months--;
+            }
+    
             setWarrantyPeriod(months <= 0 ? '' : months);
         } else {
-            // FIX: Use the local state setter `setWarrantyPeriod` instead of `setItemWarrantyPeriods`.
             setWarrantyPeriod('');
         }
     };

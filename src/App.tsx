@@ -6,7 +6,8 @@ import {
     ItemStatus, 
     AssetStatus, 
     CustomerStatus, 
-    AssetCondition 
+    AssetCondition,
+    LoanRequestStatus
 } from './types';
 import type { 
     Page, 
@@ -25,7 +26,8 @@ import type {
     RequestItem, 
     ParsedScanResult, 
     Notification,
-    Attachment 
+    Attachment,
+    LoanRequest
 } from './types';
 
 // Services
@@ -458,6 +460,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
   // --- Data States ---
   const [assets, setAssets] = useState<Asset[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
+  const [loanRequests, setLoanRequests] = useState<LoanRequest[]>([]);
   const [handovers, setHandovers] = useState<Handover[]>([]);
   const [dismantles, setDismantles] = useState<Dismantle[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -472,7 +475,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
 
   // State for pre-filling forms & cross-module modals
   const [prefillRegData, setPrefillRegData] = useState<{ request: Request; itemToRegister?: RequestItem } | null>(null);
-  const [prefillHoData, setPrefillHoData] = useState<Asset | Request | null>(null);
+  const [prefillHoData, setPrefillHoData] = useState<Asset | Request | LoanRequest | null>(null);
   const [prefillDmData, setPrefillDmData] = useState<Asset | null>(null);
   const [assetToInstall, setAssetToInstall] = useState<Asset | null>(null);
   const [isGlobalScannerOpen, setIsGlobalScannerOpen] = useState(false);
@@ -514,6 +517,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                 setDivisions(data.divisions);
                 setAssetCategories(data.assetCategories);
                 setNotifications(data.notifications);
+                setLoanRequests(data.loanRequests);
 
             } catch (err: any) {
                 setError(err.message || 'Gagal memuat data aplikasi. Silakan coba muat ulang halaman.');
@@ -848,6 +852,11 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
     handleSetActivePage('handover');
   };
 
+  const handleInitiateHandoverFromLoan = (loanRequest: LoanRequest) => {
+    setPrefillHoData(loanRequest);
+    handleSetActivePage('handover');
+  };
+
   const handleInitiateDismantle = (asset: Asset) => {
     setPrefillDmData(asset);
     handleSetActivePage('dismantle');
@@ -1001,6 +1010,18 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                     });
                 }
             }
+        }
+
+        if (handoverData.woRoIntNumber?.startsWith('LREQ-')) {
+            targetPage = 'request-pinjam';
+            const loanId = handoverData.woRoIntNumber;
+            setAndPersist(setLoanRequests, prev => prev.map(lr =>
+                lr.id === loanId ? {
+                    ...lr,
+                    status: LoanRequestStatus.ON_LOAN,
+                    handoverId: newHandover.id
+                } : lr
+            ), 'app_loanRequests');
         }
         
         addNotification(`Berita acara serah terima ${newHandover.docNumber} berhasil dibuat.`, 'success');
@@ -1227,11 +1248,17 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                   currentUser={currentUser} 
                   requests={requests} 
                   setRequests={(valueOrFn) => setAndPersist(setRequests, valueOrFn, 'app_requests')} 
-                  assets={assets} 
+                  loanRequests={loanRequests}
+                  setLoanRequests={(valueOrFn) => setAndPersist(setLoanRequests, valueOrFn, 'app_loanRequests')}
+                  assets={assets}
+                  setAssets={(valueOrFn) => setAndPersist(setAssets, valueOrFn, 'app_assets')}
+                  handovers={handovers}
+                  setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')}
                   assetCategories={assetCategories} 
                   divisions={divisions} 
                   onInitiateRegistration={handleInitiateRegistration} 
                   onInitiateHandoverFromRequest={handleInitiateHandoverFromRequest} 
+                  onInitiateHandoverFromLoan={handleInitiateHandoverFromLoan}
                   initialFilters={pageInitialState} 
                   onClearInitialFilters={clearPageInitialState} 
                   onShowPreview={handleShowPreview} 

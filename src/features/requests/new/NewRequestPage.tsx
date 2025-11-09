@@ -33,6 +33,8 @@ import { RequestStatusIndicator, OrderIndicator } from './components/RequestStat
 import NewRequestDetailPage from './NewRequestDetailPage';
 import { SignatureStamp } from '../../../components/ui/SignatureStamp';
 import { PencilIcon } from '../../../components/icons/PencilIcon';
+import { Letterhead } from '../../../components/ui/Letterhead';
+import { toYYYYMMDD } from '../../../utils/dateFormatter';
 
 
 const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].includes(role);
@@ -445,7 +447,7 @@ const RequestForm: React.FC<{
             onCreateRequest({
                 requester: requesterName,
                 division: requesterDivision,
-                requestDate: requestDate ? requestDate.toISOString() : new Date().toISOString(),
+                requestDate: requestDate ? toYYYYMMDD(requestDate) : toYYYYMMDD(new Date()),
                 order: orderDetails,
                 items: finalItems,
                 totalValue,
@@ -468,10 +470,10 @@ const RequestForm: React.FC<{
     return (
     <>
         <form id={formId} className="space-y-6" onSubmit={handleSubmit}>
-            {/* Document Header */}
-            <div className="mb-6 space-y-2 text-center">
-                <h4 className="text-xl font-bold text-tm-dark">TRINITY MEDIA INDONESIA</h4>
-                <p className="font-semibold text-tm-secondary">SURAT PERMINTAAN PEMBELIAN BARANG (PURCHASE REQUISITION)</p>
+            <Letterhead />
+            <div className="text-center">
+                <h3 className="text-xl font-bold uppercase text-tm-dark">Surat Permintaan Pembelian Barang</h3>
+                <p className="text-sm text-tm-secondary">Nomor: [Otomatis]</p>
             </div>
 
             {/* Document Info */}
@@ -1757,7 +1759,7 @@ const NewRequestPage: React.FC<NewRequestPageProps> = (props) => {
             let updatedRequest: Request = { 
                 ...selectedRequest, 
                 status: ItemStatus.PURCHASING,
-                estimatedDeliveryDate: estimatedDelivery.toISOString().split('T')[0]
+                estimatedDeliveryDate: toYYYYMMDD(estimatedDelivery)
             };
     
             const feedbackUpdates = sendProgressFeedbackNotification(updatedRequest);
@@ -1782,13 +1784,13 @@ const NewRequestPage: React.FC<NewRequestPageProps> = (props) => {
             if (newStatus === ItemStatus.IN_DELIVERY) {
                 updatedRequest = {
                     ...updatedRequest,
-                    actualShipmentDate: new Date().toISOString().split('T')[0],
+                    actualShipmentDate: toYYYYMMDD(new Date()),
                 };
             }
             if (newStatus === ItemStatus.ARRIVED) {
                 updatedRequest = {
                     ...updatedRequest,
-                    arrivalDate: new Date().toISOString().split('T')[0],
+                    arrivalDate: toYYYYMMDD(new Date()),
                     receivedBy: currentUser.name,
                 };
             }

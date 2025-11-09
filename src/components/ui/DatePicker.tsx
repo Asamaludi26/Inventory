@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { CalendarIcon } from '../icons/CalendarIcon';
 import { ChevronsRightIcon } from '../../components/icons/ChevronsRightIcon';
 import { ChevronsLeftIcon } from '../../components/icons/ChevronsLeftIcon';
 
-// Mendefinisikan tipe untuk view
 type CalendarView = 'days' | 'months' | 'years';
 
 interface DatePickerProps {
@@ -27,34 +27,56 @@ const DatePicker: React.FC<DatePickerProps> = ({
     const [currentMonthDate, setCurrentMonthDate] = useState(selectedDate || new Date());
     const [view, setView] = useState<CalendarView>('days');
     const [yearRange, setYearRange] = useState([0, 0]);
-    const wrapperRef = useRef<HTMLDivElement>(null);
+    
+    const calendarRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
 
-    const closeCalendar = useCallback(() => {
-        setIsOpen(false);
+    const calculatePosition = useCallback(() => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            setPosition({
+                top: rect.bottom + window.scrollY + 4,
+                left: rect.left + window.scrollX,
+                width: rect.width,
+            });
+        }
     }, []);
 
     const toggleCalendar = () => {
         if (disabled) return;
         if (!isOpen) {
+            calculatePosition();
             setCurrentMonthDate(selectedDate || new Date());
             setView('days');
         }
         setIsOpen(prev => !prev);
     };
+    
+    const closeCalendar = useCallback(() => {
+        setIsOpen(false);
+    }, []);
 
     useEffect(() => {
         if (isOpen) {
+            const handleScrollAndResize = () => calculatePosition();
             const handleClickOutside = (event: MouseEvent) => {
-                if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+                if (calendarRef.current && !calendarRef.current.contains(event.target as Node) && inputRef.current && !inputRef.current.contains(event.target as Node)) {
                     closeCalendar();
                 }
             };
+
             document.addEventListener("mousedown", handleClickOutside);
+            window.addEventListener('scroll', handleScrollAndResize, true);
+            window.addEventListener('resize', handleScrollAndResize);
+            
             return () => {
                 document.removeEventListener("mousedown", handleClickOutside);
+                window.removeEventListener('scroll', handleScrollAndResize, true);
+                window.removeEventListener('resize', handleScrollAndResize);
             };
         }
-    }, [isOpen, closeCalendar]);
+    }, [isOpen, closeCalendar, calculatePosition]);
 
     const handleDayClick = (day: number) => {
         onDateChange(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), day));
@@ -109,8 +131,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
                         if (disableFutureDates && currentDate > today) isDisabled = true;
                         
                         const baseClasses = "w-9 h-9 rounded-full transition-colors duration-150 flex items-center justify-center font-medium";
-                        let specificClasses = isSelected ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : isToday ? "bg-gray-100 text-blue-600 hover:bg-gray-200"
+                        let specificClasses = isSelected ? "bg-tm-primary text-white hover:bg-tm-primary-hover"
+                            : isToday ? "bg-gray-100 text-tm-primary hover:bg-gray-200"
                             : isDisabled ? "text-gray-300 cursor-not-allowed"
                             : "text-gray-700 hover:bg-gray-100";
                         
@@ -160,10 +182,46 @@ const DatePicker: React.FC<DatePickerProps> = ({
     if (view === 'months') headerText = currentMonthDate.getFullYear().toString();
     if (view === 'years') headerText = `${yearRange[0]} - ${yearRange[1] -1}`;
 
+    const CalendarDropdown = (
+        <div 
+            ref={calendarRef} 
+            style={{ top: `${position.top}px`, left: `${position.left}px`, minWidth: `${position.width}px` }} 
+            className={`absolute z-[100] transition-opacity duration-200 ease-in-out`}
+        >
+             <div className="mt-1 p-4 bg-white border border-gray-200 rounded-xl shadow-lg animate-zoom-in">
+                <div className="flex items-center justify-between mb-4">
+                    <button type="button" onClick={() => view === 'days' ? changeMonth(-1) : changeYearRange(-12)} className="p-2 text-gray-500 rounded-full hover:bg-gray-100 transition-colors">
+                        <ChevronsLeftIcon />
+                    </button>
+                    <button type="button" onClick={handleHeaderClick} className="font-semibold text-base text-gray-800 hover:text-tm-primary transition-colors px-2 py-1 rounded-md">
+                        {headerText}
+                    </button>
+                    <button type="button" onClick={() => view === 'days' ? changeMonth(1) : changeYearRange(12)} className="p-2 text-gray-500 rounded-full hover:bg-gray-100 transition-colors">
+                        <ChevronsRightIcon />
+                    </button>
+                </div>
+                
+                {view === 'days' && renderDaysView()}
+                {view === 'months' && renderMonthsView()}
+                {view === 'years' && renderYearsView()}
+
+                <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between">
+                    <button onClick={() => { onDateChange(new Date()); closeCalendar(); }} className="px-3 py-1.5 text-sm font-semibold text-tm-primary rounded-md hover:bg-blue-50">
+                        Hari Ini
+                    </button>
+                    <button onClick={() => { onDateChange(null); closeCalendar(); }} className="px-3 py-1.5 text-sm font-semibold text-gray-600 rounded-md hover:bg-gray-100">
+                        Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
-        <div ref={wrapperRef}>
+        <div className="relative">
             <div className="relative">
                 <input
+                    ref={inputRef}
                     type="text"
                     id={id}
                     readOnly
@@ -171,41 +229,14 @@ const DatePicker: React.FC<DatePickerProps> = ({
                     onClick={toggleCalendar}
                     placeholder="Pilih tanggal"
                     disabled={disabled}
-                    className="block w-full pl-3 pr-10 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    className="block w-full pl-3 pr-10 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-tm-accent focus:border-tm-accent sm:text-sm disabled:bg-gray-200/60 disabled:text-gray-500 disabled:cursor-not-allowed"
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <CalendarIcon className="w-5 h-5 text-gray-400" />
                 </div>
             </div>
 
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="mt-2 p-4 bg-white border border-gray-200 rounded-xl shadow-md">
-                    <div className="flex items-center justify-between mb-4">
-                        <button type="button" onClick={() => view === 'days' ? changeMonth(-1) : changeYearRange(-12)} className="p-2 text-gray-500 rounded-full hover:bg-gray-100 transition-colors">
-                            <ChevronsLeftIcon />
-                        </button>
-                        <button type="button" onClick={handleHeaderClick} className="font-semibold text-base text-gray-800 hover:text-blue-600 transition-colors px-2 py-1 rounded-md">
-                            {headerText}
-                        </button>
-                        <button type="button" onClick={() => view === 'days' ? changeMonth(1) : changeYearRange(12)} className="p-2 text-gray-500 rounded-full hover:bg-gray-100 transition-colors">
-                            <ChevronsRightIcon />
-                        </button>
-                    </div>
-                    
-                    {view === 'days' && renderDaysView()}
-                    {view === 'months' && renderMonthsView()}
-                    {view === 'years' && renderYearsView()}
-
-                    <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between">
-                        <button onClick={() => { onDateChange(new Date()); closeCalendar(); }} className="px-3 py-1.5 text-sm font-semibold text-blue-600 rounded-md hover:bg-blue-50">
-                            Hari Ini
-                        </button>
-                        <button onClick={() => { onDateChange(null); closeCalendar(); }} className="px-3 py-1.5 text-sm font-semibold text-gray-600 rounded-md hover:bg-gray-100">
-                            Hapus
-                        </button>
-                    </div>
-                </div>
-            </div>
+            {isOpen && ReactDOM.createPortal(CalendarDropdown, document.body)}
         </div>
     );
 };
