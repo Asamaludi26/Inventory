@@ -1,3 +1,4 @@
+// FIX: Removed self-referential imports that cause declaration conflicts.
 // --- CORE TYPES & ENUMS ---
 
 export type Page =
@@ -6,13 +7,12 @@ export type Page =
   | 'request-pinjam'
   | 'registration'
   | 'handover'
-  | 'dismantle'
   | 'stock'
   | 'repair'
   | 'customers'
   | 'customer-installation-form'
   | 'customer-maintenance-form'
-  | 'customer-dismantle-form'
+  | 'customer-dismantle'
   | 'pengaturan-pengguna'
   | 'kategori';
 
@@ -267,8 +267,8 @@ export interface LoanItem {
     itemName: string;
     brand: string;
     quantity: number;
-    returnDate: string;
     keterangan?: string;
+    returnDate?: string | null;
 }
 
 export interface LoanRequest {

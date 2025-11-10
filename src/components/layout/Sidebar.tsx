@@ -58,7 +58,6 @@ const allMenuItems: MenuItem[] = [
         ],
       },
       { id: 'handover', label: 'Handover Aset', icon: HandoverIcon },
-      { id: 'dismantle', label: 'Dismantle Aset', icon: DismantleIcon, roles: ['Admin Logistik', 'Super Admin'] },
       { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Admin Logistik', 'Super Admin'] },
     ],
   },
@@ -71,7 +70,7 @@ const allMenuItems: MenuItem[] = [
       { id: 'customers', label: 'Daftar Pelanggan', icon: UsersIcon },
       { id: 'customer-installation-form', page: 'customer-installation-form', label: 'Form Instalasi', icon: FileSignatureIcon },
       { id: 'customer-maintenance-form', page: 'customer-maintenance-form', label: 'Form Maintenance', icon: WrenchIcon },
-      { id: 'customer-dismantle-form', page: 'customer-dismantle-form', label: 'Form Dismantle', icon: DismantleIcon },
+      { id: 'customer-dismantle', page: 'customer-dismantle', label: 'Data Dismantle', icon: DismantleIcon },
     ],
   },
   {

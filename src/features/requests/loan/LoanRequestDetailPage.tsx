@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
 // FIX: Remove HandoverIcon from types import, as it is a component, not a type.
-import { LoanRequest, User, Asset, Division, PreviewData, LoanRequestStatus, AssetStatus, AssetCategory } from '../../../types';
+import { LoanRequest, User, Asset, Division, PreviewData, LoanRequestStatus, AssetStatus, AssetCategory, ParsedScanResult } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
 import { Letterhead } from '../../../components/ui/Letterhead';
 import { SignatureStamp } from '../../../components/ui/SignatureStamp';
@@ -20,6 +20,7 @@ import { DownloadIcon } from '../../../components/icons/DownloadIcon';
 import { useNotification } from '../../../providers/NotificationProvider';
 import { CustomSelect } from '../../../components/ui/CustomSelect';
 import { DismantleIcon } from '../../../components/icons/DismantleIcon';
+import { QrCodeIcon } from '../../../components/icons/QrCodeIcon';
 
 interface LoanRequestDetailPageProps {
     loanRequest: LoanRequest;
@@ -36,6 +37,9 @@ interface LoanRequestDetailPageProps {
     onInitiateReturn: (request: LoanRequest) => void;
     onInitiateHandoverFromLoan: (loanRequest: LoanRequest) => void;
     isLoading: boolean;
+    setIsGlobalScannerOpen: (isOpen: boolean) => void;
+    setScanContext: (context: 'global' | 'form') => void;
+    setFormScanCallback: (callback: ((data: ParsedScanResult) => void) | null) => void;
 }
 
 const ActionButton: React.FC<{ onClick?: () => void, text: string, icon?: React.FC<{className?:string}>, color: 'primary'|'success'|'danger'|'info'|'secondary', disabled?: boolean }> = ({ onClick, text, icon: Icon, color, disabled }) => {
@@ -158,7 +162,7 @@ const ActionSidebar: React.FC<LoanRequestDetailPageProps & { isExpanded: boolean
 };
 
 const LoanRequestDetailPage: React.FC<LoanRequestDetailPageProps> = (props) => {
-    const { loanRequest, currentUser, assets, users, divisions, assetCategories, onShowPreview, onAssignAndApprove } = props;
+    const { loanRequest, currentUser, assets, users, divisions, assetCategories, onShowPreview, onAssignAndApprove, setIsGlobalScannerOpen, setScanContext, setFormScanCallback } = props;
     const [isActionSidebarExpanded, setIsActionSidebarExpanded] = useState(true);
     const [assignedAssetIds, setAssignedAssetIds] = useState<Record<number, string[]>>(loanRequest.assignedAssetIds || {});
     const printRef = useRef<HTMLDivElement>(null);
@@ -179,6 +183,37 @@ const LoanRequestDetailPage: React.FC<LoanRequestDetailPageProps> = (props) => {
             newAssignments[itemId][index] = assetId;
             return newAssignments;
         });
+    };
+
+    const handleStartScan = (itemId: number, index: number) => {
+        setScanContext('form');
+        setFormScanCallback(() => (data: ParsedScanResult) => {
+            let assetIdToSet: string | undefined = undefined;
+            let foundAsset: Asset | undefined;
+
+            if (data.id) {
+                foundAsset = availableAssetsForLoan.find(a => a.id === data.id);
+            } else if (data.serialNumber) {
+                foundAsset = availableAssetsForLoan.find(a => a.serialNumber === data.serialNumber);
+            }
+            
+            if (foundAsset) {
+                assetIdToSet = foundAsset.id;
+            }
+            
+            if (assetIdToSet) {
+                const allCurrentlyAssignedIds = Object.values(assignedAssetIds).flat();
+                if (allCurrentlyAssignedIds.includes(assetIdToSet)) {
+                    addNotification('Aset ini sudah ditetapkan di slot lain.', 'error');
+                } else {
+                    handleAssignmentChange(itemId, index, assetIdToSet);
+                    addNotification(`Aset ${assetIdToSet} berhasil dipindai dan ditetapkan.`, 'success');
+                }
+            } else {
+                addNotification('Aset tidak ditemukan atau tidak tersedia di gudang.', 'error');
+            }
+        });
+        setIsGlobalScannerOpen(true);
     };
     
     const canSubmitAssignment = useMemo(() => {
@@ -268,9 +303,8 @@ const LoanRequestDetailPage: React.FC<LoanRequestDetailPageProps> = (props) => {
                                 <tr>
                                     <th className="p-2 w-10">No.</th>
                                     <th className="p-2">Nama Barang</th>
-                                    <th className="p-2">Tgl Pinjam</th>
-                                    <th className="p-2">Tgl Kembali</th>
                                     <th className="p-2 text-center">Jumlah</th>
+                                    <th className="p-2">Tgl Kembali</th>
                                     <th className="p-2">Catatan</th>
                                 </tr>
                             </thead>
@@ -284,9 +318,12 @@ const LoanRequestDetailPage: React.FC<LoanRequestDetailPageProps> = (props) => {
                                         <tr key={item.id} className="border-b">
                                             <td className="p-2 text-center text-gray-800">{index + 1}.</td>
                                             <td className="p-2 font-semibold text-gray-800">{item.itemName} - {item.brand}</td>
-                                            <td className="p-2 text-gray-600">{new Date(loanRequest.requestDate).toLocaleDateString('id-ID')}</td>
-                                            <td className="p-2 text-gray-600">{new Date(item.returnDate).toLocaleDateString('id-ID')}</td>
                                             <td className="p-2 text-center font-medium text-gray-800">{item.quantity} {unitOfMeasure}</td>
+                                            <td className="p-2 text-gray-600">
+                                                {item.returnDate 
+                                                    ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(item.returnDate)) 
+                                                    : <span className="italic text-gray-500">Belum ditentukan</span>}
+                                            </td>
                                             <td className="p-2 text-gray-600 text-xs italic">"{item.keterangan || '-'}"</td>
                                         </tr>
                                     );
@@ -320,12 +357,21 @@ const LoanRequestDetailPage: React.FC<LoanRequestDetailPageProps> = (props) => {
                                                     <span className="text-xs font-medium text-gray-600">Unit {i + 1}:</span>
                                                     <div className="flex-1">
                                                         <CustomSelect 
+                                                            isSearchable={true}
                                                             options={availableOptions} 
                                                             value={currentAssetForThisSlot || ''} 
                                                             onChange={val => handleAssignmentChange(item.id, i, val)} 
-                                                            placeholder="-- Pilih Aset dari Gudang --" 
+                                                            placeholder="Ketik untuk cari ID/SN aset..."
                                                         />
                                                     </div>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => handleStartScan(item.id, i)}
+                                                        className="p-2 text-gray-500 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 hover:text-tm-primary"
+                                                        title="Pindai Aset"
+                                                    >
+                                                        <QrCodeIcon className="w-5 h-5"/>
+                                                    </button>
                                                 </div>
                                             );
                                         })}

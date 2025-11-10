@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Asset, AssetStatus, Division } from '../../../types';
+import { User, Asset, AssetStatus, Division, LoanItem } from '../../../types';
 import DatePicker from '../../../components/ui/DatePicker';
 import { useNotification } from '../../../providers/NotificationProvider';
 import { SpinnerIcon } from '../../../components/icons/SpinnerIcon';
@@ -9,11 +9,12 @@ import { SignatureStamp } from '../../../components/ui/SignatureStamp';
 import { InfoIcon } from '../../../components/icons/InfoIcon';
 import { AssetIcon } from '../../../components/icons/AssetIcon';
 import { TrashIcon } from '../../../components/icons/TrashIcon';
+import { Checkbox } from '../../../components/ui/Checkbox';
 
 interface LoanRequestFormProps {
     availableAssets: Asset[];
     onSave: (data: {
-        loanItems: { modelKey: string, quantity: number, returnDate: string, keterangan: string }[];
+        loanItems: LoanItem[];
         notes: string;
     }) => void;
     onCancel: () => void;
@@ -22,8 +23,17 @@ interface LoanRequestFormProps {
 }
 
 const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSave, onCancel, currentUser, divisions }) => {
-    const [loanItems, setLoanItems] = useState<{ tempId: number; modelKey: string; quantity: number | ''; returnDate: Date | null; keterangan: string; }[]>([
-        { tempId: Date.now(), modelKey: '', quantity: 1, returnDate: null, keterangan: '' }
+    type LoanItemForm = {
+        tempId: number;
+        modelKey: string;
+        quantity: number | '';
+        keterangan: string;
+        returnDate: Date | null;
+        isIndefinite: boolean;
+    };
+    
+    const [loanItems, setLoanItems] = useState<LoanItemForm[]>([
+        { tempId: Date.now(), modelKey: '', quantity: 1, keterangan: '', returnDate: null, isIndefinite: false }
     ]);
     const [itemInputs, setItemInputs] = useState<Record<number, string>>({});
     const [notes, setNotes] = useState('');
@@ -35,6 +45,11 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
     const [isFooterVisible, setIsFooterVisible] = useState(true);
     const formId = "loan-request-form";
     const requestDate = useMemo(() => new Date(), []);
+    
+    // State for bulk actions
+    const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
+    const [globalReturnDate, setGlobalReturnDate] = useState<Date | null>(null);
+    const [isGlobalIndefinite, setIsGlobalIndefinite] = useState(false);
     
     const userDivision = useMemo(() => divisions.find(d => d.id === currentUser.divisionId)?.name || 'N/A', [divisions, currentUser]);
 
@@ -93,7 +108,7 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
         return options.filter(opt => opt.label.toLowerCase().includes(input.toLowerCase()));
     };
 
-    const handleItemChange = (tempId: number, field: keyof typeof loanItems[0], value: any) => {
+    const handleItemChange = (tempId: number, field: keyof LoanItemForm, value: any) => {
         setLoanItems(prev => prev.map(item => {
             if (item.tempId === tempId) {
                 if (field === 'quantity') {
@@ -102,18 +117,15 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
                     
                     let finalValue = value;
                     if (value === '') {
-                        // allow empty state
                         finalValue = '';
                     } else if (typeof value === 'number' && !isNaN(value)) {
                         if (value > maxStock) {
                             finalValue = maxStock;
                             addNotification(`Jumlah tidak bisa melebihi stok yang tersedia (${maxStock}).`, 'warning');
                         } else if (value < 1) {
-                            // This handles if user types 0 or negative.
                             finalValue = 1;
                         }
                     } else {
-                        // if value is NaN or something else, revert to previous value to avoid breaking state
                         finalValue = item.quantity;
                     }
                     
@@ -138,40 +150,87 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
         if (openDropdownId !== tempId) {
             setOpenDropdownId(tempId);
         }
-         // If input is cleared, reset the modelKey as well
         if (value === '') {
             handleItemChange(tempId, 'modelKey', '');
         }
     }
 
     const handleAddItem = () => {
-        setLoanItems(prev => [...prev, { tempId: Date.now(), modelKey: '', quantity: 1, returnDate: null, keterangan: '' }]);
+        setLoanItems(prev => [...prev, { tempId: Date.now(), modelKey: '', quantity: 1, keterangan: '', returnDate: null, isIndefinite: false }]);
     };
 
     const handleRemoveItem = (tempId: number) => {
         if (loanItems.length > 1) {
             setLoanItems(prev => prev.filter(item => item.tempId !== tempId));
+            setSelectedItemIds(prev => prev.filter(id => id !== tempId));
         }
     };
 
+    const handleSelectOne = (tempId: number) => {
+        setSelectedItemIds(prev =>
+            prev.includes(tempId)
+                ? prev.filter(id => id !== tempId)
+                : [...prev, tempId]
+        );
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedItemIds(loanItems.map(item => item.tempId));
+        } else {
+            setSelectedItemIds([]);
+        }
+    };
+    
+    const handleApplyToSelected = () => {
+        if (selectedItemIds.length === 0) return;
+        setLoanItems(prev => prev.map(item => {
+            if (selectedItemIds.includes(item.tempId)) {
+                return {
+                    ...item,
+                    returnDate: isGlobalIndefinite ? null : globalReturnDate,
+                    isIndefinite: isGlobalIndefinite,
+                };
+            }
+            return item;
+        }));
+        // Clear selection after applying for better UX
+        setSelectedItemIds([]);
+    };
+
+
+    const isSubmitDisabled = useMemo(() => {
+        if (isLoading) return true;
+        
+        const hasInvalidItems = loanItems.some(item => !item.modelKey || item.quantity === '' || item.quantity <= 0);
+        if (hasInvalidItems) return true;
+        
+        const hasInvalidDates = loanItems.some(item => !item.isIndefinite && !item.returnDate);
+        return hasInvalidDates;
+        
+    }, [isLoading, loanItems]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const validItems = loanItems.filter(item => item.modelKey && item.returnDate && Number(item.quantity) > 0);
-        if (validItems.length === 0) {
-            addNotification('Pilih minimal satu aset, isi jumlah, dan tentukan tanggal pengembaliannya.', 'error');
+        if (isSubmitDisabled) {
+            addNotification('Harap lengkapi semua informasi yang diperlukan, termasuk tanggal kembali untuk setiap item.', 'error');
             return;
         }
-
         setIsLoading(true);
         setTimeout(() => {
             onSave({
-                loanItems: validItems.map(item => ({
-                    modelKey: item.modelKey,
-                    quantity: Number(item.quantity),
-                    returnDate: item.returnDate!.toISOString().split('T')[0],
-                    keterangan: item.keterangan,
-                })),
-                notes
+                loanItems: loanItems.map(item => {
+                    const [name, brand] = item.modelKey.split('|');
+                    return {
+                        id: Date.now() + Math.random(),
+                        itemName: name,
+                        brand,
+                        quantity: Number(item.quantity),
+                        keterangan: item.keterangan,
+                        returnDate: item.isIndefinite ? null : item.returnDate?.toISOString().split('T')[0] || null,
+                    };
+                }),
+                notes,
             });
             setIsLoading(false);
         }, 800);
@@ -179,13 +238,13 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
 
     const ActionButtons: React.FC<{ formId?: string }> = ({ formId }) => (
         <>
-            <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">
+            <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">
                 Batal
             </button>
             <button
                 type="submit"
                 form={formId}
-                disabled={isLoading}
+                disabled={isSubmitDisabled}
                 className="inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70 disabled:cursor-not-allowed">
                 {isLoading ? <SpinnerIcon className="w-5 h-5 mr-2" /> : null}
                 {isLoading ? 'Mengajukan...' : 'Ajukan Permintaan Pinjam'}
@@ -216,23 +275,77 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
                             Tambah Aset
                         </button>
                     </div>
+                    
+                    {loanItems.length > 1 && (
+                         <div className="p-4 border rounded-lg bg-blue-50/30 border-blue-200/80 mb-6">
+                            <h5 className="font-semibold text-tm-primary mb-3">Aksi Massal</h5>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Tanggal Pengembalian</label>
+                                    <div className="mt-1">
+                                        <DatePicker 
+                                            id="loanReturnDate" 
+                                            selectedDate={globalReturnDate} 
+                                            onDateChange={setGlobalReturnDate} 
+                                            disablePastDates 
+                                            disabled={isGlobalIndefinite}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-end pb-1">
+                                    <label htmlFor="isGlobalIndefinite" className="flex items-center space-x-3 cursor-pointer text-sm text-gray-700">
+                                        <Checkbox id="isGlobalIndefinite" checked={isGlobalIndefinite} onChange={(e) => setIsGlobalIndefinite(e.target.checked)} />
+                                        <span>Belum ditentukan</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex justify-end">
+                                 <button type="button" onClick={handleApplyToSelected} disabled={selectedItemIds.length === 0} className="px-4 py-2 text-sm font-semibold text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed">
+                                    Terapkan ke ({selectedItemIds.length}) Pilihan
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {loanItems.length > 1 && (
+                        <div className="flex items-center space-x-3 mb-4 p-2 border-b">
+                            <Checkbox 
+                                id="select-all-items" 
+                                checked={selectedItemIds.length > 0 && selectedItemIds.length === loanItems.length}
+                                onChange={handleSelectAll}
+                            />
+                            <label htmlFor="select-all-items" className="text-sm font-medium text-gray-700 cursor-pointer">Pilih Semua Item</label>
+                        </div>
+                    )}
+                    
                     <div className="space-y-6">
                         {loanItems.map((item, index) => {
                             const selectedModel = availableModels.find(m => `${m.name}|${m.brand}` === item.modelKey);
                             const filteredOptions = getFilteredOptions(item.modelKey, itemInputs[item.tempId] || '');
                             return (
-                                <div key={item.tempId} className="relative p-5 pt-6 bg-white border border-gray-200/80 rounded-xl shadow-sm">
-                                    <div className="absolute flex items-center justify-center w-8 h-8 font-bold text-white rounded-full -top-4 -left-4 bg-tm-primary">
+                                <div key={item.tempId} className={`relative p-5 pt-6 bg-white border rounded-xl shadow-sm transition-all duration-300 ${selectedItemIds.includes(item.tempId) ? 'border-tm-primary ring-2 ring-tm-accent/30' : 'border-gray-200/80'}`}>
+                                    <div className="absolute flex items-center justify-center w-8 h-8 font-bold text-white rounded-full -top-4 left-4 bg-tm-primary shadow-lg">
                                         {index + 1}
                                     </div>
+                                    
                                     {loanItems.length > 1 && (
-                                        <div className="absolute top-3 right-3">
-                                            <button type="button" onClick={() => handleRemoveItem(item.tempId)} className="flex items-center justify-center w-8 h-8 text-gray-400 transition-colors rounded-full hover:bg-red-100 hover:text-red-500">
-                                                <TrashIcon className="w-5 h-5" />
-                                            </button>
+                                        <button type="button" onClick={() => handleRemoveItem(item.tempId)} className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 text-gray-400 transition-colors rounded-full hover:bg-red-100 hover:text-red-500 z-10" aria-label={`Hapus Item ${index + 1}`}>
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    )}
+
+                                    {loanItems.length > 1 && (
+                                        <div className="flex items-center space-x-3 mb-4">
+                                            <Checkbox
+                                                id={`select-item-${item.tempId}`}
+                                                checked={selectedItemIds.includes(item.tempId)}
+                                                onChange={() => handleSelectOne(item.tempId)}
+                                            />
+                                            <label htmlFor={`select-item-${item.tempId}`} className="text-sm font-medium text-gray-700 cursor-pointer">Pilih item ini untuk aksi massal</label>
                                         </div>
                                     )}
-                                    <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                                         <div className="sm:col-span-2" ref={el => { itemRefs.current[index] = el; }}>
                                             <label className="block text-sm font-medium text-gray-700">Pilih Aset <span className="text-danger">*</span></label>
                                             <div className="relative mt-1">
@@ -261,41 +374,30 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
                                         </div>
                                         <div className="sm:col-span-1">
                                             <label className="block text-sm font-medium text-gray-700">Stok</label>
-                                            <input
-                                                type="text"
-                                                readOnly
-                                                value={selectedModel?.count || 0}
-                                                className="block w-full px-3 py-2 mt-1 text-center text-gray-700 bg-gray-200/60 border border-gray-300 rounded-lg shadow-sm"
-                                            />
+                                            <input type="text" readOnly value={selectedModel?.count || 0} className="block w-full px-3 py-2 mt-1 text-center text-gray-700 bg-gray-200/60 border border-gray-300 rounded-lg shadow-sm" />
                                         </div>
                                         <div className="sm:col-span-1">
                                             <label className="block text-sm font-medium text-gray-700">Jumlah <span className="text-danger">*</span></label>
-                                            <input
-                                                type="number"
-                                                value={item.quantity}
-                                                onChange={e => handleItemChange(item.tempId, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                                                min="1"
-                                                max={selectedModel?.count || 1}
-                                                disabled={!item.modelKey}
-                                                className="block w-full px-3 py-2 mt-1 text-center text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm disabled:bg-gray-200/60 disabled:text-gray-500"
-                                            />
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-sm font-medium text-gray-700">Tgl Kembali <span className="text-danger">*</span></label>
-                                            <div className="mt-1">
-                                                <DatePicker id={`returnDate-${item.tempId}`} selectedDate={item.returnDate} onDateChange={(date) => handleItemChange(item.tempId, 'returnDate', date)} disablePastDates />
-                                            </div>
+                                            <input type="number" value={item.quantity} onChange={e => handleItemChange(item.tempId, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value, 10))} min="1" max={selectedModel?.count || 1} disabled={!item.modelKey} className="block w-full px-3 py-2 mt-1 text-center text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm disabled:bg-gray-200/60 disabled:text-gray-500" />
                                         </div>
                                     </div>
                                     <div className="mt-3">
                                         <label className="block text-sm font-medium text-gray-700">Catatan (Opsional)</label>
-                                        <input
-                                            type="text"
-                                            value={item.keterangan}
-                                            onChange={(e) => handleItemChange(item.tempId, 'keterangan', e.target.value)}
-                                            placeholder="Kebutuhan spesifik untuk item ini..."
-                                            className="block w-full px-3 py-2 mt-1 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-tm-accent"
-                                        />
+                                        <input type="text" value={item.keterangan} onChange={(e) => handleItemChange(item.tempId, 'keterangan', e.target.value)} placeholder="Kebutuhan spesifik untuk item ini..." className="block w-full px-3 py-2 mt-1 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-tm-accent" />
+                                    </div>
+                                    <div className="pt-4 mt-4 border-t">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700">Tgl Kembali Item Ini <span className="text-danger">*</span></label>
+                                                <div className="mt-1"><DatePicker id={`rd-${item.tempId}`} selectedDate={item.returnDate} onDateChange={(date) => handleItemChange(item.tempId, 'returnDate', date)} disablePastDates disabled={item.isIndefinite} /></div>
+                                            </div>
+                                            <div className="flex items-end pb-1">
+                                                <label htmlFor={`indef-${item.tempId}`} className="flex items-center space-x-3 cursor-pointer text-sm text-gray-700">
+                                                    <Checkbox id={`indef-${item.tempId}`} checked={item.isIndefinite} onChange={(e) => handleItemChange(item.tempId, 'isIndefinite', e.target.checked)} />
+                                                    <span>Belum ditentukan</span>
+                                                </label>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -305,17 +407,10 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
 
                 <section className="pt-4 border-t">
                     <div>
-                        <label htmlFor="loan-notes" className="block text-sm font-medium text-gray-700">Catatan/Alasan Peminjaman (Umum)</label>
+                        <label htmlFor="loan-notes" className="block text-sm font-medium text-gray-700">Alasan Peminjaman (Umum)</label>
                         <div className="relative mt-1">
                             <InfoIcon className="absolute top-3 left-3 w-5 h-5 text-gray-400 pointer-events-none" />
-                            <textarea
-                                id="loan-notes"
-                                value={notes}
-                                onChange={e => setNotes(e.target.value)}
-                                rows={4}
-                                className="w-full pl-10 pr-4 py-2 border-gray-300 rounded-lg shadow-sm focus:ring-tm-accent focus:border-tm-accent bg-gray-50 text-gray-700 placeholder:text-gray-400"
-                                placeholder="Jelaskan kebutuhan peminjaman, misalnya untuk proyek apa, lokasi pengerjaan, dll."
-                            />
+                            <textarea id="loan-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="w-full pl-10 pr-4 py-2 border-gray-300 rounded-lg shadow-sm focus:ring-tm-accent focus:border-tm-accent bg-gray-50 text-gray-700 placeholder:text-gray-400" placeholder="Jelaskan kebutuhan peminjaman, misalnya untuk proyek apa, lokasi pengerjaan, dll." />
                         </div>
                     </div>
                 </section>
@@ -324,16 +419,12 @@ const LoanRequestForm: React.FC<LoanRequestFormProps> = ({ availableAssets, onSa
                     <div className="grid grid-cols-1 text-sm text-center gap-y-8 md:grid-cols-2 md:gap-x-8">
                         <div>
                             <p className="font-semibold text-gray-700">Pemohon,</p>
-                            <div className="flex items-center justify-center mt-2 h-28">
-                                <SignatureStamp signerName={currentUser.name} signatureDate={new Date().toISOString()} signerDivision={userDivision} />
-                            </div>
+                            <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={currentUser.name} signatureDate={new Date().toISOString()} signerDivision={userDivision} /></div>
                             <p className="pt-1 mt-2 border-t border-gray-400 text-gray-600">{currentUser.name}</p>
                         </div>
                         <div>
                             <p className="font-semibold text-gray-700">Mengetahui (Admin Logistik),</p>
-                            <div className="flex items-center justify-center mt-2 h-28">
-                                <span className="text-sm italic text-gray-400">Menunggu Persetujuan</span>
-                            </div>
+                            <div className="flex items-center justify-center mt-2 h-28"><span className="text-sm italic text-gray-400">Menunggu Persetujuan</span></div>
                             <p className="pt-1 mt-2 border-t border-gray-400 text-gray-600">.........................................</p>
                         </div>
                     </div>

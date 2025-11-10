@@ -1,5 +1,5 @@
 import React from 'react';
-import { Page, User, Request, Asset, AssetCategory, Division, StandardItem, AssetType, Notification, LoanRequest, Handover } from '../../types';
+import { Page, User, Request, Asset, AssetCategory, Division, StandardItem, AssetType, Notification, LoanRequest, Handover, ParsedScanResult } from '../../types';
 
 // FIX: The import path for NewRequestPage was incorrect, pointing to an empty file. Corrected to point to the actual component location.
 import NewRequestPage from './new/NewRequestPage';
@@ -32,6 +32,9 @@ interface RequestHubPageProps {
     notifications: Notification[];
     addNotification: (notification: any) => void;
     markNotificationsAsRead: (referenceId: string) => void;
+    setIsGlobalScannerOpen: (isOpen: boolean) => void;
+    setScanContext: (context: 'global' | 'form') => void;
+    setFormScanCallback: (callback: ((data: ParsedScanResult) => void) | null) => void;
 }
 
 const RequestHubPage: React.FC<RequestHubPageProps> = (props) => {
@@ -41,23 +44,8 @@ const RequestHubPage: React.FC<RequestHubPageProps> = (props) => {
         case 'request':
             return <NewRequestPage {...props} />;
         case 'request-pinjam':
-            // Pastikan semua props yang dibutuhkan diteruskan, termasuk addNotification
-            return <LoanRequestPage
-                currentUser={props.currentUser}
-                loanRequests={props.loanRequests}
-                setLoanRequests={props.setLoanRequests}
-                assets={props.assets}
-                setAssets={props.setAssets}
-                users={props.users}
-                divisions={props.divisions}
-                handovers={props.handovers}
-                setHandovers={props.setHandovers}
-                setActivePage={props.setActivePage}
-                onShowPreview={props.onShowPreview}
-                onInitiateHandoverFromLoan={props.onInitiateHandoverFromLoan}
-                assetCategories={props.assetCategories}
-                addNotification={props.addNotification}
-            />;
+            // Pass all props down to the LoanRequestPage for consistency and maintainability.
+            return <LoanRequestPage {...props} />;
         default:
             // Fallback ke halaman request baru jika terjadi kondisi yang tidak terduga
             return <NewRequestPage {...props} />;

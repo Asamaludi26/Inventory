@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Page, User, Asset, Division, LoanRequest, LoanRequestStatus, ItemStatus, AssetStatus, Handover, AssetCategory, Notification } from '../../../types';
+import { Page, User, Asset, Division, LoanRequest, LoanRequestStatus, ItemStatus, AssetStatus, Handover, AssetCategory, Notification, LoanItem, ParsedScanResult } from '../../../types';
 import { useSortableData, SortConfig } from '../../../hooks/useSortableData';
 import { useNotification } from '../../../providers/NotificationProvider';
 import { PaginationControls } from '../../../components/ui/PaginationControls';
@@ -28,6 +28,9 @@ interface LoanRequestPageProps {
     onInitiateHandoverFromLoan: (loanRequest: LoanRequest) => void;
     assetCategories: AssetCategory[];
     addNotification: (notification: Partial<Notification> & { recipientId: number, actorName: string, type: Notification['type'], referenceId: string }) => void;
+    setIsGlobalScannerOpen: (isOpen: boolean) => void;
+    setScanContext: (context: 'global' | 'form') => void;
+    setFormScanCallback: (callback: ((data: ParsedScanResult) => void) | null) => void;
 }
 
 const getStatusClass = (status: LoanRequestStatus) => {
@@ -104,7 +107,7 @@ const LoanRequestTable: React.FC<{
 );
 
 const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
-    const { currentUser, loanRequests, setLoanRequests, assets, setAssets, users, divisions, handovers, setHandovers, onShowPreview, onInitiateHandoverFromLoan, assetCategories, addNotification } = props;
+    const { currentUser, loanRequests, setLoanRequests, assets, setAssets, users, divisions, handovers, setHandovers, onShowPreview, onInitiateHandoverFromLoan, assetCategories, addNotification, setIsGlobalScannerOpen, setScanContext, setFormScanCallback } = props;
     const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
     const [selectedRequest, setSelectedRequest] = useState<LoanRequest | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -138,7 +141,7 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
 
     useEffect(() => { setCurrentPage(1); }, [searchQuery, filters, itemsPerPage]);
 
-    const handleCreateRequest = (data: { loanItems: { modelKey: string; quantity: number; returnDate: string; keterangan: string; }[], notes: string; }) => {
+    const handleCreateRequest = (data: { loanItems: LoanItem[]; notes: string; }) => {
         const userDivision = divisions.find(d => d.id === currentUser.divisionId)?.name || 'N/A';
         const newRequest: LoanRequest = {
             id: `LREQ-${(loanRequests.length + 1).toString().padStart(3, '0')}`,
@@ -146,17 +149,7 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
             division: userDivision,
             requestDate: new Date().toISOString(),
             status: LoanRequestStatus.PENDING,
-            items: data.loanItems.map((item, index) => {
-                const [name, brand] = item.modelKey.split('|');
-                return {
-                    id: Date.now() + index,
-                    itemName: name,
-                    brand: brand,
-                    quantity: item.quantity,
-                    returnDate: item.returnDate,
-                    keterangan: item.keterangan,
-                };
-            }),
+            items: data.loanItems,
             notes: data.notes,
         };
         
@@ -251,7 +244,11 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
                 onConfirmReturn={handleConfirmReturn} 
                 onInitiateReturn={handleInitiateReturn}
                 onInitiateHandoverFromLoan={onInitiateHandoverFromLoan} 
-                isLoading={isLoading} />;
+                isLoading={isLoading}
+                setIsGlobalScannerOpen={setIsGlobalScannerOpen}
+                setScanContext={setScanContext}
+                setFormScanCallback={setFormScanCallback}
+                 />;
         }
         return (
             <div className="p-4 sm:p-6 md:p-8">

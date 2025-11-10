@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Asset, Customer, User, Request, Handover, Dismantle, Division, AssetStatus, PreviewData, ActivityLogEntry, AssetCategory, UserRole } from '../../types';
 import Modal from '../../components/ui/Modal';
@@ -10,7 +8,7 @@ import { ChevronRightIcon } from '../../components/icons/ChevronRightIcon';
 // FIX: The import path for getRequestStatusClass was incorrect, pointing to an empty file. Corrected to point to the actual component location.
 import { getStatusClass as getRequestStatusClass } from '../requests/new/components/RequestStatus';
 import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
-import { getStatusClass as getCustomerStatusClass } from '../customers/CustomerManagementPage';
+import { getStatusClass as getCustomerStatusClass } from '../customers/list/CustomerListPage';
 import { PencilIcon } from '../../components/icons/PencilIcon';
 import { ArrowDownIcon } from '../../components/icons/ArrowDownIcon';
 import { ArrowUpIcon } from '../../components/icons/ArrowUpIcon';

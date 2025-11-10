@@ -544,6 +544,21 @@ export const mockLoanRequests: LoanRequest[] = [
 // FIX: Added missing 'notes' property.
         notes: 'Untuk presentasi proyek.'
     },
+    {
+        id: 'LREQ-005',
+        requester: 'Budi Santoso',
+        division: 'Teknisi',
+        items: [{
+            id: 1,
+            itemName: 'Power Meter',
+            brand: 'Joinwit',
+            quantity: 1,
+            returnDate: null,
+        }],
+        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 1)).toISOString(),
+        status: LoanRequestStatus.PENDING,
+        notes: 'Untuk cadangan di mobil operasional, tanggal kembali belum ditentukan.'
+    }
 ];
 
 // 7. NOTIFICATIONS
