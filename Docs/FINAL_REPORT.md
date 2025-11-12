@@ -517,23 +517,25 @@ Dengan selesainya laporan ini, item-item berikut secara resmi diserahterimakan k
 Sesuai dengan [Perjanjian Kerja](./Business/perjanjian.md) Pasal 7, diberikan **garansi teknis selama 3 (tiga) bulan** terhitung sejak tanggal Berita Acara Serah Terima Pekerjaan (BASTP) ditandatangani. Garansi ini mencakup perbaikan cacat (*bug fixing*) pada fitur-fitur yang tercantum dalam ruang lingkup pekerjaan.
 
 ### 7.3. Rekomendasi Pengembangan Lanjutan
-Aplikasi ini memiliki fondasi yang kuat untuk dikembangkan lebih lanjut. Berikut adalah beberapa rekomendasi fitur untuk masa depan:
+Prototipe ini adalah fondasi yang kokoh. Untuk evolusi menuju aplikasi skala produksi penuh, berikut adalah rekomendasi langkah selanjutnya, diurutkan berdasarkan prioritas:
 
--   **Implementasi Backend**: Langkah paling krusial adalah membangun backend dan database sesuai dengan arsitektur dan skema yang telah didokumentasikan.
--   **Integrasi Akuntansi**: Menghubungkan data pembelian dan nilai aset ke sistem akuntansi.
--   **Fitur Depresiasi Aset**: Menambahkan modul untuk menghitung penyusutan nilai aset.
--   **Aplikasi Mobile**: Mengembangkan aplikasi mobile untuk teknisi lapangan.
--   **Dashboard Analitik Lanjutan**: Menggunakan tools Business Intelligence (BI) untuk visualisasi data yang lebih mendalam.
+-   **Implementasi Backend & Database (Prioritas Kritis)**: Membangun backend dan database sesuai dengan arsitektur dan skema yang telah didokumentasikan.
+-   **Migrasi Manajemen State (Prioritas Tinggi)**: Mengadopsi pustaka manajemen *server-state* standar industri seperti **TanStack Query (React Query)** untuk menggantikan pola `prop-drilling` saat ini. Ini akan secara drastis menyederhanakan kode, meningkatkan performa, dan mempermudah pengelolaan data asinkron.
+-   **Implementasi Routing Profesional (Prioritas Tinggi)**: Mengintegrasikan **React Router** untuk menggantikan sistem routing kustom. Ini akan memungkinkan navigasi berbasis URL (*deep linking*), dukungan tombol maju/mundur browser, dan arsitektur rute yang lebih *scalable*.
+-   **Refactor Komponen `App.tsx` (Prioritas Tinggi)**: Memecah komponen `App.tsx` yang saat ini terlalu besar menjadi komponen yang lebih kecil dan terfokus (misalnya, `MainLayout.tsx`), sejalan dengan implementasi manajemen state dan routing yang baru.
+-   **Integrasi Akuntansi (Prioritas Menengah)**: Menghubungkan data pembelian dan nilai aset ke sistem akuntansi.
+-   **Fitur Depresiasi Aset (Prioritas Menengah)**: Menambahkan modul untuk menghitung penyusutan nilai aset secara otomatis.
+-   **Aplikasi Mobile (Prioritas Rendah)**: Mengembangkan aplikasi mobile untuk teknisi lapangan, mempermudah proses seperti *dismantle* dan pelaporan kerusakan di lokasi.
 
 ### 7.4. Peta Jalan Produk (Product Roadmap)
-Berikut adalah contoh peta jalan pengembangan yang dapat diadopsi.
+Berikut adalah contoh peta jalan pengembangan yang dapat diadopsi berdasarkan rekomendasi di atas.
 
-| Kuartal      | Fokus Utama                 | Fitur Potensial                                                                   |
-| ------------ | --------------------------- | --------------------------------------------------------------------------------- |
-| **Q1 2026**  | **Implementasi Backend**    | - Pembangunan API dan database berdasarkan dokumentasi.<br>- Integrasi frontend dengan backend. |
-| **Q2 2026**  | **Stabilisasi & Adopsi**    | - Pelatihan pengguna intensif.<br>- Perbaikan bug pasca-produksi.<br>- Pengumpulan umpan balik. |
-| **Q3 2026**  | **Peningkatan Laporan**     | - Modul laporan kustom.<br>- Integrasi dasar ke Google Sheets/Excel.                |
-| **Q4 2026**  | **Efisiensi Lapangan**      | - Pengembangan prototipe aplikasi mobile.<br>- Fitur geo-tagging lokasi aset.      |
+| Kuartal      | Fokus Utama                             | Fitur & Peningkatan Kunci                                                                  |
+| ------------ | --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **Q1 2026**  | **Fondasi Backend & Frontend V2**       | - Pembangunan API dan database.<br>- Integrasi frontend dengan backend.<br>- Implementasi **React Router** & **TanStack Query**. |
+| **Q2 2026**  | **Stabilisasi & Adopsi Pengguna**       | - Pelatihan pengguna intensif.<br>- Perbaikan bug pasca-produksi.<br>- Pengumpulan umpan balik dari pengguna. |
+| **Q3 2026**  | **Peningkatan Laporan & Analitik**      | - Modul laporan kustom (misal: laporan per divisi, per kategori).<br>- Integrasi dasar ke Google Sheets/Excel. |
+| **Q4 2026**  | **Efisiensi & Fitur Keuangan**          | - Pengembangan prototipe aplikasi mobile.<br>- Fitur geo-tagging lokasi aset.<br>- Modul awal untuk depresiasi aset. |
 
 <div style="page-break-after: always;"></div>
 

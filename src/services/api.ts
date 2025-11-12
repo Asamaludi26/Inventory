@@ -57,14 +57,10 @@ import {
   initialMockUsers,
   mockDivisions,
   mockCustomers,
-  initialAssetCategories as generateInitialAssetCategories,
+  initialAssetCategories,
   mockNotifications,
   mockLoanRequests
 } from '../data/mockData';
-
-const initialAssetCategories = (): AssetCategory[] => {
-  return generateInitialAssetCategories;
-};
 
 // Fetch all data types
 export const fetchAllData = () => {
@@ -76,7 +72,7 @@ export const fetchAllData = () => {
         const customers = getFromStorage<Customer[]>('app_customers', mockCustomers);
         const users = getFromStorage<User[]>('app_users', initialMockUsers);
         const divisions = getFromStorage<Division[]>('app_divisions', mockDivisions);
-        const assetCategories = getFromStorage<AssetCategory[]>('app_assetCategories', initialAssetCategories());
+        const assetCategories = getFromStorage<AssetCategory[]>('app_assetCategories', initialAssetCategories);
         const notifications = getFromStorage<Notification[]>('app_notifications', mockNotifications);
         const loanRequests = getFromStorage<LoanRequest[]>('app_loanRequests', mockLoanRequests);
 

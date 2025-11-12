@@ -28,6 +28,7 @@ import HandoverDetailPage from './HandoverDetailPage';
 // FIX: Add missing imports for Modal and CheckIcon to resolve 'Cannot find name' errors.
 import Modal from '../../components/ui/Modal';
 import { CheckIcon } from '../../components/icons/CheckIcon';
+import { generateDocumentNumber } from '../../utils/documentNumberGenerator';
 
 interface ItemHandoverPageProps {
     currentUser: User;
@@ -292,33 +293,15 @@ const HandoverForm: React.FC<{
     };
 
     useEffect(() => {
-        const now = new Date();
-        const year = now.getFullYear().toString().slice(-2);
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        const datePrefix = `${year}${month}${day}`;
-
-        // Determine the prefix based on whether it's from a request
         const isFromAnyRequest = prefillData && 'requester' in prefillData;
-        const prefix = isFromAnyRequest ? `HO-RO-${datePrefix}` : `HO-${datePrefix}`;
-
-        const todayHandovers = handovers.filter(h => {
-            if (!h.docNumber) return false;
-            // Check if the docNumber starts with either of today's possible prefixes
-            return h.docNumber.startsWith(`HO-RO-${datePrefix}`) || h.docNumber.startsWith(`HO-${datePrefix}`);
-        });
-
-        const highestSequence = todayHandovers.reduce((max, h) => {
-            const parts = h.docNumber.split('-');
-            const sequence = parseInt(parts[parts.length - 1], 10); // Always take the last part
-            return sequence > max ? sequence : max;
-        }, 0);
-        
-        const newSequence = (highestSequence + 1).toString().padStart(3, '0');
-        const newDocNumber = `${prefix}-${newSequence}`;
-        
-        setDocNumber(newDocNumber);
-    }, [handovers, prefillData]);
+        const prefix = isFromAnyRequest ? 'HO-RO' : 'HO';
+        if (handoverDate) {
+             const newDocNumber = generateDocumentNumber(prefix, handovers, handoverDate);
+             setDocNumber(newDocNumber);
+        } else {
+            setDocNumber('[Otomatis]');
+        }
+    }, [handovers, prefillData, handoverDate]);
 
     useEffect(() => {
         setMenyerahkan(currentUser.name);

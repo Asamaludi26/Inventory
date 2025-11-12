@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Asset, AssetStatus, Page, PreviewData, AssetCategory, Handover, User, AssetCondition, Division } from '../../types';
+import { Asset, AssetStatus, Page, PreviewData, AssetCategory, Handover, User, AssetCondition, Division, LoanRequest, LoanRequestStatus } from '../../types';
 import { useSortableData, SortConfig } from '../../hooks/useSortableData';
 import { PaginationControls } from '../../components/ui/PaginationControls';
 import { SearchIcon } from '../../components/icons/SearchIcon';
@@ -27,6 +27,7 @@ import { BsUpcScan, BsGeoAlt, BsCalendarCheck, BsTag, BsShieldCheck } from 'reac
 import { CopyIcon } from '../../components/icons/CopyIcon';
 import { useNotification } from '../../providers/NotificationProvider';
 import { Checkbox } from '../../components/ui/Checkbox';
+import { JournalCheckIcon } from '../../components/icons/JournalCheckIcon';
 
 
 interface StockOverviewPageProps {
@@ -42,6 +43,7 @@ interface StockOverviewPageProps {
     handovers: Handover[];
     requests: any[]; // Added requests prop
     onReportDamage: (asset: Asset) => void;
+    loanRequests: LoanRequest[];
 }
 
 interface StockItem {
@@ -165,7 +167,9 @@ const AssetCard: React.FC<{
     dateReceived: string | null;
     onShowDetail: (data: PreviewData) => void;
     onReportDamage: (asset: Asset) => void;
-}> = ({ asset, dateReceived, onShowDetail, onReportDamage }) => {
+    isLoaned?: boolean;
+    returnDate?: string | null;
+}> = ({ asset, dateReceived, onShowDetail, onReportDamage, isLoaned, returnDate }) => {
     const addNotification = useNotification();
     const ConditionIcon = getConditionInfo(asset.condition).Icon;
     const conditionColor = getConditionInfo(asset.condition).color;
@@ -179,7 +183,15 @@ const AssetCard: React.FC<{
         <div className="flex flex-col bg-white border border-gray-200/80 rounded-xl shadow-sm transition-all duration-300 hover:shadow-lg hover:border-tm-accent/50">
             <div className="p-4 border-b">
                 <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-lg font-bold text-tm-dark leading-tight">{asset.name}</h3>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-bold text-tm-dark leading-tight">{asset.name}</h3>
+                        {isLoaned && (
+                            <div className="mt-1.5 flex items-center gap-2 px-2 py-1 text-xs font-semibold text-purple-800 bg-purple-100 rounded-full w-fit">
+                                <JournalCheckIcon className="w-4 h-4" />
+                                <span>Aset Pinjaman</span>
+                            </div>
+                        )}
+                    </div>
                     <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getAssetStatusClass(asset.status)}`}>
                         {asset.status}
                     </span>
@@ -193,7 +205,15 @@ const AssetCard: React.FC<{
             </div>
             <div className="grid grid-cols-2 gap-y-4 gap-x-6 p-4 flex-grow">
                 <InfoItem icon={BsTag} label="Kategori">{asset.category}</InfoItem>
-                <InfoItem icon={BsCalendarCheck} label="Tgl Diterima">{dateReceived || 'N/A'}</InfoItem>
+                {isLoaned ? (
+                    <InfoItem icon={BsCalendarCheck} label="Tgl Pengembalian">
+                        {returnDate 
+                            ? new Date(returnDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) 
+                            : <span className="italic">Belum ditentukan</span>}
+                    </InfoItem>
+                ) : (
+                    <InfoItem icon={BsCalendarCheck} label="Tgl Diterima">{dateReceived || 'N/A'}</InfoItem>
+                )}
                 <InfoItem icon={BsUpcScan} label="Nomor Seri">
                     {asset.serialNumber ? (
                          <span className="flex items-center gap-1.5 font-mono">
@@ -230,7 +250,7 @@ const AssetCard: React.FC<{
 };
 
 
-const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, assets, assetCategories, users, divisions, setActivePage, onShowPreview, initialFilters, onClearInitialFilters, handovers, requests, onReportDamage }) => {
+const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, assets, assetCategories, users, divisions, setActivePage, onShowPreview, initialFilters, onClearInitialFilters, handovers, requests, onReportDamage, loanRequests }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(9); // Adjusted for card layout
@@ -285,9 +305,45 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
     };
     
     // --- STAFF-SPECIFIC LOGIC ---
-    const myAssets = useMemo(() => {
+    const { myAssets, loanedAssetDetails } = useMemo(() => {
+        if (currentUser.role !== 'Staff') return { myAssets: [], loanedAssetDetails: new Map() };
+
+        // 1. Permanently assigned assets
+        const permanentlyAssigned = assets.filter(a => a.currentUser === currentUser.name);
+
+        // 2. Loaned assets
+        const myActiveLoans = loanRequests.filter(
+            lr => lr.requester === currentUser.name && lr.status === LoanRequestStatus.ON_LOAN
+        );
+
+        const loanedAssetIds = myActiveLoans.flatMap(lr => Object.values(lr.assignedAssetIds || {}).flat());
+        const loanedAssets = assets.filter(a => loanedAssetIds.includes(a.id));
+
+        // 3. Combine and deduplicate
+        const allMyAssetsMap = new Map<string, Asset>();
+        permanentlyAssigned.forEach(a => allMyAssetsMap.set(a.id, a));
+        loanedAssets.forEach(a => allMyAssetsMap.set(a.id, a));
+
+        const finalMyAssets = Array.from(allMyAssetsMap.values());
+        
+        // 4. Create a map for loaned asset details (like return date)
+        const finalLoanedAssetDetails = new Map<string, { returnDate: string | null }>();
+        myActiveLoans.forEach(loan => {
+            loan.items.forEach(item => {
+                const assignedIds = loan.assignedAssetIds?.[item.id] || [];
+                assignedIds.forEach(assetId => {
+                    finalLoanedAssetDetails.set(assetId, { returnDate: item.returnDate || null });
+                });
+            });
+        });
+
+        return { myAssets: finalMyAssets, loanedAssetDetails: finalLoanedAssetDetails };
+    }, [assets, currentUser, loanRequests]);
+
+
+    const filteredMyAssets = useMemo(() => {
         if (currentUser.role !== 'Staff') return [];
-        return assets.filter(asset => asset.currentUser === currentUser.name)
+        return myAssets
             .filter(asset => {
                 const searchLower = searchQuery.toLowerCase();
                 return (
@@ -305,9 +361,9 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                 if (filters.condition === 'ATTENTION') return [AssetCondition.MINOR_DAMAGE, AssetCondition.MAJOR_DAMAGE, AssetCondition.FOR_PARTS].includes(asset.condition);
                 return true;
             });
-    }, [assets, currentUser, searchQuery, filters]);
+    }, [myAssets, currentUser, searchQuery, filters]);
 
-    const { items: sortedMyAssets, requestSort: requestMyAssetsSort, sortConfig: myAssetsSortConfig } = useSortableData(myAssets, { key: 'name', direction: 'ascending' });
+    const { items: sortedMyAssets, requestSort: requestMyAssetsSort, sortConfig: myAssetsSortConfig } = useSortableData(filteredMyAssets, { key: 'name', direction: 'ascending' });
     
     const myAssetsTotalItems = sortedMyAssets.length;
     const myAssetsTotalPages = Math.ceil(myAssetsTotalItems / itemsPerPage);
@@ -316,13 +372,12 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
 
     const staffSummary = useMemo(() => {
         if (currentUser.role !== 'Staff') return null;
-        const myAssets = assets.filter(a => a.currentUser === currentUser.name);
         return {
             total: myAssets.length,
             goodCondition: myAssets.filter(a => [AssetCondition.GOOD, AssetCondition.BRAND_NEW, AssetCondition.USED_OKAY].includes(a.condition)).length,
             needsAttention: myAssets.filter(a => [AssetCondition.MINOR_DAMAGE, AssetCondition.MAJOR_DAMAGE, AssetCondition.FOR_PARTS].includes(a.condition)).length,
         }
-    }, [assets, currentUser]);
+    }, [myAssets, currentUser.role]);
 
     const getDateReceived = (assetId: string, staffName: string): string | null => {
         const relevantHandovers = handovers
@@ -554,15 +609,21 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                 {myAssetsPaginated.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {myAssetsPaginated.map(asset => (
-                                <AssetCard
-                                    key={asset.id}
-                                    asset={asset}
-                                    dateReceived={getDateReceived(asset.id, currentUser.name)}
-                                    onShowDetail={onShowPreview}
-                                    onReportDamage={onReportDamage}
-                                />
-                            ))}
+                            {myAssetsPaginated.map(asset => {
+                                const isLoaned = loanedAssetDetails.has(asset.id);
+                                const loanDetails = isLoaned ? loanedAssetDetails.get(asset.id) : null;
+                                return (
+                                    <AssetCard
+                                        key={asset.id}
+                                        asset={asset}
+                                        dateReceived={isLoaned ? null : getDateReceived(asset.id, currentUser.name)}
+                                        onShowDetail={onShowPreview}
+                                        onReportDamage={onReportDamage}
+                                        isLoaned={isLoaned}
+                                        returnDate={loanDetails?.returnDate || null}
+                                    />
+                                );
+                            })}
                         </div>
                          <PaginationControls 
                              currentPage={currentPage} 

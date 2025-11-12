@@ -1,5 +1,4 @@
 import React from 'react';
-import { EyeIcon } from '../icons/EyeIcon';
 
 interface ClickableLinkProps {
     children: React.ReactNode;
@@ -15,9 +14,8 @@ export const ClickableLink: React.FC<ClickableLinkProps> = ({ children, onClick,
             if (onClick) onClick();
         }} 
         title={title} 
-        className={`inline-flex items-center gap-1.5 font-medium hover:underline cursor-pointer transition-colors duration-150 align-middle ${className}`}
+        className={`font-medium hover:underline cursor-pointer transition-colors duration-150 align-middle ${className || ''}`}
     >
-        <EyeIcon className="w-4 h-4 flex-shrink-0" />
         {children}
     </span>
 );

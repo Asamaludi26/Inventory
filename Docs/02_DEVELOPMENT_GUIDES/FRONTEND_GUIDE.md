@@ -27,7 +27,7 @@ Secara singkat: kita menggunakan **React** untuk **membangun** antarmuka, dan **
 -   **Alat Build & Dev Server**: **Vite**
 -   **Bahasa**: **TypeScript**
 -   **Styling**: **Tailwind CSS**
--   **Manajemen State**: **React Hooks** (`useState`, `useContext`, `useMemo`). State global diangkat ke komponen root (`App.tsx`) dan didistribusikan ke komponen anak melalui props.
+-   **Manajemen State**: **React Hooks** (`useState`, `useContext`, `useMemo`). State global diangkat ke komponen root (`App.tsx`) dan didistribusikan ke bawah melalui props.
 -   **Pustaka Ikon**: **React Icons**
 
 ## 4. Struktur Folder (`src`)
@@ -153,3 +153,104 @@ graph TD
     2.  Jika data tidak ada, data awal dari `src/data/mockData.ts` akan dimuat.
     3.  Setiap operasi "tulis" memanggil `updateData`, yang menyimpan state kembali ke `localStorage`.
 -   **Rencana Integrasi**: Ketika backend siap, fungsi-fungsi di `api.ts` akan diganti dengan panggilan `fetch` atau `axios` ke endpoint REST API, tanpa perlu mengubah logika komponen secara signifikan.
+
+<br>
+
+---
+
+## 8. Rekomendasi Peningkatan Arsitektur (Langkah Selanjutnya)
+Prototipe ini sengaja dibangun dengan pola arsitektur yang sederhana untuk kecepatan pengembangan. Untuk mempersiapkan aplikasi menuju skala produksi yang lebih besar, berikut adalah rekomendasi peningkatan arsitektur yang sangat disarankan.
+
+### 8.1. Dari `Prop Drilling` ke Manajemen Server-State (TanStack Query)
+
+**Masalah Saat Ini**:
+-   Semua *state* global (data aset, request, dll.) berada di `App.tsx`.
+-   Data dan fungsi *updater* harus dioper melalui banyak komponen perantara yang tidak membutuhkannya (dikenal sebagai *prop drilling*).
+-   Setiap perubahan kecil pada *state* global dapat memicu *re-render* yang tidak perlu pada banyak komponen, berpotensi menurunkan performa.
+-   `App.tsx` menjadi terlalu besar dan sulit dikelola.
+
+**Solusi yang Direkomendasikan**:
+Gunakan pustaka **TanStack Query (React Query)**, yang merupakan standar industri untuk mengelola *server state* (data yang berasal dari API).
+
+**Keuntungan**:
+-   **Menghilangkan `Prop Drilling`**: Komponen dapat mengambil data langsung dari *cache* React Query tanpa memerlukan *props*.
+-   **Manajemen Otomatis**: React Query secara otomatis mengelola *caching*, *refetching* (pengambilan data ulang), *loading states*, dan *error states*.
+-   **Kode Lebih Sederhana**: Mengurangi secara drastis kebutuhan akan `useState` dan `useEffect` untuk pengambilan data.
+
+**Contoh Migrasi**:
+```tsx
+// SEBELUM (di App.tsx)
+const [assets, setAssets] = useState<Asset[]>([]);
+useEffect(() => {
+  api.fetchAssets().then(setAssets);
+}, []);
+// ... kemudian `assets` dioper ke bawah via props
+
+// SESUDAH (di komponen yang membutuhkan data aset)
+import { useQuery } from '@tanstack/react-query';
+import * as api from './services/api';
+
+const AssetListPage = () => {
+  const { data: assets, isLoading, error } = useQuery({
+    queryKey: ['assets'],
+    queryFn: api.fetchAssets
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+  // ... render `assets`
+}
+```
+
+**State UI Global**: Untuk *state* UI yang murni (seperti `sidebarOpen`), gunakan pustaka yang lebih ringan seperti **Zustand** atau **Jotai**.
+
+### 8.2. Dari Routing Kustom ke React Router
+
+**Masalah Saat Ini**:
+Navigasi saat ini dikelola oleh `useState` (`activePage`) dan `switch` statement di `App.tsx`. Ini memiliki keterbatasan:
+-   Tidak ada URL unik per halaman (misal, tidak bisa bookmark `/assets/AST-001`).
+-   Tombol maju/mundur di browser tidak berfungsi.
+-   Tidak mendukung *nested routes*.
+
+**Solusi yang Direkomendasikan**:
+Adopsi pustaka **React Router**, yang merupakan standar de-facto untuk routing di aplikasi React.
+
+**Contoh Migrasi**:
+```tsx
+// SEBELUM (di App.tsx)
+const [activePage, setActivePage] = useState('dashboard');
+const renderPage = () => {
+  switch (activePage) {
+    case 'dashboard': return <DashboardPage />;
+    // ... kasus lain
+  }
+}
+
+// SESUDAH (di App.tsx atau komponen router terpisah)
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+const AppRouter = () => (
+  <BrowserRouter>
+    <Routes>
+      <Route path="/" element={<MainLayout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="requests" element={<NewRequestPage />} />
+        <Route path="assets" element={<ItemRegistration />} />
+        {/* ... rute lain */}
+      </Route>
+    </Routes>
+  </BrowserRouter>
+);
+```
+
+### 8.3. Struktur Tipe Data (Co-location)
+
+**Masalah Saat Ini (Minor)**:
+Satu file `src/types/index.ts` yang sangat besar bisa menjadi sulit dinavigasi.
+
+**Solusi yang Direkomendasikan**:
+Pertimbangkan untuk memindahkan definisi tipe data ke dalam folder fitur yang paling relevan (*co-location*).
+-   Tipe `Request` dan `RequestItem` bisa berada di `src/features/requests/types.ts`.
+-   Tipe `Asset` dan `AssetCategory` bisa berada di `src/features/assetRegistration/types.ts`.
+-   Tipe yang benar-benar global (seperti `User`, `Page`, `Division`) dapat tetap berada di `src/types/`.
+
+Ini akan meningkatkan modularitas dan membuat setiap fitur lebih mandiri.

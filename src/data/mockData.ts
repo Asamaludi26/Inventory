@@ -22,6 +22,7 @@ import {
     LoanRequest,
     LoanRequestStatus
 } from '../types';
+import { generateDocumentNumber } from '../utils/documentNumberGenerator';
 
 // --- CONFIGURATION ---
 const USER_COUNT = 50;
@@ -202,6 +203,7 @@ const generateMockAssets = () => {
     for (let i = 0; i < ASSET_COUNT; i++) {
         const template = assetTemplates[i % assetTemplates.length];
         const id = `AST-${String(250 - i).padStart(4, '0')}`;
+        const poNumber = `REQ-${String(120 - i).padStart(3, '0')}`;
         const purchaseDate = new Date(new Date(NOW).setDate(NOW.getDate() - (365 - i*1.4)));
         const registrationDate = new Date(new Date(purchaseDate).setDate(purchaseDate.getDate() + 5));
         const warrantyEndDate = new Date(new Date(purchaseDate).setFullYear(purchaseDate.getFullYear() + (i % 3 === 0 ? 1 : 2) ));
@@ -257,14 +259,7 @@ const generateMockAssets = () => {
                 const handoverDate = new Date(new Date(registrationDate).setDate(registrationDate.getDate() + 2));
                 const handoverId = `HO-MOCK-${id}`;
                 
-                const year = handoverDate.getFullYear().toString().slice(-2);
-                const month = (handoverDate.getMonth() + 1).toString().padStart(2, '0');
-                const day = handoverDate.getDate().toString().padStart(2, '0');
-                const datePrefix = `${year}${month}${day}`;
-                
-                const sequenceForDay = allHandovers.filter(h => h.docNumber.split('-')[1] === datePrefix).length + 1;
-                const newSequence = sequenceForDay.toString().padStart(3, '0');
-                const docNumber = `HO-${datePrefix}-${newSequence}`;
+                const docNumber = generateDocumentNumber('HO', allHandovers, handoverDate);
 
                 activityLog.push({ id: `log-${id}-handover`, timestamp: handoverDate.toISOString(), user: 'Alice Johnson', action: 'Serah Terima Internal', details: `Aset diserahkan kepada ${currentUser}.`, referenceId: handoverId });
                 allHandovers.push({
@@ -289,13 +284,32 @@ const generateMockAssets = () => {
             isDismantled = true;
             location = 'Gudang Inventori';
             currentUser = null;
-            const dismantleDate = new Date(new Date(registrationDate).setMonth(registrationDate.getMonth() + 6));
+            const dismantleDate = new Date(new Date(NOW).setDate(NOW.getDate() - Math.floor(Math.random() * 30)));
             const dismantleId = `DSM-MOCK-${id}`;
             dismantleInfo = { customerId: customer.id, customerName: customer.name, dismantleDate: dismantleDate.toISOString().split('T')[0], dismantleId };
             activityLog.push({ id: `log-${id}-dismantle`, timestamp: dismantleDate.toISOString(), user: 'Sistem', action: 'Dismantle dari Pelanggan', details: `Aset ditarik dari pelanggan ${customer.name}.`, referenceId: dismantleId });
+
+            const dismantleStatus = (Math.random() < 0.4) ? ItemStatus.IN_PROGRESS : ItemStatus.COMPLETED;
+            const acknowledger = dismantleStatus === ItemStatus.COMPLETED ? 'Alice Johnson' : null;
+            
+            const docNumber = generateDocumentNumber('DSM', allDismantles, dismantleDate);
+
             allDismantles.push({
-                id: dismantleId, assetId: id, assetName: template.name, dismantleDate: dismantleDate.toISOString().split('T')[0], technician: engineerUsers[i % engineerUsers.length], customerId: customer.id, customerName: customer.name, customerAddress: customer.address,
-                retrievedCondition: AssetCondition.USED_OKAY, notes: 'Penarikan karena pelanggan berhenti langganan.', acknowledger: 'Alice Johnson', status: ItemStatus.COMPLETED, attachments: []
+                id: dismantleId,
+                docNumber: docNumber,
+                requestNumber: poNumber,
+                assetId: id,
+                assetName: template.name,
+                dismantleDate: dismantleDate.toISOString().split('T')[0],
+                technician: engineerUsers[i % engineerUsers.length],
+                customerId: customer.id,
+                customerName: customer.name,
+                customerAddress: customer.address,
+                retrievedCondition: AssetCondition.USED_OKAY,
+                notes: 'Penarikan karena pelanggan berhenti langganan.',
+                acknowledger: acknowledger,
+                status: dismantleStatus,
+                attachments: []
             });
         }
 
@@ -308,7 +322,7 @@ const generateMockAssets = () => {
             purchaseDate: purchaseDate.toISOString().split('T')[0],
             purchasePrice: template.price,
             vendor: VENDORS[i % VENDORS.length],
-            poNumber: `REQ-${String(120 - i).padStart(3, '0')}`,
+            poNumber,
             invoiceNumber: `INV/${VENDORS[i % VENDORS.length].slice(0,3).toUpperCase()}/${purchaseDate.getFullYear()}/${i+1}`,
             warrantyEndDate: warrantyEndDate.toISOString().split('T')[0],
             location,

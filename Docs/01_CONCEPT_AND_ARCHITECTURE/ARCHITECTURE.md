@@ -3,7 +3,7 @@
 Dokumen ini menjelaskan blueprint arsitektural tingkat tinggi dari Aplikasi Inventori Aset. Tujuannya adalah untuk memberikan pemahaman konseptual tentang bagaimana komponen-komponen utama sistem saling terhubung dan berinteraksi.
 
 > **PENTING: Status Proyek Saat Ini**
-> Arsitektur yang dijelaskan dalam dokumen ini adalah **arsitektur target** untuk aplikasi *full-stack* yang lengkap. Implementasi saat ini adalah sebuah **prototipe frontend fungsional penuh**. Logika backend dan database disimulasikan menggunakan *mock API layer* yang berjalan di browser dan menyimpan data di `localStorage`. Dokumen ini berfungsi sebagai cetak biru untuk tim backend dalam membangun layanan sisi server.
+> Arsitektur yang dijelaskan dalam dokumen ini adalah **arsitektur target** untuk aplikasi *full-stack* yang lengkap. Implementasi saat ini adalah sebuah **prototipe frontend fungsional penuh**. Logika backend dan database disimulasikan menggunakan *mock API layer* yang berjalan di browser dan menyimpan data di `localStorage`. Manajemen state dan routing saat ini diimplementasikan secara sederhana dan merupakan area utama untuk peningkatan di fase produksi, seperti yang dijelaskan dalam [Panduan Frontend](../02_DEVELOPMENT_GUIDES/FRONTEND_GUIDE.md). Dokumen ini berfungsi sebagai cetak biru untuk tim backend dalam membangun layanan sisi server.
 
 ---
 

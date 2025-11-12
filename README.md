@@ -26,6 +26,15 @@ Fondasi ini memastikan bahwa aplikasi tidak hanya memenuhi kebutuhan saat ini, t
 
 ---
 
+## Rekomendasi Pengembangan Lanjutan
+
+Prototipe ini sengaja dibangun dengan pola manajemen state dan routing yang sederhana untuk kecepatan pengembangan. Untuk evolusi menuju aplikasi skala produksi, kami telah menyediakan panduan terperinci untuk mengadopsi praktik terbaik industri. Silakan merujuk ke:
+
+-   [**Rekomendasi di Laporan Final**](./Docs/FINAL_REPORT.md#73-rekomendasi-pengembangan-lanjutan) untuk gambaran besar.
+-   [**Panduan Peningkatan Arsitektur di Panduan Frontend**](./Docs/02_DEVELOPMENT_GUIDES/FRONTEND_GUIDE.md#8-rekomendasi-peningkatan-arsitektur-langkah-selanjutnya) untuk detail teknis implementasi.
+
+---
+
 ## Titik Awal Utama (WAJIB DIBACA)
 
 > Untuk pemahaman komprehensif mengenai proyek dari awal hingga akhir, mulailah dengan membaca dokumen berikut. Dokumen ini merangkum seluruh aspek proyek dan berfungsi sebagai "daftar isi" utama untuk menavigasi seluruh dokumentasi yang tersedia.

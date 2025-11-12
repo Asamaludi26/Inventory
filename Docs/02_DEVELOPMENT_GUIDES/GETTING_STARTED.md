@@ -60,6 +60,7 @@ Pastikan perangkat lunak berikut telah terinstal di komputer Anda:
 -   **Lokasi Kode**: Logika untuk simulasi API berada di `frontend/src/services/api.ts`.
 -   **Penyimpanan**: Data awal dimuat dari `frontend/src/data/mockData.ts` saat pertama kali aplikasi dijalankan. Setiap perubahan (membuat, mengedit, menghapus data) akan disimpan ke `localStorage` browser Anda.
 -   **Inspeksi Data**: Anda dapat melihat data yang tersimpan dengan membuka Developer Tools di browser (`F12`), pergi ke tab `Application`, dan lihat di bawah `Local Storage`. Anda akan menemukan kunci seperti `app_assets`, `app_requests`, dll.
+-   **Catatan Arsitektur**: Manajemen state dan routing dalam prototipe ini sengaja dibuat sederhana untuk kecepatan pengembangan. Untuk pengembangan lebih lanjut menuju produksi, sangat disarankan untuk mengikuti panduan peningkatan arsitektur di [**Panduan Frontend (Bagian Rekomendasi)**](./FRONTEND_GUIDE.md#8-rekomendasi-peningkatan-arsitektur-langkah-selanjutnya).
 
 ## 5. Troubleshooting (Masalah Umum)
 

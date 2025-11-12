@@ -312,6 +312,8 @@ export interface Handover {
 
 export interface Dismantle {
   id: string;
+  docNumber: string;
+  requestNumber?: string;
   assetId: string;
   assetName: string;
   dismantleDate: string;

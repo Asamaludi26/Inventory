@@ -84,6 +84,7 @@ import { StartRepairModal, CompleteRepairModal, DecommissionConfirmationModal, A
 
 // Utilities
 import { parseScanData } from './utils/scanner';
+import { generateDocumentNumber } from './utils/documentNumberGenerator';
 
 
 declare var Html5Qrcode: any;
@@ -876,27 +877,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       const customer = customers.find(c => c.id === customerId);
       if (!customer) return;
 
-      const now = new Date();
-      const year = now.getFullYear().toString().slice(-2);
-      const month = (now.getMonth() + 1).toString().padStart(2, '0');
-      const day = now.getDate().toString().padStart(2, '0');
-      const datePrefix = `${year}${month}${day}`;
-
-      const todayHandovers = handovers.filter(h => {
-          if (!h.docNumber) return false;
-          // Check if the docNumber starts with either of today's possible prefixes
-          return h.docNumber.startsWith(`HO-RO-${datePrefix}`) || h.docNumber.startsWith(`HO-${datePrefix}`);
-      });
-
-      const highestSequence = todayHandovers.reduce((max, h) => {
-          const parts = h.docNumber.split('-');
-          const sequence = parseInt(parts[parts.length - 1], 10); // Always take the last part
-          return sequence > max ? sequence : max;
-      }, 0);
-      
-      const newSequence = (highestSequence + 1).toString().padStart(3, '0');
-      const newDocNumber = `HO-${datePrefix}-${newSequence}`;
-
+      const newDocNumber = generateDocumentNumber('HO', handovers);
       const newHandoverId = `HO-${String(handovers.length + 1).padStart(3, '0')}`;
       const newHandover: Handover = {
         id: newHandoverId, 
@@ -1285,7 +1266,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       case 'handover':
         return <ItemHandoverPage currentUser={currentUser} handovers={handovers} setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')} assets={assets} users={users} divisions={divisions} prefillData={prefillHoData} onClearPrefill={() => setPrefillHoData(null)} onUpdateAsset={handleUpdateAsset} onShowPreview={handleShowPreview} onSave={handleSaveHandover} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} />;
       case 'stock':
-        return <StockOverviewPage currentUser={currentUser} assets={assets} assetCategories={assetCategories} users={users} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} handovers={handovers} requests={requests} onReportDamage={setAssetToReport} />;
+        return <StockOverviewPage currentUser={currentUser} assets={assets} assetCategories={assetCategories} users={users} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} handovers={handovers} requests={requests} onReportDamage={setAssetToReport} loanRequests={loanRequests} />;
       case 'repair':
         return <RepairManagementPage currentUser={currentUser} assets={assets} users={users} onShowPreview={handleShowPreview} onStartRepair={setAssetToStartRepair} onAddProgressUpdate={setAssetToUpdateProgress} onReceiveFromRepair={handleReceiveFromRepair} onCompleteRepair={setAssetToCompleteRepair} onDecommission={setAssetToDecommission} />;
       case 'pengaturan-pengguna':
