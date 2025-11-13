@@ -13,6 +13,9 @@ export type Page =
   | 'customer-installation-form'
   | 'customer-maintenance-form'
   | 'customer-dismantle'
+  | 'customer-detail'
+  | 'customer-new'
+  | 'customer-edit'
   | 'pengaturan-pengguna'
   | 'kategori';
 
@@ -109,6 +112,7 @@ export interface Customer {
   email: string;
   status: CustomerStatus;
   installationDate: string;
+  // FIX: Added missing 'servicePackage' property to align with mock data and component usage.
   servicePackage: string;
   activityLog: ActivityLogEntry[];
 }
@@ -327,6 +331,31 @@ export interface Dismantle {
   status: ItemStatus;
   attachments: Attachment[];
 }
+
+export interface Maintenance {
+  id: string;
+  docNumber: string;
+  requestNumber?: string;
+  maintenanceDate: string;
+  technician: string;
+  customerId: string;
+  customerName: string;
+  assets: {
+    assetId: string;
+    assetName: string;
+  }[];
+  problemDescription: string;
+  actionsTaken: string;
+  workTypes?: string[];
+  priority?: 'Tinggi' | 'Sedang' | 'Rendah';
+  status: ItemStatus;
+  completedBy?: string;
+  completionDate?: string;
+  attachments: Attachment[];
+  retrievedAssetCondition?: AssetCondition;
+  replacementAssetId?: string;
+}
+
 
 export interface Notification {
   id: string;

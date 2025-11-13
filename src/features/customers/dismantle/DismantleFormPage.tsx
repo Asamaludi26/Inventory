@@ -33,6 +33,7 @@ interface DismantleFormPageProps {
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
     onShowPreview: (data: PreviewData) => void;
     setActivePage: (page: Page, initialState?: any) => void;
+    pageInitialState?: { prefillCustomerId?: string };
 }
 
 const getStatusClass = (status: ItemStatus) => {
@@ -177,11 +178,13 @@ const DismantleTable: React.FC<DismantleTableProps> = ({ dismantles, onDetailCli
 };
 
 const DismantleFormPage: React.FC<DismantleFormPageProps> = (props) => {
-    const { currentUser, dismantles, setDismantles, assets, customers, users, prefillData, onClearPrefill, onUpdateAsset, onShowPreview, setActivePage } = props;
+    const { currentUser, dismantles, setDismantles, assets, customers, users, prefillData, onClearPrefill, onUpdateAsset, onShowPreview, setActivePage, pageInitialState } = props;
     const addNotification = useNotification();
     
     // --- STATE MANAGEMENT ---
-    const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
+    const prefillCustomerId = pageInitialState?.prefillCustomerId;
+    const [view, setView] = useState<'list' | 'form' | 'detail'>(prefillData || prefillCustomerId ? 'form' : 'list');
+    
     const [selectedDismantle, setSelectedDismantle] = useState<Dismantle | null>(null);
     const [dismantleToDeleteId, setDismantleToDeleteId] = useState<string | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState(false);
@@ -200,8 +203,8 @@ const DismantleFormPage: React.FC<DismantleFormPageProps> = (props) => {
     
     // --- EFFECTS ---
     useEffect(() => {
-        if (prefillData) setView('form');
-    }, [prefillData]);
+        if (prefillData || prefillCustomerId) setView('form');
+    }, [prefillData, prefillCustomerId]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -413,7 +416,8 @@ const DismantleFormPage: React.FC<DismantleFormPageProps> = (props) => {
                         customers={customers}
                         users={users}
                         assets={assets}
-                        prefillData={prefillData}
+                        prefillAsset={prefillData}
+                        prefillCustomerId={prefillCustomerId}
                         setActivePage={setActivePage}
                     />
                 </div>
@@ -470,7 +474,7 @@ const DismantleFormPage: React.FC<DismantleFormPageProps> = (props) => {
                         />
                     </div>
                      <div className="relative" ref={filterPanelRef}>
-                        {/* Filter Button and Panel */}
+                        {/* Filter Button and Panel here */}
                     </div>
                 </div>
             </div>

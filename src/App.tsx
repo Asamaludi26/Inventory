@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 // Types and Enums
@@ -27,7 +29,8 @@ import type {
     ParsedScanResult, 
     Notification,
     Attachment,
-    LoanRequest
+    LoanRequest,
+    Maintenance
 } from './types';
 
 // Services
@@ -438,7 +441,7 @@ const UnderConstructionPage: React.FC<{ title: string; setActivePage: (page: Pag
             <div>
                 <WrenchIcon className="w-16 h-16 mx-auto text-amber-400" />
                 <h1 className="mt-4 text-2xl font-bold text-gray-800">{title}</h1>
-                <p className="mt-2 text-gray-600">Fitur ini sedang dalam tahap pengembangan dan akan segera tersedia. Terima kasih atas kesabaran Anda.</p>
+                <p className="mt-2 text-gray-600">Fitur ini sedang dalam tahap pengembangan dan akan segera tersedia.</p>
                 <button 
                     onClick={() => setActivePage('dashboard')}
                     className="inline-flex items-center justify-center gap-2 mt-6 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
@@ -464,6 +467,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
   const [loanRequests, setLoanRequests] = useState<LoanRequest[]>([]);
   const [handovers, setHandovers] = useState<Handover[]>([]);
   const [dismantles, setDismantles] = useState<Dismantle[]>([]);
+  const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [divisions, setDivisions] = useState<Division[]>([]);
@@ -519,6 +523,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                 setAssetCategories(data.assetCategories);
                 setNotifications(data.notifications);
                 setLoanRequests(data.loanRequests);
+                setMaintenances(data.maintenances);
 
             } catch (err: any) {
                 setError(err.message || 'Gagal memuat data aplikasi. Silakan coba muat ulang halaman.');
@@ -589,7 +594,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
     const preservePrefillReg = page === 'registration';
     const preservePrefillHo = page === 'handover';
     const preservePrefillDm = page === 'customer-dismantle';
-    const preserveItemToEdit = page === 'registration' || page === 'customers';
+    const preserveItemToEdit = ['registration', 'customer-edit'].includes(page);
     const preserveAssetToView = page === 'registration';
     
     if (!preservePrefillReg) setPrefillRegData(null);
@@ -619,11 +624,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         break;
       }
       case 'customer': {
-        const customer = customers.find(c => c.id === data.id);
-        if (customer) {
-          setItemToEdit({ type: 'customer', data: customer });
-          handleSetActivePage('customers');
-        }
+        handleSetActivePage('customer-edit', { customerId: data.id });
         break;
       }
       default:
@@ -1120,10 +1121,11 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         handleUpdateAsset(asset.id, {
             status: AssetStatus.IN_USE,
             condition: newCondition,
+            notes: details,
         }, {
             user: currentUser.name,
             action: 'Perbaikan Selesai',
-            details: details
+            details,
         });
 
         const reporter = findReporter(asset);
@@ -1167,7 +1169,14 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
 
 
   const handleShowPreview = (data: PreviewData) => {
-    setPreviewData(data);
+    if (data.type === 'customer') {
+      handleSetActivePage('customer-detail', { customerId: data.id });
+      if (previewData) { // Close any existing modal
+        setPreviewData(null);
+      }
+    } else {
+      setPreviewData(data);
+    }
   };
 
   if (isLoading) {
@@ -1200,6 +1209,8 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
     'registration',
     'repair',
     'customers',
+    'customer-new',
+    'customer-edit',
     'pengaturan-pengguna',
     'kategori',
   ];
@@ -1274,30 +1285,40 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       case 'kategori':
         return <CategoryManagementPage currentUser={currentUser} categories={assetCategories} setCategories={(valueOrFn) => setAndPersist(setAssetCategories, valueOrFn, 'app_assetCategories')} divisions={divisions} assets={assets} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal}/>;
       case 'customers':
-        return <CustomerManagementPage subPage="list" currentUser={currentUser} customers={customers} setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} assets={assets} onInitiateDismantle={handleInitiateDismantle} onShowPreview={handleShowPreview} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)} setActivePage={handleSetActivePage} />;
+      case 'customer-new':
+      case 'customer-edit':
       case 'customer-installation-form':
-        return <CustomerManagementPage subPage="installation" currentUser={currentUser} customers={customers} setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} assets={assets} onInitiateDismantle={handleInitiateDismantle} onShowPreview={handleShowPreview} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)} setActivePage={handleSetActivePage} />;
       case 'customer-maintenance-form':
-        return <CustomerManagementPage subPage="maintenance" currentUser={currentUser} customers={customers} setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} assets={assets} onInitiateDismantle={handleInitiateDismantle} onShowPreview={handleShowPreview} itemToEdit={itemToEdit} onClearItemToEdit={() => setItemToEdit(null)} setActivePage={handleSetActivePage} />;
       case 'customer-dismantle':
-        return <CustomerManagementPage 
-                  subPage="dismantle" 
-                  currentUser={currentUser} 
-                  customers={customers} 
-                  setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')} 
-                  assets={assets} 
-                  onInitiateDismantle={handleInitiateDismantle} 
-                  onShowPreview={handleShowPreview} 
-                  itemToEdit={itemToEdit} 
-                  onClearItemToEdit={() => setItemToEdit(null)} 
-                  setActivePage={handleSetActivePage} 
+      case 'customer-detail':
+        return <CustomerManagementPage
+                  subPage={
+                      activePage === 'customers' ? 'list'
+                    : activePage === 'customer-new' ? 'new'
+                    : activePage === 'customer-edit' ? 'edit'
+                    : activePage === 'customer-installation-form' ? 'installation'
+                    : activePage === 'customer-maintenance-form' ? 'maintenance'
+                    : activePage === 'customer-dismantle' ? 'dismantle'
+                    : 'detail' // 'customer-detail'
+                  }
+                  currentUser={currentUser}
+                  customers={customers}
+                  setCustomers={(valueOrFn) => setAndPersist(setCustomers, valueOrFn, 'app_customers')}
+                  assets={assets}
+                  assetCategories={assetCategories}
+                  onUpdateAsset={handleUpdateAsset}
+                  onInitiateDismantle={handleInitiateDismantle}
+                  onShowPreview={handleShowPreview}
+                  setActivePage={handleSetActivePage}
+                  pageInitialState={pageInitialState}
                   dismantles={dismantles}
                   setDismantles={(valueOrFn) => setAndPersist(setDismantles, valueOrFn, 'app_dismantles')}
+                  maintenances={maintenances}
+                  setMaintenances={(valueOrFn) => setAndPersist(setMaintenances, valueOrFn, 'app_maintenances')}
                   users={users}
                   prefillData={prefillDmData}
                   onClearPrefill={() => setPrefillDmData(null)}
-                  onUpdateAsset={handleUpdateAsset}
-                />;
+              />;
       default:
         return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
     }
@@ -1388,7 +1409,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
             currentUser={currentUser}
             previewData={previewData}
             onClose={() => setPreviewData(null)}
-            onShowPreview={setPreviewData}
+            onShowPreview={handleShowPreview}
             onEditItem={handleEditItem}
             assets={assets}
             customers={customers}

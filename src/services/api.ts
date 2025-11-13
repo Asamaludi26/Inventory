@@ -47,7 +47,7 @@ function apiCall<T>(dataOperation: () => T): Promise<T> {
 
 // --- API Function Implementations ---
 import {
-    Asset, Request, Handover, Dismantle, Customer, User, Division, AssetCategory, StandardItem, Notification, LoanRequest
+    Asset, Request, Handover, Dismantle, Customer, User, Division, AssetCategory, StandardItem, Notification, LoanRequest, Maintenance
 } from '../types';
 import {
   initialMockRequests,
@@ -59,7 +59,8 @@ import {
   mockCustomers,
   initialAssetCategories,
   mockNotifications,
-  mockLoanRequests
+  mockLoanRequests,
+  mockMaintenances
 } from '../data/mockData';
 
 // Fetch all data types
@@ -75,8 +76,9 @@ export const fetchAllData = () => {
         const assetCategories = getFromStorage<AssetCategory[]>('app_assetCategories', initialAssetCategories);
         const notifications = getFromStorage<Notification[]>('app_notifications', mockNotifications);
         const loanRequests = getFromStorage<LoanRequest[]>('app_loanRequests', mockLoanRequests);
+        const maintenances = getFromStorage<Maintenance[]>('app_maintenances', mockMaintenances);
 
-        return { assets, requests, handovers, dismantles, customers, users, divisions, assetCategories, notifications, loanRequests };
+        return { assets, requests, handovers, dismantles, customers, users, divisions, assetCategories, notifications, loanRequests, maintenances };
     });
 };
 

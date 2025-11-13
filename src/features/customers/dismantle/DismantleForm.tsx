@@ -19,11 +19,12 @@ interface DismantleFormProps {
     customers: Customer[];
     users: User[];
     assets: Asset[];
-    prefillData?: Asset | null;
+    prefillAsset?: Asset | null;
+    prefillCustomerId?: string;
     setActivePage: (page: Page, initialState?: any) => void;
 }
 
-const DismantleForm: React.FC<DismantleFormProps> = ({ currentUser, dismantles, onSave, onCancel, customers, users, assets, prefillData }) => {
+const DismantleForm: React.FC<DismantleFormProps> = ({ currentUser, dismantles, onSave, onCancel, customers, users, assets, prefillAsset, prefillCustomerId }) => {
     // --- STATE MANAGEMENT ---
     const [dismantleDate, setDismantleDate] = useState<Date | null>(new Date());
     const [docNumber, setDocNumber] = useState('');
@@ -31,11 +32,11 @@ const DismantleForm: React.FC<DismantleFormProps> = ({ currentUser, dismantles, 
     const [technician, setTechnician] = useState('');
     const [retrievedCondition, setRetrievedCondition] = useState<AssetCondition>(AssetCondition.USED_OKAY);
     const [notes, setNotes] = useState<string>('');
-    const [acknowledgerName, setAcknowledgerName] = useState('');
     const [attachments, setAttachments] = useState<File[]>([]);
     const [isDragging, setIsDragging] = useState(false);
 
-    const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+    const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+    const [selectedAssetId, setSelectedAssetId] = useState<string>('');
     
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFooterVisible, setIsFooterVisible] = useState(true);
@@ -45,31 +46,45 @@ const DismantleForm: React.FC<DismantleFormProps> = ({ currentUser, dismantles, 
 
     // --- DERIVED STATE & OPTIONS ---
     const selectedAsset = useMemo(() => assets.find(a => a.id === selectedAssetId) || null, [assets, selectedAssetId]);
-    const selectedCustomer = useMemo(() => selectedAsset ? customers.find(c => c.id === selectedAsset.currentUser) : null, [customers, selectedAsset]);
+    const selectedCustomer = useMemo(() => customers.find(c => c.id === selectedCustomerId) || null, [customers, selectedCustomerId]);
+    
+    const assetsForCustomer = useMemo(() => 
+        selectedCustomerId ? assets.filter(a => a.currentUser === selectedCustomerId && a.status === AssetStatus.IN_USE) : [],
+    [assets, selectedCustomerId]);
+
+    const customerOptions = useMemo(() => {
+        const customerIdsWithAssets = new Set(assets.filter(a => a.currentUser?.startsWith('TMI-')).map(a => a.currentUser));
+        return customers
+            .filter(c => customerIdsWithAssets.has(c.id))
+            .map(c => ({ value: c.id, label: `${c.name} (${c.id})` }));
+    }, [customers, assets]);
+
+    const assetOptions = useMemo(() => assetsForCustomer.map(asset => ({
+        value: asset.id,
+        label: `${asset.name} (${asset.id}) - SN: ${asset.serialNumber || 'N/A'}`
+    })), [assetsForCustomer]);
 
     const technicianOptions = useMemo(() => 
         users.filter(u => u.divisionId === 3).map(u => ({ value: u.name, label: u.name })), 
     [users]);
     
-    const availableAssetsForDismantle = useMemo(() => 
-        assets.filter(asset => asset.status === AssetStatus.IN_USE && asset.currentUser && asset.currentUser.startsWith('TMI-')),
-    [assets]);
-    
-    const assetOptions = useMemo(() => availableAssetsForDismantle.map(asset => {
-        const customer = customers.find(c => c.id === asset.currentUser);
-        return {
-            value: asset.id,
-            label: `${asset.name} (${asset.id}) - Pelanggan: ${customer?.name || 'N/A'}`
-        }
-    }), [availableAssetsForDismantle, customers]);
-
     // --- EFFECTS ---
      useEffect(() => {
         setTechnician(currentUser.name);
-        if (prefillData) {
-            setSelectedAssetId(prefillData.id);
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (prefillAsset) {
+            setSelectedCustomerId(prefillAsset.currentUser || '');
+            setSelectedAssetId(prefillAsset.id);
+        } else if (prefillCustomerId) {
+            setSelectedCustomerId(prefillCustomerId);
+            const customerAssets = assets.filter(a => a.currentUser === prefillCustomerId && a.status === AssetStatus.IN_USE);
+            if (customerAssets.length === 1) {
+                setSelectedAssetId(customerAssets[0].id);
+            }
         }
-    }, [currentUser, prefillData]);
+    }, [prefillAsset, prefillCustomerId, assets]);
 
     useEffect(() => {
         if (!dismantleDate) {
@@ -91,13 +106,6 @@ const DismantleForm: React.FC<DismantleFormProps> = ({ currentUser, dismantles, 
         return () => { if (currentRef) observer.unobserve(currentRef); };
     }, []);
     
-    useEffect(() => {
-        if (selectedAssetId && !prefillData && !availableAssetsForDismantle.some(a => a.id === selectedAssetId)) {
-            addNotification('Aset yang dipilih tidak lagi valid untuk dismantle.', 'warning');
-            setSelectedAssetId(null);
-        }
-    }, [selectedAssetId, availableAssetsForDismantle, prefillData, addNotification]);
-
     // --- EVENT HANDLERS ---
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -153,7 +161,7 @@ const DismantleForm: React.FC<DismantleFormProps> = ({ currentUser, dismantles, 
                 customerAddress: selectedCustomer.address,
                 retrievedCondition,
                 notes: notes.trim() || null,
-                acknowledger: acknowledgerName.trim() || null,
+                acknowledger: null, // Admin gudang yang akan mengisi ini
                 attachments: processedAttachments,
             });
             setIsSubmitting(false);
@@ -203,28 +211,35 @@ const DismantleForm: React.FC<DismantleFormProps> = ({ currentUser, dismantles, 
                 </div>
 
                 <div className="p-4 bg-gray-50 border rounded-lg">
-                    <h3 className="text-base font-semibold text-gray-800">Detail Aset & Pelanggan</h3>
-                    {!prefillData ? (
-                         <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-700">Pilih Aset yang Akan Ditarik</label>
+                    <h3 className="text-base font-semibold text-gray-800 mb-4">Detail Aset & Pelanggan</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Pelanggan</label>
                             <CustomSelect
-                                options={assetOptions}
-                                value={selectedAssetId || ''}
-                                onChange={setSelectedAssetId}
-                                placeholder="-- Cari aset berdasarkan nama, ID, atau pelanggan --"
+                                options={customerOptions}
+                                value={selectedCustomerId}
+                                onChange={(val) => { setSelectedCustomerId(val); setSelectedAssetId(''); }}
+                                placeholder="-- Pilih Pelanggan --"
                                 isSearchable
+                                disabled={!!prefillCustomerId || !!prefillAsset}
                             />
                         </div>
-                    ) : null}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Aset yang Ditarik</label>
+                            <CustomSelect
+                                options={assetOptions}
+                                value={selectedAssetId}
+                                onChange={setSelectedAssetId}
+                                placeholder={selectedCustomerId ? "-- Pilih Aset --" : "Pilih pelanggan dahulu"}
+                                disabled={!selectedCustomerId || !!prefillAsset || (!!prefillCustomerId && assetsForCustomer.length === 1)}
+                            />
+                        </div>
+                    </div>
 
                     {selectedAsset && selectedCustomer ? (
-                        <div className="grid grid-cols-1 gap-4 mt-4 text-sm md:grid-cols-2">
-                            <div><span className="font-semibold text-gray-500">Aset:</span><span className="pl-2 font-medium text-gray-900">{selectedAsset.name} ({selectedAsset.id})</span></div>
-                            <div><span className="font-semibold text-gray-500">Pelanggan:</span><span className="pl-2 font-medium text-gray-900">{selectedCustomer.name} ({selectedCustomer.id})</span></div>
-                            <div className="md:col-span-2"><span className="font-semibold text-gray-500">Alamat:</span><span className="pl-2 text-gray-900">{selectedCustomer.address}</span></div>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 mt-4 pt-4 border-t text-sm">
+                            <div><span className="font-semibold text-gray-500">Alamat:</span><span className="pl-2 text-gray-900">{selectedCustomer.address}</span></div>
                         </div>
-                    ) : prefillData ? (
-                         <p className="mt-2 text-sm text-center text-red-600">Pelanggan untuk aset ini tidak ditemukan.</p>
                     ) : null}
                 </div>
 

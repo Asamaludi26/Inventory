@@ -20,7 +20,8 @@ import {
     OrderDetails,
     Notification,
     LoanRequest,
-    LoanRequestStatus
+    LoanRequestStatus,
+    Maintenance,
 } from '../types';
 import { generateDocumentNumber } from '../utils/documentNumberGenerator';
 
@@ -574,6 +575,82 @@ export const mockLoanRequests: LoanRequest[] = [
         notes: 'Untuk cadangan di mobil operasional, tanggal kembali belum ditentukan.'
     }
 ];
+
+export const mockMaintenances: Maintenance[] = [
+    {
+        id: 'MNT-001',
+        docNumber: 'WO-MT-20241017-0001',
+        requestNumber: 'REQ-115',
+        maintenanceDate: new Date(new Date().setDate(NOW.getDate() - 5)).toISOString(),
+        technician: 'Citra Lestari',
+        customerId: 'TMI-1001',
+        customerName: 'Ahmad Santoso',
+        assets: [{ assetId: 'AST-005', assetName: 'ONT F609' }],
+        problemDescription: 'Lampu LOS berkedip merah, koneksi internet terputus.',
+        actionsTaken: 'Ditemukan kabel putus di dekat rumah pelanggan. Dilakukan penyambungan ulang.',
+        workTypes: ['Splicing FO'],
+        priority: 'Tinggi',
+        status: ItemStatus.COMPLETED,
+        completedBy: 'Alice Johnson',
+        completionDate: new Date(new Date().setDate(NOW.getDate() - 4)).toISOString(),
+        attachments: [],
+    },
+    {
+        id: 'MNT-002',
+        docNumber: 'WO-MT-20241018-0001',
+        maintenanceDate: new Date(new Date().setDate(NOW.getDate() - 2)).toISOString(),
+        technician: 'Hadi Gunawan',
+        customerId: 'TMI-1015',
+        customerName: 'Gita Wijaya',
+        assets: [{ assetId: 'AST-012', assetName: 'Router WiFi Archer C6' }],
+        problemDescription: 'Konektor RJ45 di ujung kabel LAN ke router rusak (patah).',
+        actionsTaken: 'Kabel dipotong dan dipasang konektor RJ45 yang baru.',
+        workTypes: ['Ganti Konektor'],
+        priority: 'Rendah',
+        status: ItemStatus.IN_PROGRESS,
+        attachments: [],
+    },
+    {
+        id: 'MNT-003',
+        docNumber: 'WO-MT-20241019-0001',
+        maintenanceDate: new Date(new Date().setDate(NOW.getDate() - 1)).toISOString(),
+        technician: 'Citra Lestari',
+        customerId: 'TMI-1002',
+        customerName: 'Budi Wijaya',
+        assets: [{ assetId: 'AST-008', assetName: 'ONT HG8245H' }],
+        problemDescription: 'Perangkat ONT mati total setelah tersambar petir.',
+        actionsTaken: 'ONT yang rusak ditarik dan diganti dengan unit baru dari stok gudang.',
+        workTypes: ['Ganti Perangkat'],
+        priority: 'Sedang',
+        status: ItemStatus.COMPLETED,
+        completedBy: 'Alice Johnson',
+        completionDate: new Date(new Date().setDate(NOW.getDate() - 1)).toISOString(),
+        attachments: [],
+        retrievedAssetCondition: AssetCondition.MAJOR_DAMAGE,
+        replacementAssetId: 'AST-248', // A new ONT from storage
+    },
+    {
+        id: 'MNT-004',
+        docNumber: 'WO-MT-20241020-0001',
+        maintenanceDate: new Date().toISOString(),
+        technician: 'Eko Pratama',
+        customerId: 'TMI-1001',
+        customerName: 'Ahmad Santoso',
+        assets: [
+            { assetId: 'AST-005', assetName: 'ONT F609' },
+            { assetId: 'AST-021', assetName: 'Router WiFi AX10' }
+        ],
+        problemDescription: 'Pemeriksaan rutin dan pembersihan perangkat.',
+        actionsTaken: 'Semua perangkat dibersihkan dari debu, koneksi diperiksa. Semua berfungsi normal.',
+        workTypes: ['Pemeriksaan Rutin'],
+        priority: 'Rendah',
+        status: ItemStatus.COMPLETED,
+        completedBy: 'Eko Pratama',
+        completionDate: new Date().toISOString(),
+        attachments: [],
+    }
+];
+
 
 // 7. NOTIFICATIONS
 export const mockNotifications: Notification[] = [

@@ -69,7 +69,7 @@ const allMenuItems: MenuItem[] = [
     children: [
       { id: 'customers', label: 'Daftar Pelanggan', icon: UsersIcon },
       { id: 'customer-installation-form', page: 'customer-installation-form', label: 'Form Instalasi', icon: FileSignatureIcon },
-      { id: 'customer-maintenance-form', page: 'customer-maintenance-form', label: 'Form Maintenance', icon: WrenchIcon },
+      { id: 'customer-maintenance-form', page: 'customer-maintenance-form', label: 'Manajemen Maintenance', icon: WrenchIcon },
       { id: 'customer-dismantle', page: 'customer-dismantle', label: 'Data Dismantle', icon: DismantleIcon },
     ],
   },
