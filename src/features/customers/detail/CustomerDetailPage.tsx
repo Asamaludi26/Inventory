@@ -30,21 +30,14 @@ const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, asse
     const customer = useMemo(() => customers.find(c => c.id === initialState.customerId), [customers, initialState.customerId]);
     const customerAssets = useMemo(() => assets.filter(a => a.currentUser === initialState.customerId), [assets, initialState.customerId]);
 
-    const { individualAssets, bulkAssets } = useMemo(() => {
-        const individual: Asset[] = [];
-        const bulk: Asset[] = [];
-
-        for (const asset of customerAssets) {
+    const individualAssets = useMemo(() => {
+        return customerAssets.filter(asset => {
             const category = assetCategories.find(c => c.name === asset.category);
             const type = category?.types.find(t => t.name === asset.type);
-            if (type?.trackingMethod === 'bulk') {
-                bulk.push(asset);
-            } else {
-                individual.push(asset);
-            }
-        }
-        return { individualAssets: individual, bulkAssets: bulk };
+            return type?.trackingMethod !== 'bulk';
+        });
     }, [customerAssets, assetCategories]);
+
 
     if (!customer) {
         return (
@@ -118,29 +111,27 @@ const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, asse
                 </div>
 
                 {/* Installed Materials */}
-                <h3 className="text-lg pt-6 font-semibold text-gray-900 border-b pb-3 mb-4">Material Terpasang (Habis Pakai) ({bulkAssets.length})</h3>
+                <h3 className="text-lg pt-6 font-semibold text-gray-900 border-b pb-3 mb-4">Material Terpasang ({customer.installedMaterials?.length || 0})</h3>
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Material</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kondisi</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Pemasangan</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {bulkAssets.length > 0 ? bulkAssets.map(asset => (
-                                <tr key={asset.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <ClickableLink onClick={() => onShowPreview({ type: 'asset', id: asset.id })}>
-                                            <div className="text-sm font-medium text-gray-900">{asset.name}</div>
-                                        </ClickableLink>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gray-500">{asset.category}</div></td>
-                                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm text-gray-800">{asset.condition}</div></td>
+                            {customer.installedMaterials && customer.installedMaterials.length > 0 ? customer.installedMaterials.map((material, index) => (
+                                <tr key={index} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{material.itemName}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{material.brand}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{material.quantity} {material.unit}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(material.installationDate).toLocaleDateString('id-ID')}</td>
                                 </tr>
                             )) : (
-                                <tr><td colSpan={3} className="px-6 py-12 text-center text-sm text-gray-500">Tidak ada material terpasang.</td></tr>
+                                <tr><td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-500">Tidak ada material yang tercatat.</td></tr>
                             )}
                         </tbody>
                     </table>

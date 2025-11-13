@@ -22,6 +22,7 @@ import {
     LoanRequest,
     LoanRequestStatus,
     Maintenance,
+    InstalledMaterial
 } from '../types';
 import { generateDocumentNumber } from '../utils/documentNumberGenerator';
 
@@ -90,6 +91,27 @@ const generateMockCustomers = (): Customer[] => {
         const lastName = LAST_NAMES[i % LAST_NAMES.length];
         const name = `${firstName} ${lastName}`;
         const installDate = new Date(new Date(NOW).setDate(NOW.getDate() - (i * 5)));
+        
+        const installedMaterials: InstalledMaterial[] = [];
+        if (i % 3 === 0 && i < 30) { // Add materials to the first 10 active customers
+            installedMaterials.push({
+                itemName: 'Kabel Dropcore 1 Core 150m',
+                brand: 'FiberHome',
+                quantity: Math.floor(Math.random() * 50) + 20,
+                unit: 'meter',
+                installationDate: installDate.toISOString().split('T')[0]
+            });
+        }
+        if (i % 5 === 0 && i < 30) {
+             installedMaterials.push({
+                itemName: 'Konektor Fast Connector SC',
+                brand: 'Generic',
+                quantity: Math.floor(Math.random() * 4) + 2,
+                unit: 'pcs',
+                installationDate: installDate.toISOString().split('T')[0]
+            });
+        }
+
         return {
             id: `TMI-${String(1001 + i).padStart(5, '0')}`,
             name: name,
@@ -105,79 +127,57 @@ const generateMockCustomers = (): Customer[] => {
                 user: 'System',
                 action: 'Pelanggan Dibuat',
                 details: 'Data pelanggan awal dibuat oleh sistem.'
-            }]
+            }],
+            installedMaterials: installedMaterials.length > 0 ? installedMaterials : undefined
         };
     });
 };
 export const mockCustomers: Customer[] = generateMockCustomers();
 
 // 4. ASSET CATEGORIES (ISP SPECIFIC)
-const ispAssetCategories: Record<string, { types: Partial<AssetType>[], isCustomerInstallable?: boolean, associatedDivisions?: number[] }> = {
-    'Perangkat Jaringan (Core)': {
+export const initialAssetCategories: AssetCategory[] = [
+    {
+        id: 1, name: 'Perangkat Jaringan (Core)', isCustomerInstallable: false, associatedDivisions: [1, 3],
         types: [
-            { name: 'Router Core', standardItems: [{ id: 1, name: 'Router Core RB4011iGS+', brand: 'Mikrotik' }, { id: 2, name: 'EdgeRouter Pro', brand: 'Ubiquiti' }] },
-            { name: 'Switch Distribusi', standardItems: [{ id: 3, name: 'CRS326-24G-2S+RM', brand: 'Mikrotik' }] },
-            { name: 'OLT', standardItems: [{ id: 4, name: 'OLT EPON 8 Port', brand: 'Huawei' }, { id: 5, name: 'OLT GPON 16 Port', brand: 'ZTE' }] },
-        ],
-        associatedDivisions: [1, 3] // NOC, Teknisi
+            { id: 1, name: 'Router Core', standardItems: [{ id: 1, name: 'Router Core RB4011iGS+', brand: 'Mikrotik' }, { id: 2, name: 'EdgeRouter Pro', brand: 'Ubiquiti' }] },
+            { id: 2, name: 'Switch Distribusi', standardItems: [{ id: 3, name: 'CRS326-24G-2S+RM', brand: 'Mikrotik' }] },
+            { id: 3, name: 'OLT', standardItems: [{ id: 4, name: 'OLT EPON 8 Port', brand: 'Huawei' }, { id: 5, name: 'OLT GPON 16 Port', brand: 'ZTE' }] },
+        ]
     },
-    'Perangkat Pelanggan (CPE)': {
+    {
+        id: 2, name: 'Perangkat Pelanggan (CPE)', isCustomerInstallable: true, associatedDivisions: [3],
         types: [
-            { name: 'ONT/ONU', standardItems: [{ id: 6, name: 'ONT HG8245H', brand: 'Huawei' }, { id: 7, name: 'ONT F609', brand: 'ZTE' }] },
-            { name: 'Router WiFi', standardItems: [{ id: 8, name: 'Router WiFi Archer C6', brand: 'TP-Link' }, { id: 9, name: 'Router WiFi AX10', brand: 'TP-Link' }] },
-        ],
-        isCustomerInstallable: true,
-        associatedDivisions: [3] // Teknisi
+            { id: 4, name: 'ONT/ONU', standardItems: [{ id: 6, name: 'ONT HG8245H', brand: 'Huawei' }, { id: 7, name: 'ONT F609', brand: 'ZTE' }] },
+            { id: 5, name: 'Router WiFi', standardItems: [{ id: 8, name: 'Router WiFi Archer C6', brand: 'TP-Link' }, { id: 9, name: 'Router WiFi AX10', brand: 'TP-Link' }] },
+        ]
     },
-    'Infrastruktur Fiber Optik': {
+    {
+        id: 3, name: 'Infrastruktur Fiber Optik', isCustomerInstallable: true, associatedDivisions: [3],
         types: [
-            { name: 'Kabel Dropcore', trackingMethod: 'bulk', unitOfMeasure: 'roll', baseUnitOfMeasure: 'meter', quantityPerUnit: 150, standardItems: [{ id: 10, name: 'Kabel Dropcore 1 Core 150m', brand: 'FiberHome' }] },
-            { name: 'Kabel UTP', trackingMethod: 'bulk', unitOfMeasure: 'box', baseUnitOfMeasure: 'meter', quantityPerUnit: 305, standardItems: [{ id: 11, name: 'Kabel UTP Cat6 305m', brand: 'Belden' }] },
-            { name: 'Konektor', trackingMethod: 'bulk', unitOfMeasure: 'pack', baseUnitOfMeasure: 'pcs', quantityPerUnit: 100, standardItems: [{ id: 12, name: 'Konektor Fast Connector SC', brand: 'Generic' }] },
-            { name: 'ODP', standardItems: [{ id: 13, name: 'ODP 16 Core', brand: 'Generic' }] },
-        ],
-        associatedDivisions: [3] // Teknisi
+            { id: 6, name: 'Kabel Dropcore', trackingMethod: 'bulk', unitOfMeasure: 'roll', baseUnitOfMeasure: 'meter', quantityPerUnit: 150, standardItems: [{ id: 10, name: 'Kabel Dropcore 1 Core 150m', brand: 'FiberHome' }] },
+            { id: 7, name: 'Kabel UTP', trackingMethod: 'bulk', unitOfMeasure: 'box', baseUnitOfMeasure: 'meter', quantityPerUnit: 305, standardItems: [{ id: 11, name: 'Kabel UTP Cat6 305m', brand: 'Belden' }] },
+            { id: 8, name: 'Konektor', trackingMethod: 'bulk', unitOfMeasure: 'pack', baseUnitOfMeasure: 'pcs', quantityPerUnit: 100, standardItems: [{ id: 12, name: 'Konektor Fast Connector SC', brand: 'Generic' }] },
+            { id: 9, name: 'ODP', standardItems: [{ id: 13, name: 'ODP 16 Core', brand: 'Generic' }] },
+        ]
     },
-    'Alat Kerja Lapangan': {
+    {
+        id: 4, name: 'Alat Kerja Lapangan', isCustomerInstallable: false, associatedDivisions: [3],
         types: [
-            { name: 'Fusion Splicer', standardItems: [{ id: 14, name: 'Fusion Splicer 90S', brand: 'Fujikura' }] },
-            { name: 'OTDR', standardItems: [{ id: 15, name: 'OTDR AQ7280', brand: 'Yokogawa' }] },
-            { name: 'Power Meter', standardItems: [{ id: 16, name: 'Optical Power Meter', brand: 'Joinwit' }] },
-            { name: 'Laptop Teknisi', standardItems: [{ id: 17, name: 'Laptop ThinkPad T480', brand: 'Lenovo' }] },
-        ],
-        associatedDivisions: [3] // Teknisi
+            { id: 10, name: 'Fusion Splicer', standardItems: [{ id: 14, name: 'Fusion Splicer 90S', brand: 'Fujikura' }] },
+            { id: 11, name: 'OTDR', standardItems: [{ id: 15, name: 'OTDR AQ7280', brand: 'Yokogawa' }] },
+            { id: 12, name: 'Power Meter', standardItems: [{ id: 16, name: 'Optical Power Meter', brand: 'Joinwit' }] },
+            { id: 13, name: 'Laptop Teknisi', standardItems: [{ id: 17, name: 'Laptop ThinkPad T480', brand: 'Lenovo' }] },
+        ]
     },
-    'Aset Kantor': {
+    {
+        id: 5, name: 'Aset Kantor', isCustomerInstallable: false, associatedDivisions: [],
         types: [
-            { name: 'PC Desktop', standardItems: [{ id: 18, name: 'PC Rakitan Core i7', brand: 'Custom' }, { id: 19, name: 'PC Dell Optiplex', brand: 'Dell' }] },
-            { name: 'Monitor', standardItems: [{ id: 20, name: 'Monitor LG 24 inch', brand: 'LG' }] },
-            { name: 'Printer', standardItems: [{ id: 21, name: 'Printer Epson L3210', brand: 'Epson' }] },
-        ],
-        associatedDivisions: [] // Global
-    },
-};
-
-const generateAssetCategories = (): AssetCategory[] => {
-  let categoryId = 1, typeId = 1, modelId = 1;
-  return Object.entries(ispAssetCategories).map(([categoryName, data]) => ({
-    id: categoryId++,
-    name: categoryName,
-    isCustomerInstallable: data.isCustomerInstallable || false,
-    associatedDivisions: data.associatedDivisions || [],
-    types: data.types.map(typeData => ({
-        id: typeId++,
-        name: typeData.name!,
-        trackingMethod: typeData.trackingMethod || 'individual',
-        unitOfMeasure: typeData.unitOfMeasure || 'unit',
-        baseUnitOfMeasure: typeData.baseUnitOfMeasure,
-        quantityPerUnit: typeData.quantityPerUnit,
-        standardItems: (typeData.standardItems || []).map(model => ({
-            id: modelId++, name: model.name, brand: model.brand,
-        }))
-    }))
-  }));
-};
-export const initialAssetCategories: AssetCategory[] = generateAssetCategories();
+            { id: 14, name: 'PC Desktop', standardItems: [{ id: 18, name: 'PC Rakitan Core i7', brand: 'Custom' }, { id: 19, name: 'PC Dell Optiplex', brand: 'Dell' }] },
+            { id: 15, name: 'Monitor', standardItems: [{ id: 20, name: 'Monitor LG 24 inch', brand: 'LG' }] },
+            { id: 16, name: 'Printer', standardItems: [{ id: 21, name: 'Printer Epson L3210', brand: 'Epson' }] },
+        ]
+    }
+];
 
 // 5. ASSETS (and their related activities)
 const allAssets: Asset[] = [];
@@ -594,6 +594,9 @@ export const mockMaintenances: Maintenance[] = [
         completedBy: 'Alice Johnson',
         completionDate: new Date(new Date().setDate(NOW.getDate() - 4)).toISOString(),
         attachments: [],
+        materialsUsed: [
+            { itemName: 'Konektor Fast Connector SC', brand: 'Generic', quantity: 2 }
+        ],
     },
     {
         id: 'MNT-002',
@@ -609,6 +612,9 @@ export const mockMaintenances: Maintenance[] = [
         priority: 'Rendah',
         status: ItemStatus.IN_PROGRESS,
         attachments: [],
+        materialsUsed: [
+            { itemName: 'Kabel UTP Cat6 305m', brand: 'Belden', quantity: 1 }
+        ],
     },
     {
         id: 'MNT-003',

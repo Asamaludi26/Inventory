@@ -64,7 +64,9 @@ const CustomerManagementPage: React.FC<CustomerManagementHubProps> = (props) => 
                         maintenances={props.maintenances}
                         setMaintenances={props.setMaintenances}
                         customers={props.customers}
+                        setCustomers={props.setCustomers}
                         assets={props.assets}
+                        assetCategories={props.assetCategories}
                         onUpdateAsset={props.onUpdateAsset}
                         users={props.users}
                         setActivePage={props.setActivePage}

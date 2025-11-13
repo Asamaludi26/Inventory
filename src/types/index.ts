@@ -16,6 +16,7 @@ export type Page =
   | 'customer-detail'
   | 'customer-new'
   | 'customer-edit'
+  // FIX: Add missing page types for settings pages to resolve type errors.
   | 'pengaturan-pengguna'
   | 'kategori';
 
@@ -104,6 +105,14 @@ export interface Attachment {
     type: 'image' | 'pdf' | 'other';
 }
 
+export interface InstalledMaterial {
+  itemName: string;
+  brand: string;
+  quantity: number;
+  unit: string;
+  installationDate: string;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -115,6 +124,7 @@ export interface Customer {
   // FIX: Added missing 'servicePackage' property to align with mock data and component usage.
   servicePackage: string;
   activityLog: ActivityLogEntry[];
+  installedMaterials?: InstalledMaterial[];
 }
 
 export interface StandardItem {
@@ -332,6 +342,18 @@ export interface Dismantle {
   attachments: Attachment[];
 }
 
+export interface MaintenanceMaterial {
+  itemName: string;
+  brand: string;
+  quantity: number;
+}
+
+export interface MaintenanceReplacement {
+  oldAssetId: string;
+  retrievedAssetCondition: AssetCondition;
+  newAssetId: string;
+}
+
 export interface Maintenance {
   id: string;
   docNumber: string;
@@ -354,6 +376,8 @@ export interface Maintenance {
   attachments: Attachment[];
   retrievedAssetCondition?: AssetCondition;
   replacementAssetId?: string;
+  materialsUsed?: MaintenanceMaterial[];
+  replacements?: MaintenanceReplacement[];
 }
 
 

@@ -35,15 +35,6 @@ const MaintenanceDetailPage: React.FC<MaintenanceDetailPageProps> = ({ maintenan
     
     const canComplete = maintenance.status === ItemStatus.IN_PROGRESS && (currentUser.role === 'Admin Logistik' || currentUser.role === 'Super Admin');
     
-    const oldAsset = useMemo(() => {
-        if (maintenance.replacementAssetId && maintenance.assets.length === 1) {
-            return assets.find(a => a.id === maintenance.assets[0].assetId);
-        }
-        return null;
-    }, [assets, maintenance]);
-
-    const newAsset = useMemo(() => assets.find(a => a.id === maintenance.replacementAssetId), [assets, maintenance.replacementAssetId]);
-
     const HeaderActions = () => (
         <>
             {canComplete && (
@@ -107,38 +98,62 @@ const MaintenanceDetailPage: React.FC<MaintenanceDetailPageProps> = ({ maintenan
                      </div>
                 </section>
 
-                {maintenance.replacementAssetId && oldAsset && newAsset && (
+                {maintenance.materialsUsed && maintenance.materialsUsed.length > 0 && (
+                    <section className="mt-8 pt-6 border-t">
+                        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">Material yang Digunakan</h4>
+                        <div className="overflow-x-auto border rounded-lg">
+                            <table className="min-w-full text-sm">
+                                <thead className="bg-gray-100">
+                                    <tr>
+                                        <th className="p-3 font-semibold text-left text-gray-600">Nama Material</th>
+                                        <th className="p-3 font-semibold text-left text-gray-600">Brand</th>
+                                        <th className="p-3 font-semibold text-center text-gray-600">Jumlah</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {maintenance.materialsUsed.map((material, index) => (
+                                        <tr key={index}>
+                                            <td className="p-3 text-gray-800">{material.itemName}</td>
+                                            <td className="p-3 text-gray-600">{material.brand}</td>
+                                            <td className="p-3 text-center font-medium text-gray-800">{material.quantity}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                )}
+
+                {maintenance.replacements && maintenance.replacements.length > 0 && (
                     <section className="mt-8 pt-6 border-t">
                         <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">Detail Penggantian Perangkat</h4>
                         <div className="overflow-x-auto border rounded-lg">
                             <table className="min-w-full text-sm">
                                 <thead className="bg-gray-100">
                                     <tr>
-                                        <th className="p-3 font-semibold text-left text-gray-600 w-1/4">Keterangan</th>
-                                        <th className="p-3 font-semibold text-left text-red-800 bg-red-50/70">Sebelum (Aset Ditarik)</th>
-                                        <th className="p-3 font-semibold text-left text-green-800 bg-green-50/70">Setelah (Aset Pengganti)</th>
+                                        <th className="p-3 font-semibold text-left text-gray-600">Aset Ditarik</th>
+                                        <th className="p-3 font-semibold text-left text-gray-600">Kondisi Ditarik</th>
+                                        <th className="p-3 font-semibold text-left text-gray-600">Aset Pengganti</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
-                                    <tr>
-                                        <td className="p-3 font-medium text-gray-500">Nama Pelanggan</td>
-                                        <td className="p-3 font-semibold text-gray-800" colSpan={2}>{maintenance.customerName} ({maintenance.customerId})</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="p-3 font-medium text-gray-500">Merek/Tipe</td>
-                                        <td className="p-3 text-gray-700">{oldAsset.name}</td>
-                                        <td className="p-3 text-gray-700">{newAsset.name}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="p-3 font-medium text-gray-500">Nomor Seri (SN)</td>
-                                        <td className="p-3 font-mono text-gray-600">{oldAsset.serialNumber}</td>
-                                        <td className="p-3 font-mono text-gray-600">{newAsset.serialNumber}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="p-3 font-medium text-gray-500">Kondisi</td>
-                                        <td className="p-3 font-semibold text-red-700">{maintenance.retrievedAssetCondition}</td>
-                                        <td className="p-3 font-semibold text-green-700">{newAsset.condition}</td>
-                                    </tr>
+                                    {maintenance.replacements.map((rep, index) => {
+                                        const oldAsset = assets.find(a => a.id === rep.oldAssetId);
+                                        const newAsset = assets.find(a => a.id === rep.newAssetId);
+                                        return (
+                                            <tr key={index}>
+                                                <td className="p-3">
+                                                    <p className="font-semibold text-gray-800">{oldAsset?.name}</p>
+                                                    <p className="text-xs font-mono text-gray-500">{oldAsset?.id}</p>
+                                                </td>
+                                                <td className="p-3 font-semibold text-red-700">{rep.retrievedAssetCondition}</td>
+                                                <td className="p-3">
+                                                    <p className="font-semibold text-gray-800">{newAsset?.name}</p>
+                                                    <p className="text-xs font-mono text-gray-500">{newAsset?.id}</p>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -152,7 +167,7 @@ const MaintenanceDetailPage: React.FC<MaintenanceDetailPageProps> = ({ maintenan
                             <div className="flex items-center justify-center mt-2 h-28"><SignatureStamp signerName={maintenance.technician} signatureDate={maintenance.maintenanceDate} /></div>
                             <p className="pt-1 mt-2 border-t border-gray-400">({maintenance.technician})</p>
                         </div>
-                        <div>
+                         <div>
                             <p className="font-semibold text-gray-600">Diselesaikan Oleh,</p>
                             <div className="flex items-center justify-center mt-2 h-28">
                                 {maintenance.status === ItemStatus.COMPLETED && maintenance.completedBy ? (
