@@ -331,9 +331,8 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
                                             <p className="font-semibold text-gray-700">{asset.condition}</p>
                                         </div>
                                     </div>
-
-                // Pilih Aset disini
-                <section className={`p-4 pt-6 border-2 border-dashed rounded-lg transition-all duration-300 ${showReplacementSection ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 bg-gray-50/30'}`}>
+  
+                <section className={`p-4 mt-6 border-2 border-dashed rounded-lg transition-all duration-300 ${showReplacementSection ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200 bg-gray-50/30'}`}>
                 <div className="flex items-start space-x-3">
                     <p className={`text-base font-semibold ${showReplacementSection ? 'text-gray-800' : 'text-gray-400'}`}>Tindakan Penggantian Perangkat</p>
                 </div>
