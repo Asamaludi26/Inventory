@@ -1,3 +1,4 @@
+
 import { 
     Division, 
     User, 
@@ -654,6 +655,26 @@ export const mockMaintenances: Maintenance[] = [
         completedBy: 'Eko Pratama',
         completionDate: new Date().toISOString(),
         attachments: [],
+    },
+    {
+        id: 'MNT-005',
+        docNumber: 'WO-MT-20241021-0001',
+        maintenanceDate: new Date().toISOString(),
+        technician: 'Hadi Gunawan',
+        customerId: 'TMI-1015',
+        customerName: 'Gita Wijaya',
+        problemDescription: 'Kabel dropcore putus akibat galian.',
+        actionsTaken: 'Menarik kabel dropcore baru sepanjang 50 meter dan melakukan splicing ulang.',
+        workTypes: ['Tarik Ulang Kabel', 'Splicing FO'],
+        priority: 'Tinggi',
+        status: ItemStatus.COMPLETED,
+        completedBy: 'Hadi Gunawan',
+        completionDate: new Date().toISOString(),
+        attachments: [],
+        materialsUsed: [
+            { itemName: 'Kabel Dropcore 1 Core 150m', brand: 'FiberHome', quantity: 50 },
+            { itemName: 'Konektor Fast Connector SC', brand: 'Generic', quantity: 4 }
+        ],
     }
 ];
 

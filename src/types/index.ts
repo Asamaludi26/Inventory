@@ -1,3 +1,4 @@
+
 // FIX: Removed self-referential imports that cause declaration conflicts.
 // --- CORE TYPES & ENUMS ---
 
@@ -362,7 +363,7 @@ export interface Maintenance {
   technician: string;
   customerId: string;
   customerName: string;
-  assets: {
+  assets?: {
     assetId: string;
     assetName: string;
   }[];

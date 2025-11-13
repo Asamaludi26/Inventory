@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { Maintenance, User, ItemStatus, Asset } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
@@ -71,13 +72,15 @@ const MaintenanceDetailPage: React.FC<MaintenanceDetailPageProps> = ({ maintenan
                 <section className="mt-6 pt-6 border-t">
                      <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">Detail Pekerjaan</h4>
                      <div className="space-y-4 text-sm">
-                        <DetailItem label="Aset yang Dicek">
-                            <ul className="list-disc list-inside mt-1 space-y-1">
-                                {maintenance.assets.map(asset => (
-                                    <li key={asset.assetId} className="text-gray-800">{asset.assetName} ({asset.assetId})</li>
-                                ))}
-                            </ul>
-                        </DetailItem>
+                        {maintenance.assets && maintenance.assets.length > 0 && (
+                            <DetailItem label="Aset yang Dicek">
+                                <ul className="list-disc list-inside mt-1 space-y-1">
+                                    {maintenance.assets.map(asset => (
+                                        <li key={asset.assetId} className="text-gray-800">{asset.assetName} ({asset.assetId})</li>
+                                    ))}
+                                </ul>
+                            </DetailItem>
+                        )}
                         {maintenance.workTypes && maintenance.workTypes.length > 0 && (
                              <div>
                                 <DetailItem label="Lingkup Pekerjaan yang Dilakukan">

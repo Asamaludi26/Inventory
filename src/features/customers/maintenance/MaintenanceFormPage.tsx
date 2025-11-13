@@ -81,8 +81,8 @@ const MaintenanceTable: React.FC<{
                     <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-gray-900">{m.docNumber}</div><div className="text-xs text-gray-500">{new Date(m.maintenanceDate).toLocaleDateString('id-ID')}</div></td>
                     <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{m.customerName}</div>
-                        <div className="text-xs text-gray-500 truncate max-w-[200px]" title={m.assets.map(a => a.assetName).join(', ')}>
-                            {m.assets.map(a => a.assetName).join(', ')}
+                        <div className="text-xs text-gray-500 truncate max-w-[200px]" title={(m.assets || []).map(a => a.assetName).join(', ')}>
+                            {(m.assets || []).map(a => a.assetName).join(', ')}
                         </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-800 whitespace-nowrap">{m.technician}</td>
@@ -112,7 +112,7 @@ const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) =>
             const searchLower = searchQuery.toLowerCase();
             return m.docNumber.toLowerCase().includes(searchLower) ||
                    m.customerName.toLowerCase().includes(searchLower) ||
-                   m.assets.some(a => a.assetName.toLowerCase().includes(searchLower)) ||
+                   (m.assets || []).some(a => a.assetName.toLowerCase().includes(searchLower)) ||
                    m.technician.toLowerCase().includes(searchLower);
         });
     }, [maintenances, searchQuery]);
@@ -138,10 +138,11 @@ const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) =>
             };
 
             // Asset Replacement Logic
-            if (formData.replacementAssetId && formData.retrievedAssetCondition) {
-                const assetToReplaceId = formData.assets[0].assetId;
-                onUpdateAsset(assetToReplaceId, { status: AssetStatus.IN_STORAGE, condition: formData.retrievedAssetCondition, currentUser: null, location: 'Gudang Inventori' }, { user: currentUser.name, action: 'Ditarik saat Maintenance', details: `Aset ditarik karena rusak dan diganti. Ref: ${newDocNumber}`, referenceId: newDocNumber });
-                onUpdateAsset(formData.replacementAssetId, { status: AssetStatus.IN_USE, currentUser: formData.customerId, location: `Terpasang di: ${formData.customerName}` }, { user: currentUser.name, action: 'Dipasang saat Maintenance', details: `Aset dipasang sebagai pengganti. Ref: ${newDocNumber}`, referenceId: newDocNumber });
+            if (formData.replacements && formData.replacements.length > 0) {
+                formData.replacements.forEach(rep => {
+                    onUpdateAsset(rep.oldAssetId, { status: AssetStatus.IN_STORAGE, condition: rep.retrievedAssetCondition, currentUser: null, location: 'Gudang Inventori' }, { user: currentUser.name, action: 'Ditarik saat Maintenance', details: `Aset ditarik karena rusak dan diganti. Ref: ${newDocNumber}`, referenceId: newDocNumber });
+                    onUpdateAsset(rep.newAssetId, { status: AssetStatus.IN_USE, currentUser: formData.customerId, location: `Terpasang di: ${formData.customerName}` }, { user: currentUser.name, action: 'Dipasang saat Maintenance', details: `Aset dipasang sebagai pengganti. Ref: ${newDocNumber}`, referenceId: newDocNumber });
+                });
                 addNotification('Penggantian aset berhasil diproses.', 'success');
             }
 

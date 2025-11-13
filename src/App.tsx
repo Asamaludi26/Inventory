@@ -670,22 +670,23 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
 
 
     const handleUpdateAsset = (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => {
-        const updatedAssets = assets.map(asset => {
-            if (asset.id === assetId) {
-                const updatedAsset = { ...asset, ...updates };
-                if (logEntry) {
-                    const newLog: ActivityLogEntry = {
-                        ...logEntry,
-                        id: `log-${assetId}-${Date.now()}`,
-                        timestamp: new Date().toISOString(),
-                    };
-                    updatedAsset.activityLog = [...(asset.activityLog || []), newLog];
+        setAndPersist(setAssets, (prevAssets: Asset[]) => 
+            prevAssets.map(asset => {
+                if (asset.id === assetId) {
+                    const updatedAsset = { ...asset, ...updates };
+                    if (logEntry) {
+                        const newLog: ActivityLogEntry = {
+                            ...logEntry,
+                            id: `log-${assetId}-${Date.now()}`,
+                            timestamp: new Date().toISOString(),
+                        };
+                        updatedAsset.activityLog = [...(asset.activityLog || []), newLog];
+                    }
+                    return updatedAsset;
                 }
-                return updatedAsset;
-            }
-            return asset;
-        });
-        setAndPersist(setAssets, updatedAssets, 'app_assets');
+                return asset;
+            }),
+        'app_assets');
     };
 
   const handleGlobalScanSuccess = (parsedData: ParsedScanResult) => {

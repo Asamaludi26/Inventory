@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Customer, Asset, User, Maintenance, ItemStatus, AssetCondition, StandardItem, AssetCategory, MaintenanceMaterial, MaintenanceReplacement } from '../../../types';
 import DatePicker from '../../../components/ui/DatePicker';
@@ -13,6 +14,7 @@ import { generateDocumentNumber } from '../../../utils/documentNumberGenerator';
 import { CloseIcon } from '../../../components/icons/CloseIcon';
 import { PlusIcon } from '../../../components/icons/PlusIcon';
 import { WrenchIcon } from '../../../components/icons/WrenchIcon';
+import { useNotification } from '../../../providers/NotificationProvider';
 
 
 interface MaintenanceFormProps {
@@ -54,6 +56,8 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
     // State for dynamic work type input
     const [workTypeInput, setWorkTypeInput] = useState('');
     const workTypeInputRef = useRef<HTMLInputElement>(null);
+    const addNotification = useNotification();
+
 
     useEffect(() => {
         if (prefillCustomerId) {
@@ -225,7 +229,14 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const customer = customers.find(c => c.id === selectedCustomerId);
-        if (!customer || selectedAssetIds.length === 0) return;
+
+        const hasAssets = selectedAssetIds.length > 0;
+        const hasMaterials = additionalMaterials.filter(m => m.modelKey && m.quantity).length > 0;
+
+        if (!customer || (!hasAssets && !hasMaterials)) {
+            addNotification('Pilih setidaknya satu aset atau tambahkan material untuk membuat laporan.', 'error');
+            return;
+        }
 
         const selectedAssetsInfo = selectedAssetIds.map(id => {
             const asset = assets.find(a => a.id === id);
@@ -243,7 +254,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
             technician,
             customerId: customer.id,
             customerName: customer.name,
-            assets: selectedAssetsInfo,
+            assets: selectedAssetsInfo.length > 0 ? selectedAssetsInfo : undefined,
             problemDescription,
             actionsTaken,
             workTypes: finalWorkTypes,
@@ -255,7 +266,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
                     const [name, brand] = m.modelKey.split('|');
                     return { itemName: name, brand: brand, quantity: Number(m.quantity) };
                 }),
-            replacements: finalReplacements
+            replacements: finalReplacements.length > 0 ? finalReplacements : undefined
         });
     };
 
@@ -314,10 +325,10 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
                 </div>
             </section>
 
-            {/* Asset and Material Details Section */}
+            {/* Asset Details Section */}
             <section>
-                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">Detail Aset & Material</h4>
-                <p className="text-sm text-gray-500 mb-4 -mt-2">Klik pada kartu aset untuk memilihnya sebagai bagian dari lingkup maintenance.</p>
+                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">Detail Aset yang Diperiksa</h4>
+                <p className="text-sm text-gray-500 mb-4 -mt-2">Pilih aset yang relevan dengan pekerjaan maintenance. Langkah ini opsional jika hanya ada penambahan material.</p>
                 
                 <div className="space-y-4">
                     {assetsForCustomer.map(asset => {
@@ -401,32 +412,10 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
                         </div>
                     </div>
                 )}
-  
-                <section className="p-4 mt-6 border-2 border-dashed rounded-lg bg-gray-50/30 border-gray-200">
-                    <h5 className="text-base font-semibold text-gray-800 mb-4">Material Tambahan</h5>
-                    <div className="space-y-3">
-                        {additionalMaterials.map((material, index) => (
-                            <div key={material.id} className="relative grid grid-cols-1 md:grid-cols-5 gap-x-4 gap-y-2 p-3 bg-white/80 border rounded-lg">
-                                <div className="md:col-span-3">
-                                    <label className="block text-xs font-medium text-gray-500">Material Tambahan #{index + 1}</label>
-                                    <CustomSelect options={materialOptions} value={material.modelKey} onChange={val => handleMaterialChange(material.id, 'modelKey', val)} placeholder="Pilih material..." isSearchable/>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-xs font-medium text-gray-500">Jumlah</label>
-                                    <input type="number" value={material.quantity} onChange={e => handleMaterialChange(material.id, 'quantity', e.target.value)} min="1" className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm sm:text-sm"/>
-                                </div>
-                                <div className="absolute top-1 right-1">
-                                    <button type="button" onClick={() => removeAdditionalMaterial(material.id)} className="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={addAdditionalMaterial} className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-tm-accent rounded-md shadow-sm hover:bg-tm-primary"><PlusIcon className="w-4 h-4"/>Tambah Material</button>
-                </section>
             </section>
-
-             <section>
-                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">Lingkup Pekerjaan & Prioritas</h4>
+            
+            <section>
+                <h4 className="font-semibold text-gray-800 border-b pb-1 mb-4">Pekerjaan & Material Tambahan</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                     <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Lingkup Pekerjaan</label>
@@ -451,6 +440,27 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
                         <label className="block text-sm font-medium text-gray-700 mb-1">Prioritas</label>
                         <CustomSelect options={[{ value: 'Tinggi', label: 'Tinggi' },{ value: 'Sedang', label: 'Sedang' },{ value: 'Rendah', label: 'Rendah' }]} value={priority} onChange={(value) => setPriority(value as 'Tinggi' | 'Sedang' | 'Rendah')} />
                     </div>
+                </div>
+                 <div className="mt-6 p-4 border-2 border-dashed rounded-lg bg-gray-50/30 border-gray-200">
+                    <h5 className="text-base font-semibold text-gray-800 mb-4">Material Tambahan</h5>
+                    <div className="space-y-3">
+                        {additionalMaterials.map((material, index) => (
+                            <div key={material.id} className="relative grid grid-cols-1 md:grid-cols-5 gap-x-4 gap-y-2 p-3 bg-white/80 border rounded-lg">
+                                <div className="md:col-span-3">
+                                    <label className="block text-xs font-medium text-gray-500">Material Tambahan #{index + 1}</label>
+                                    <CustomSelect options={materialOptions} value={material.modelKey} onChange={val => handleMaterialChange(material.id, 'modelKey', val)} placeholder="Pilih material..." isSearchable/>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-xs font-medium text-gray-500">Jumlah</label>
+                                    <input type="number" value={material.quantity} onChange={e => handleMaterialChange(material.id, 'quantity', e.target.value)} min="1" className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-md shadow-sm sm:text-sm"/>
+                                </div>
+                                <div className="absolute top-1 right-1">
+                                    <button type="button" onClick={() => removeAdditionalMaterial(material.id)} className="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={addAdditionalMaterial} className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-tm-accent rounded-md shadow-sm hover:bg-tm-primary"><PlusIcon className="w-4 h-4"/>Tambah Material</button>
                 </div>
             </section>
             
