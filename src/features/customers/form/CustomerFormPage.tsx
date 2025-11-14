@@ -1,7 +1,8 @@
 
 
+
 import React, { useMemo } from 'react';
-import { Customer, Page, User, Asset, ActivityLogEntry, AssetStatus } from '../../../types';
+import { Customer, Page, User, Asset, ActivityLogEntry, AssetStatus, AssetCategory } from '../../../types';
 import FormPageLayout from '../../../components/layout/FormPageLayout';
 import CustomerForm from './CustomerForm';
 import { useNotification } from '../../../providers/NotificationProvider';
@@ -11,13 +12,14 @@ interface CustomerFormPageProps {
     customers: Customer[];
     setCustomers: React.Dispatch<React.SetStateAction<Customer[]>>;
     assets: Asset[];
+    assetCategories: AssetCategory[];
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
     setActivePage: (page: Page, filters?: any) => void;
     pageInitialState?: { customerId?: string };
 }
 
 const CustomerFormPage: React.FC<CustomerFormPageProps> = (props) => {
-    const { currentUser, customers, setCustomers, assets, onUpdateAsset, setActivePage, pageInitialState } = props;
+    const { currentUser, customers, setCustomers, assets, assetCategories, onUpdateAsset, setActivePage, pageInitialState } = props;
     
     const customerToEdit = useMemo(() => {
         if (pageInitialState?.customerId) {
@@ -112,6 +114,7 @@ const CustomerFormPage: React.FC<CustomerFormPageProps> = (props) => {
             <CustomerForm
                 customer={customerToEdit}
                 assets={assets}
+                assetCategories={assetCategories}
                 onSave={handleSaveCustomer}
                 onCancel={() => setActivePage(isEditing ? 'customer-detail' : 'customers', { customerId: customerToEdit?.id })}
             />

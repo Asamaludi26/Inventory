@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Customer, Asset, Page, PreviewData, AssetCategory } from '../../../types';
+import React, { useMemo, useState } from 'react';
+import { Customer, Asset, Page, PreviewData, AssetCategory, Maintenance, Dismantle } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
 import { getStatusClass } from '../list/CustomerListPage';
 import { PencilIcon } from '../../../components/icons/PencilIcon';
@@ -8,11 +8,15 @@ import { WrenchIcon } from '../../../components/icons/WrenchIcon';
 import { ClickableLink } from '../../../components/ui/ClickableLink';
 import { DismantleIcon } from '../../../components/icons/DismantleIcon';
 import { Tooltip } from '../../../components/ui/Tooltip';
+import { HandoverIcon } from '../../../components/icons/HandoverIcon';
+import { HistoryIcon } from '../../../components/icons/HistoryIcon';
 
 interface CustomerDetailPageProps {
     customers: Customer[];
     assets: Asset[];
     assetCategories: AssetCategory[];
+    maintenances: Maintenance[];
+    dismantles: Dismantle[];
     initialState: { customerId: string };
     setActivePage: (page: Page, filters?: any) => void;
     onShowPreview: (data: PreviewData) => void;
@@ -26,7 +30,102 @@ const DetailItem: React.FC<{ label: string; children: React.ReactNode }> = ({ la
     </div>
 );
 
-const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, assets, assetCategories, initialState, setActivePage, onShowPreview }) => {
+const ActivityTimeline: React.FC<{
+    customer: Customer;
+    customerAssets: Asset[];
+    maintenances: Maintenance[];
+    dismantles: Dismantle[];
+    onShowPreview: (data: PreviewData) => void;
+    // FIX: Add setActivePage to props to make it available inside the component.
+    setActivePage: (page: Page, filters?: any) => void;
+}> = ({ customer, customerAssets, maintenances, dismantles, onShowPreview, setActivePage }) => {
+    
+    const activities = useMemo(() => {
+        const allActivities: { date: Date; type: 'Instalasi' | 'Maintenance' | 'Dismantle'; title: string; details: React.ReactNode; onClick: () => void; icon: React.FC<{className?:string}> }[] = [];
+
+        // 1. Installation Activities from Asset Logs
+        customerAssets.forEach(asset => {
+            asset.activityLog
+                .filter(log => log.action === 'Instalasi Pelanggan' || log.action === 'Dipasang saat Maintenance')
+                .forEach(log => {
+                    allActivities.push({
+                        date: new Date(log.timestamp),
+                        type: 'Instalasi',
+                        title: `Instalasi: ${asset.name}`,
+                        details: <><p className="text-xs text-gray-500">Oleh: {log.user}</p></>,
+                        onClick: () => onShowPreview({ type: 'asset', id: asset.id }),
+                        icon: HandoverIcon,
+                    });
+                });
+        });
+
+        // 2. Maintenance Activities
+        maintenances.filter(m => m.customerId === customer.id).forEach(m => {
+            allActivities.push({
+                date: new Date(m.maintenanceDate),
+                type: 'Maintenance',
+                title: `Maintenance: ${m.docNumber}`,
+                details: <>
+                    <p className="text-xs text-gray-500">Teknisi: {m.technician}</p>
+                    <p className="text-xs text-gray-500 mt-1 italic">"{m.problemDescription}"</p>
+                </>,
+                onClick: () => setActivePage('customer-maintenance-form', { openDetailForId: m.id }),
+                icon: WrenchIcon,
+            });
+        });
+
+        // 3. Dismantle Activities
+        dismantles.filter(d => d.customerId === customer.id).forEach(d => {
+            allActivities.push({
+                date: new Date(d.dismantleDate),
+                type: 'Dismantle',
+                title: `Dismantle: ${d.assetName}`,
+                details: <><p className="text-xs text-gray-500">Teknisi: {d.technician}</p></>,
+                onClick: () => onShowPreview({ type: 'dismantle', id: d.id }),
+                icon: DismantleIcon,
+            });
+        });
+
+        return allActivities.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    }, [customer.id, customerAssets, maintenances, dismantles, onShowPreview, setActivePage]);
+    
+    if (activities.length === 0) {
+        return (
+            <div className="text-center py-12">
+                <HistoryIcon className="w-12 h-12 mx-auto text-gray-300"/>
+                <h3 className="mt-2 text-sm font-semibold text-gray-900">Tidak Ada Aktivitas</h3>
+                <p className="mt-1 text-sm text-gray-500">Belum ada riwayat aktivitas yang tercatat untuk pelanggan ini.</p>
+            </div>
+        );
+    }
+
+    return (
+        <ol className="relative border-l border-gray-200 ml-4">                  
+            {activities.map((activity, index) => (
+                <li key={index} className="mb-8 ml-8">
+                    <span className="absolute flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full -left-4 ring-4 ring-white">
+                        <activity.icon className="w-4 h-4 text-tm-primary" />
+                    </span>
+                    <h3 className="flex items-center text-base font-semibold text-gray-900">
+                        {activity.title}
+                    </h3>
+                    <time className="block mb-2 text-xs font-normal leading-none text-gray-400">
+                        {activity.date.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </time>
+                    <div className="text-sm text-gray-600">{activity.details}</div>
+                     <button onClick={activity.onClick} className="inline-flex items-center mt-3 px-3 py-1.5 text-xs font-medium text-gray-900 bg-white border border-gray-200 rounded-md hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:outline-none focus:ring-gray-200 focus:text-blue-700">
+                        Lihat Detail
+                    </button>
+                </li>
+            ))}
+        </ol>
+    );
+};
+
+const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, assets, assetCategories, maintenances, dismantles, initialState, setActivePage, onShowPreview, onInitiateDismantle }) => {
+    const [activeTab, setActiveTab] = useState<'detail' | 'aktivitas'>('detail');
+    
     const customer = useMemo(() => customers.find(c => c.id === initialState.customerId), [customers, initialState.customerId]);
     const customerAssets = useMemo(() => assets.filter(a => a.currentUser === initialState.customerId), [assets, initialState.customerId]);
 
@@ -54,7 +153,7 @@ const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, asse
         setActivePage('customer-edit', { customerId: customer.id });
     };
 
-    const MainContent = (
+    const DetailTabContent = (
         <div className="space-y-8">
             {/* Contact Info */}
             <div className="p-6 bg-white border border-gray-200/80 rounded-xl shadow-sm">
@@ -123,14 +222,45 @@ const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, asse
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {customer.installedMaterials && customer.installedMaterials.length > 0 ? customer.installedMaterials.map((material, index) => (
+                            {customer.installedMaterials && customer.installedMaterials.length > 0 ? customer.installedMaterials.map((material, index) => {
+                                const materialType = assetCategories
+                                    .flatMap(cat => cat.types)
+                                    .find(type => type.standardItems?.some(item => item.name === material.itemName && item.brand === material.brand));
+
+                                let quantityDisplay = `${material.quantity} ${material.unit}`;
+
+                                if (materialType?.trackingMethod === 'bulk' && materialType.quantityPerUnit && materialType.quantityPerUnit > 0) {
+                                    const quantityPerUnit = materialType.quantityPerUnit;
+                                    const totalBaseQuantity = material.quantity;
+
+                                    const fullUnits = Math.floor(totalBaseQuantity / quantityPerUnit);
+                                    const remainingBaseUnits = totalBaseQuantity % quantityPerUnit;
+
+                                    const unitOfMeasure = materialType.unitOfMeasure || 'unit';
+                                    const baseUnitOfMeasure = materialType.baseUnitOfMeasure || material.unit;
+
+                                    const parts = [];
+                                    if (fullUnits > 0) {
+                                        parts.push(`${fullUnits} ${unitOfMeasure}`);
+                                    }
+                                    if (remainingBaseUnits > 0) {
+                                        parts.push(`${remainingBaseUnits} ${baseUnitOfMeasure}`);
+                                    }
+
+                                    if (parts.length > 0) {
+                                        quantityDisplay = parts.join(', ');
+                                    }
+                                }
+                                
+                                return (
                                 <tr key={index} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{material.itemName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{material.brand}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{material.quantity} {material.unit}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{quantityDisplay}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(material.installationDate).toLocaleDateString('id-ID')}</td>
                                 </tr>
-                            )) : (
+                                )
+                            }) : (
                                 <tr><td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-500">Tidak ada material yang tercatat.</td></tr>
                             )}
                         </tbody>
@@ -202,7 +332,44 @@ const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, asse
                 </button>
             }
         >
-            {MainContent}
+            <div className="border-b border-gray-200 mb-6">
+                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <button
+                        onClick={() => setActiveTab('detail')}
+                        className={`py-3 px-1 border-b-2 text-sm font-medium ${
+                            activeTab === 'detail'
+                                ? 'border-tm-primary text-tm-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        Detail
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('aktivitas')}
+                        className={`py-3 px-1 border-b-2 text-sm font-medium ${
+                            activeTab === 'aktivitas'
+                                ? 'border-tm-primary text-tm-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        Aktivitas
+                    </button>
+                </nav>
+            </div>
+
+            {activeTab === 'detail' && DetailTabContent}
+            {activeTab === 'aktivitas' && (
+                <div className="p-6 bg-white border border-gray-200/80 rounded-xl shadow-sm">
+                    <ActivityTimeline 
+                        customer={customer}
+                        customerAssets={customerAssets}
+                        maintenances={maintenances}
+                        dismantles={dismantles}
+                        onShowPreview={onShowPreview}
+                        setActivePage={setActivePage}
+                    />
+                </div>
+            )}
         </DetailPageLayout>
     );
 };

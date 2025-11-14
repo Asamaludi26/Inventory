@@ -1,6 +1,8 @@
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 // FIX: Add AssetCategory to type imports.
-import { Page, Maintenance, User, Customer, Asset, ItemStatus, AssetStatus, ActivityLogEntry, AssetCategory, InstalledMaterial } from '../../../types';
+import { Page, Maintenance, User, Customer, Asset, ItemStatus, AssetStatus, ActivityLogEntry, AssetCategory, InstalledMaterial, PreviewData } from '../../../types';
 import { useSortableData, SortConfig } from '../../../hooks/useSortableData';
 import { useNotification } from '../../../providers/NotificationProvider';
 import { PaginationControls } from '../../../components/ui/PaginationControls';
@@ -26,6 +28,7 @@ interface MaintenanceManagementPageProps {
     setActivePage: (page: Page, filters?: any) => void;
     onUpdateAsset: (assetId: string, updates: Partial<Asset>, logEntry?: Omit<ActivityLogEntry, 'id' | 'timestamp'>) => void;
     pageInitialState?: { prefillCustomer?: string; prefillAsset?: string };
+    onShowPreview: (data: PreviewData) => void;
 }
 
 const getStatusClass = (status: ItemStatus) => {
@@ -95,7 +98,7 @@ const MaintenanceTable: React.FC<{
 );
 
 const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) => {
-    const { currentUser, maintenances, setMaintenances, customers, setCustomers, assets, users, onUpdateAsset, pageInitialState, assetCategories } = props;
+    const { currentUser, maintenances, setMaintenances, customers, setCustomers, assets, users, onUpdateAsset, pageInitialState, assetCategories, onShowPreview } = props;
     const prefillCustomerId = pageInitialState?.prefillCustomer;
     const prefillAssetId = pageInitialState?.prefillAsset;
     const [view, setView] = useState<'list' | 'form' | 'detail'>(prefillCustomerId || prefillAssetId ? 'form' : 'list');
@@ -149,10 +152,18 @@ const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) =>
             // Update Customer's Installed Materials
             const materialsToInstall: InstalledMaterial[] = (newMaintenance.materialsUsed || []).map(material => {
                 let unit = 'pcs';
+                let convertedQuantity = material.quantity;
+                let materialFound = false;
+
                 for (const cat of assetCategories) {
+                    if (materialFound) break;
                     for (const type of cat.types) {
                         if (type.trackingMethod === 'bulk' && type.standardItems?.some(item => item.name === material.itemName && item.brand === material.brand)) {
                             unit = type.baseUnitOfMeasure || 'pcs';
+                            if (type.quantityPerUnit) {
+                                convertedQuantity = material.quantity * type.quantityPerUnit;
+                            }
+                            materialFound = true;
                             break;
                         }
                     }
@@ -160,7 +171,7 @@ const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) =>
                 return {
                     itemName: material.itemName,
                     brand: material.brand,
-                    quantity: material.quantity,
+                    quantity: convertedQuantity,
                     unit: unit,
                     installationDate: newMaintenance.maintenanceDate,
                 };
@@ -249,6 +260,7 @@ const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) =>
                 isLoading={isLoading}
                 currentUser={currentUser}
                 assets={assets}
+                onShowPreview={onShowPreview}
             />
         );
     }

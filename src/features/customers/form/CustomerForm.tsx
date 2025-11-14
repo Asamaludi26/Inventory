@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Customer, CustomerStatus, Asset, User, AssetStatus } from '../../../types';
+import { Customer, CustomerStatus, Asset, User, AssetStatus, InstalledMaterial, AssetCategory } from '../../../types';
 import DatePicker from '../../../components/ui/DatePicker';
 import { useNotification } from '../../../providers/NotificationProvider';
 import FloatingActionBar from '../../../components/ui/FloatingActionBar';
@@ -23,6 +24,7 @@ interface CustomerFormProps {
         unassignedAssetIds: string[]
     ) => void;
     onCancel: () => void;
+    assetCategories: AssetCategory[];
 }
 
 const FormSection: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; className?: string }> = ({ title, icon, children, className }) => (
@@ -37,7 +39,14 @@ const FormSection: React.FC<{ title: string; icon: React.ReactNode; children: Re
     </div>
 );
 
-const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, onCancel }) => {
+const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, onCancel, assetCategories }) => {
+    type MaterialFormItem = {
+        tempId: number;
+        modelKey: string; // "itemName|brand"
+        quantity: number | '';
+        unit: string;
+    };
+
     const [name, setName] = useState('');
     const [address, setAddress] = useState('');
     const [phone, setPhone] = useState('');
@@ -51,6 +60,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
     
     const [initialAssignedAssetIds, setInitialAssignedAssetIds] = useState<string[]>([]);
     const [assignedAssetIds, setAssignedAssetIds] = useState<string[]>([]);
+    const [materials, setMaterials] = useState<MaterialFormItem[]>([]);
 
     const [isLoading, setIsLoading] = useState(false);
     const footerRef = useRef<HTMLDivElement>(null);
@@ -58,7 +68,38 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
     const formId = "customer-form";
     const addNotification = useNotification();
 
-    const availableAssets = useMemo(() => assets.filter(a => a.status === AssetStatus.IN_STORAGE), [assets]);
+    const availableAssets = useMemo(() => {
+        return assets.filter(asset => {
+            if (asset.status !== AssetStatus.IN_STORAGE) {
+                return false;
+            }
+            const category = assetCategories.find(c => c.name === asset.category);
+            const type = category?.types.find(t => t.name === asset.type);
+            // Default to 'individual' if trackingMethod is not specified.
+            // The filter should only include assets that are NOT bulk.
+            return type?.trackingMethod !== 'bulk';
+        });
+    }, [assets, assetCategories]);
+    
+    const materialOptions = useMemo(() => {
+        const items: { value: string, label: string, unit: string }[] = [];
+        assetCategories.forEach(cat => {
+            if (cat.isCustomerInstallable) {
+                cat.types.forEach(type => {
+                    if (type.trackingMethod === 'bulk') {
+                        (type.standardItems || []).forEach(item => {
+                            items.push({
+                                value: `${item.name}|${item.brand}`,
+                                label: `${item.name} - ${item.brand}`,
+                                unit: type.baseUnitOfMeasure || 'pcs'
+                            });
+                        });
+                    }
+                });
+            }
+        });
+        return items;
+    }, [assetCategories]);
 
     useEffect(() => {
         if (customer) {
@@ -73,10 +114,18 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
             const currentAssets = assets.filter(a => a.currentUser === customer.id).map(a => a.id);
             setInitialAssignedAssetIds(currentAssets);
             setAssignedAssetIds(currentAssets);
+
+            setMaterials((customer.installedMaterials || []).map((m, i) => ({
+                tempId: Date.now() + i,
+                modelKey: `${m.itemName}|${m.brand}`,
+                quantity: m.quantity,
+                unit: m.unit,
+            })));
         } else {
             setName(''); setAddress(''); setPhone(''); setEmail('');
             setStatus(CustomerStatus.ACTIVE); setInstallationDate(new Date()); setServicePackage('');
             setInitialAssignedAssetIds([]); setAssignedAssetIds([]);
+            setMaterials([]);
         }
     }, [customer, assets]);
 
@@ -122,6 +171,26 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
     const handleRemoveAsset = (assetId: string) => {
         setAssignedAssetIds(prev => prev.filter(id => id !== assetId));
     };
+    
+    const handleAddMaterial = () => {
+        setMaterials(prev => [...prev, { tempId: Date.now(), modelKey: '', quantity: 1, unit: 'pcs' }]);
+    };
+    const handleRemoveMaterial = (tempId: number) => {
+        setMaterials(prev => prev.filter(m => m.tempId !== tempId));
+    };
+    const handleMaterialChange = (tempId: number, field: keyof MaterialFormItem, value: any) => {
+        setMaterials(prev => prev.map(item => {
+            if (item.tempId === tempId) {
+                const updatedItem = { ...item, [field]: value };
+                if (field === 'modelKey') {
+                    const model = materialOptions.find(opt => opt.value === value);
+                    updatedItem.unit = model?.unit || 'pcs';
+                }
+                return updatedItem;
+            }
+            return item;
+        }));
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -133,12 +202,26 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
 
         const newlyAssigned = assignedAssetIds.filter(id => !initialAssignedAssetIds.includes(id));
         const unassigned = initialAssignedAssetIds.filter(id => !assignedAssetIds.includes(id));
+        
+        const finalMaterials: InstalledMaterial[] = materials
+            .filter(m => m.modelKey && m.quantity && Number(m.quantity) > 0)
+            .map(m => {
+                const [name, brand] = m.modelKey.split('|');
+                return {
+                    itemName: name,
+                    brand: brand,
+                    quantity: Number(m.quantity),
+                    unit: m.unit,
+                    installationDate: customer?.installedMaterials?.find(em => `${em.itemName}|${em.brand}` === m.modelKey)?.installationDate || new Date().toISOString().split('T')[0],
+                };
+            });
 
         setTimeout(() => { // Simulate API call
             onSave({
                 name, address, phone, email, status,
                 installationDate: installationDate ? installationDate.toISOString().split('T')[0] : '',
-                servicePackage: servicePackage ? `${servicePackage} Mbps` : ''
+                servicePackage: servicePackage ? `${servicePackage} Mbps` : '',
+                installedMaterials: finalMaterials,
             }, newlyAssigned, unassigned);
             setIsLoading(false);
         }, 1000);
@@ -206,10 +289,10 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
                         </div>
                     </div>
                 </FormSection>
-
-                <FormSection title="Kelola Aset Terpasang" icon={<AssetIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
+                
+                <FormSection title="Kelola Aset Terpasang (Perangkat)" icon={<AssetIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Aset dari Gudang untuk Dipasang</label>
+                        <p className="text-sm text-gray-600 mb-2">Daftar perangkat yang memiliki nomor seri dan dilacak secara individual.</p>
                         <CustomSelect
                             isSearchable
                             options={availableAssets.filter(a => !assignedAssetIds.includes(a.id)).map(a => ({
@@ -218,7 +301,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
                             }))}
                             value={''}
                             onChange={handleAddAsset}
-                            placeholder="Cari dan pilih aset..."
+                            placeholder="Cari dan pilih aset dari gudang untuk dipasang..."
                             emptyStateMessage="Tidak ada aset tersedia di gudang."
                         />
                         <div className="mt-4 space-y-2">
@@ -235,9 +318,56 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
                                 );
                             })}
                             {assignedAssetIds.length === 0 && (
-                                <p className="text-xs text-center text-gray-500 py-2">Belum ada aset yang dipasang.</p>
+                                <p className="text-xs text-center text-gray-500 py-2">Belum ada perangkat yang dipasang.</p>
                             )}
                         </div>
+                    </div>
+                </FormSection>
+
+                <FormSection title="Kelola Material Terpakai" icon={<WrenchIcon className="w-6 h-6 mr-3 text-tm-primary" />}>
+                    <div className="md:col-span-2">
+                        <p className="text-sm text-gray-600 mb-4">Daftar material habis pakai yang digunakan (misal: kabel, konektor). Anda dapat mengubah kuantitas atau menghapus item yang ada.</p>
+                        <div className="space-y-3">
+                            {materials.map((material, index) => (
+                                <div key={material.tempId} className="relative grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-2 p-3 bg-gray-100/60 border rounded-lg items-end">
+                                    <div className="md:col-span-6">
+                                        <label className="block text-xs font-medium text-gray-500">Material</label>
+                                        <CustomSelect 
+                                            options={materialOptions} 
+                                            value={material.modelKey} 
+                                            onChange={value => handleMaterialChange(material.tempId, 'modelKey', value)}
+                                            isSearchable
+                                            placeholder="Pilih material..."
+                                        />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                        <label className="block text-xs font-medium text-gray-500">Jumlah</label>
+                                        <input 
+                                            type="number" 
+                                            value={material.quantity}
+                                            onChange={(e) => handleMaterialChange(material.tempId, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
+                                            min="1"
+                                            className="block w-full px-3 py-2 mt-1 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm sm:text-sm"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-medium text-gray-500">Satuan</label>
+                                        <input type="text" readOnly value={material.unit} className="block w-full px-3 py-2 mt-1 text-gray-700 bg-gray-200/60 border border-gray-300 rounded-lg shadow-sm" />
+                                    </div>
+                                    <div className="md:col-span-1">
+                                        <button type="button" onClick={() => handleRemoveMaterial(material.tempId)} className="flex items-center justify-center w-full h-10 text-gray-500 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-red-100 hover:text-red-500">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <button type="button" onClick={handleAddMaterial} className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-tm-accent rounded-md shadow-sm hover:bg-tm-primary">
+                            <PlusIcon className="w-4 h-4"/>Tambah Material
+                        </button>
+                         {materials.length === 0 && (
+                            <p className="text-xs text-center text-gray-500 py-4 border-t mt-4">Belum ada material yang ditambahkan.</p>
+                        )}
                     </div>
                 </FormSection>
 

@@ -1,4 +1,3 @@
-
 import { 
     Division, 
     User, 
@@ -98,7 +97,7 @@ const generateMockCustomers = (): Customer[] => {
             installedMaterials.push({
                 itemName: 'Kabel Dropcore 1 Core 150m',
                 brand: 'FiberHome',
-                quantity: Math.floor(Math.random() * 50) + 20,
+                quantity: Math.floor(Math.random() * 200) + 20, // Generate 20-219 to test conversion
                 unit: 'meter',
                 installationDate: installDate.toISOString().split('T')[0]
             });
@@ -107,7 +106,7 @@ const generateMockCustomers = (): Customer[] => {
              installedMaterials.push({
                 itemName: 'Konektor Fast Connector SC',
                 brand: 'Generic',
-                quantity: Math.floor(Math.random() * 4) + 2,
+                quantity: Math.floor(Math.random() * 150) + 10, // Generate 10-159 to test conversion
                 unit: 'pcs',
                 installationDate: installDate.toISOString().split('T')[0]
             });
@@ -180,551 +179,253 @@ export const initialAssetCategories: AssetCategory[] = [
     }
 ];
 
-// 5. ASSETS (and their related activities)
-const allAssets: Asset[] = [];
-const allHandovers: Handover[] = [];
-const allDismantles: Dismantle[] = [];
+// --- GENERATION PIPELINE ---
+// This pipeline generates data in a specific order to ensure referential integrity.
+// 1. Generate master data (users, customers, categories).
+// 2. Generate requests based on master data.
+// 3. Generate assets based on *completed* requests.
+// 4. Generate handovers, dismantles, and maintenances based on existing assets and users/customers.
+
+let allAssets: Asset[] = [];
+let allHandovers: Handover[] = [];
+let allDismantles: Dismantle[] = [];
+let allRequests: Request[] = [];
+let allMaintenances: Maintenance[] = [];
+let allNotifications: Notification[] = [];
+let allLoanRequests: LoanRequest[] = [];
+
 const assetTemplates: { category: string; type: string; name: string; brand: string; price: number }[] = [];
+initialAssetCategories.forEach(cat => cat.types.forEach(type => type.standardItems?.forEach(item => {
+    let price = 500000;
+    if (item.name.includes('Router Core') || item.name.includes('OTDR')) price = 15000000;
+    else if (item.name.includes('Splicer') || item.name.includes('Laptop')) price = 8000000;
+    else if (item.name.includes('OLT')) price = 25000000;
+    else if (item.name.includes('Switch')) price = 4000000;
+    else if (item.name.includes('PC')) price = 6000000;
+    assetTemplates.push({ category: cat.name, type: type.name, ...item, price });
+})));
 
-const generateMockAssets = () => {
-    initialAssetCategories.forEach(cat => cat.types.forEach(type => type.standardItems?.forEach(item => {
-        let price = 500000;
-        if (item.name.includes('Router Core') || item.name.includes('OTDR')) price = 15000000;
-        else if (item.name.includes('Splicer') || item.name.includes('Laptop')) price = 8000000;
-        else if (item.name.includes('OLT')) price = 25000000;
-        else if (item.name.includes('Switch')) price = 4000000;
-        else if (item.name.includes('PC')) price = 6000000;
-        assetTemplates.push({ category: cat.name, type: type.name, ...item, price });
-    })));
-
-    const engineerUsers = initialMockUsers.filter(u => u.divisionId === 3).map(u => u.name); // Teknisi
-    const nocUsers = initialMockUsers.filter(u => u.divisionId === 1).map(u => u.name); // NOC
-    const csUsers = initialMockUsers.filter(u => u.divisionId === 2).map(u => u.name); // Customer Service
-    const activeCustomers = mockCustomers.filter(c => c.status === CustomerStatus.ACTIVE);
-
-    for (let i = 0; i < ASSET_COUNT; i++) {
-        const template = assetTemplates[i % assetTemplates.length];
-        const id = `AST-${String(250 - i).padStart(4, '0')}`;
-        const poNumber = `REQ-${String(120 - i).padStart(3, '0')}`;
-        const purchaseDate = new Date(new Date(NOW).setDate(NOW.getDate() - (365 - i*1.4)));
-        const registrationDate = new Date(new Date(purchaseDate).setDate(purchaseDate.getDate() + 5));
-        const warrantyEndDate = new Date(new Date(purchaseDate).setFullYear(purchaseDate.getFullYear() + (i % 3 === 0 ? 1 : 2) ));
+// STEP 1: Generate Requests
+const generateRequests = () => {
+    allRequests = Array.from({ length: REQUEST_COUNT }, (_, i) => {
+        const user = initialMockUsers[i % initialMockUsers.length];
+        const division = mockDivisions.find(d => d.id === user.divisionId)?.name || 'N/A';
+        const requestDate = new Date(new Date(NOW).setHours(NOW.getHours() - ((REQUEST_COUNT - i) * 3) ));
         
-        const activityLog: ActivityLogEntry[] = [{
-            id: `log-${id}-create`,
-            timestamp: registrationDate.toISOString(),
-            user: 'Alice Johnson',
-            action: 'Aset Dicatat',
-            details: 'Aset baru dicatat ke dalam sistem.'
-        }];
+        const statuses = [ItemStatus.APPROVED, ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.REJECTED, ItemStatus.COMPLETED, ItemStatus.PENDING, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED];
+        const status = statuses[i % statuses.length];
+
+        const requestedModelTemplate = assetTemplates[i % assetTemplates.length];
         
-        let status: AssetStatus = AssetStatus.IN_STORAGE;
-        let condition: AssetCondition = AssetCondition.BRAND_NEW;
-        let currentUser: string | null = 'Gudang Inventori';
-        let location: string | null = 'Gudang Inventori';
-        let isDismantled = false;
-        let dismantleInfo: Asset['dismantleInfo'] = undefined;
+        const orderTypes: OrderDetails[] = [
+            { type: 'Regular Stock' },
+            { type: 'Urgent', justification: 'Router core pelanggan korporat down, perlu pengganti segera.' },
+            { type: 'Project Based', project: 'Instalasi Klien Baru - PT. Maju Jaya' },
+            { type: 'Urgent', justification: 'Stok OLT habis untuk aktivasi area baru.' },
+        ];
 
-        const templateCategory = initialAssetCategories.find(c => c.name === template.category);
-        const templateType = templateCategory?.types.find(t => t.name === template.type);
+        const quantity = Math.floor(Math.random() * 3) + 1;
+        const totalValue = requestedModelTemplate.price * quantity;
 
-        let serialNumber: string | undefined;
-        if (templateType?.trackingMethod !== 'bulk') {
-            serialNumber = `${template.brand.slice(0, 3).toUpperCase()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        const request: Request = {
+            id: `REQ-${String(REQUEST_COUNT - i).padStart(3, '0')}`,
+            requester: user.name,
+            division,
+            requestDate: requestDate.toISOString(),
+            status,
+            order: orderTypes[i % orderTypes.length],
+            items: [{
+                id: 1,
+                itemName: requestedModelTemplate.name,
+                itemTypeBrand: requestedModelTemplate.brand,
+                stock: 5, // Mocked stock
+                quantity,
+                keterangan: `Kebutuhan untuk divisi ${division}`
+            }],
+            totalValue,
+            logisticApprover: null, logisticApprovalDate: null, finalApprover: null, finalApprovalDate: null,
+            rejectionReason: null, rejectedBy: null, rejectionDate: null, rejectedByDivision: null, isRegistered: false,
+            isPrioritizedByCEO: false,
+            ceoDispositionDate: null,
+            progressUpdateRequest: undefined,
+        };
+        
+        const approvalDate = new Date(new Date(requestDate).setDate(requestDate.getDate() + 1));
+        const purchaseFillDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 1));
+
+        if ([ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
+            request.logisticApprover = 'Alice Johnson';
+            request.logisticApprovalDate = approvalDate.toISOString().split('T')[0];
         }
+        if ([ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
+            request.purchaseDetails = { 1: {
+                purchasePrice: totalValue,
+                vendor: VENDORS[i % VENDORS.length],
+                poNumber: `PO-${String(REQUEST_COUNT - i).padStart(3, '0')}`,
+                invoiceNumber: `INV/${VENDORS[i % VENDORS.length].slice(0, 3).toUpperCase()}/${purchaseFillDate.getFullYear()}/${i + 1}`,
+                purchaseDate: purchaseFillDate.toISOString().split('T')[0],
+                warrantyEndDate: new Date(new Date(purchaseFillDate).setFullYear(purchaseFillDate.getFullYear() + 1)).toISOString().split('T')[0],
+                filledBy: 'Brian Adams',
+                fillDate: purchaseFillDate.toISOString()
+            }};
+        }
+        if ([ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
+            request.finalApprover = 'John Doe';
+            request.finalApprovalDate = new Date(new Date(purchaseFillDate).setDate(purchaseFillDate.getDate() + 1)).toISOString().split('T')[0];
+        }
+        if ([ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(status)) {
+            request.estimatedDeliveryDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 7)).toISOString().split('T')[0];
+        }
+        if ([ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(status)) {
+            request.arrivalDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 6)).toISOString().split('T')[0];
+            request.receivedBy = 'Alice Johnson';
+        }
+        if (status === ItemStatus.COMPLETED) {
+            request.isRegistered = true;
+        }
+        if (status === ItemStatus.REJECTED) {
+            request.rejectedBy = 'Brian Adams';
+            request.rejectionDate = approvalDate.toISOString().split('T')[0];
+            request.rejectionReason = 'Stok tidak mencukupi dan pengadaan tidak disetujui.';
+            request.rejectedByDivision = 'Purchase';
+        }
+        
+        return request;
+    });
+};
+generateRequests();
+export const initialMockRequests = allRequests;
 
 
-        // --- Logic for Status & Allocation ---
-        const decision = Math.random();
-        if (decision < 0.6) status = AssetStatus.IN_USE;
-        else if (decision < 0.65) status = AssetStatus.DAMAGED;
+// STEP 2: Generate Assets
+const generateAssets = () => {
+    let assetIdCounter = 1;
+    // Create assets from completed/arrived requests
+    const assetGeneratingRequests = allRequests.filter(r => [ItemStatus.ARRIVED, ItemStatus.AWAITING_HANDOVER, ItemStatus.COMPLETED].includes(r.status));
+    
+    assetGeneratingRequests.forEach(req => {
+        req.items.forEach(item => {
+            const qty = req.itemStatuses?.[item.id]?.approvedQuantity ?? item.quantity;
+            for (let i = 0; i < qty; i++) {
+                const id = `AST-${String(assetIdCounter++).padStart(4, '0')}`;
+                const template = assetTemplates.find(t => t.name === item.itemName && t.brand === item.itemTypeBrand);
+                const purchaseDetails = req.purchaseDetails?.[item.id];
 
-        if (status === AssetStatus.IN_USE) {
-            if (template.category === 'Perangkat Pelanggan (CPE)' && activeCustomers.length > 0) {
-                 // 70% chance to be installed at customer
-                 if (Math.random() < 0.7) {
-                    const customer = activeCustomers[i % activeCustomers.length];
-                    currentUser = customer.id;
-                    location = `Terpasang di Pelanggan ${customer.name}`;
-                    const installDate = new Date(new Date(registrationDate).setDate(registrationDate.getDate() + 7));
-                    activityLog.push({ id: `log-${id}-install`, timestamp: installDate.toISOString(), user: 'Sistem', action: 'Instalasi Pelanggan', details: `Aset dipasang untuk pelanggan ${customer.name}.`, referenceId: `INSTALL-${id}` });
-                 }
-            } else if (template.category === 'Alat Kerja Lapangan' && engineerUsers.length > 0) {
-                currentUser = engineerUsers[i % engineerUsers.length];
-                location = `Digunakan oleh ${currentUser}`;
-            } else if (template.category === 'Aset Kantor' && (nocUsers.length > 0 || csUsers.length > 0)) {
-                currentUser = i % 2 === 0 ? nocUsers[i % nocUsers.length] : csUsers[i % csUsers.length];
-                location = `Digunakan oleh ${currentUser}`;
-            }
-             // For IN_USE assets assigned to staff, create a handover record
-            if (currentUser && !currentUser.startsWith('TMI-')) {
-                const handoverDate = new Date(new Date(registrationDate).setDate(registrationDate.getDate() + 2));
-                const handoverId = `HO-MOCK-${id}`;
-                
-                const docNumber = generateDocumentNumber('HO', allHandovers, handoverDate);
+                const registrationDate = new Date(req.arrivalDate!);
+                registrationDate.setDate(registrationDate.getDate() + 1);
 
-                activityLog.push({ id: `log-${id}-handover`, timestamp: handoverDate.toISOString(), user: 'Alice Johnson', action: 'Serah Terima Internal', details: `Aset diserahkan kepada ${currentUser}.`, referenceId: handoverId });
-                allHandovers.push({
-                    id: handoverId,
-                    docNumber,
-                    handoverDate: handoverDate.toISOString().split('T')[0],
-                    menyerahkan: 'Alice Johnson',
-                    penerima: currentUser,
-                    mengetahui: 'John Doe',
-                    woRoIntNumber: `INT-${id}`,
-                    items: [{ id: 1, assetId: id, itemName: template.name, itemTypeBrand: template.brand, conditionNotes: 'Kondisi baik', quantity: 1, checked: true }],
-                    status: ItemStatus.COMPLETED
+                allAssets.push({
+                    id, name: item.itemName, brand: item.itemTypeBrand,
+                    category: template?.category || 'N/A', type: template?.type || 'N/A',
+                    serialNumber: `SN-${Math.random().toString(36).substring(2, 12).toUpperCase()}`,
+                    macAddress: `00:0A:95:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}`,
+                    registrationDate: registrationDate.toISOString().split('T')[0],
+                    recordedBy: 'Alice Johnson',
+                    purchaseDate: purchaseDetails?.purchaseDate || new Date().toISOString().split('T')[0],
+                    purchasePrice: (purchaseDetails?.purchasePrice || template?.price || 0) / qty,
+                    vendor: purchaseDetails?.vendor || VENDORS[0],
+                    poNumber: req.id,
+                    invoiceNumber: purchaseDetails?.invoiceNumber || null,
+                    warrantyEndDate: purchaseDetails?.warrantyEndDate || null,
+                    location: 'Gudang Inventori',
+                    currentUser: null,
+                    status: AssetStatus.IN_STORAGE,
+                    condition: AssetCondition.BRAND_NEW,
+                    woRoIntNumber: req.id,
+                    notes: null,
+                    attachments: [],
+                    activityLog: [{ id: `log-${id}-create`, timestamp: registrationDate.toISOString(), user: 'Alice Johnson', action: 'Aset Dicatat', details: `Aset dicatat dari request ${req.id}.` }],
                 });
             }
-        }
-        
-        // --- Logic for Dismantled Assets ---
-        if (i > 200 && template.category === 'Perangkat Pelanggan (CPE)') {
-            const customer = activeCustomers[(i - 200) % activeCustomers.length];
-            status = AssetStatus.IN_STORAGE;
-            condition = AssetCondition.USED_OKAY;
-            isDismantled = true;
-            location = 'Gudang Inventori';
-            currentUser = null;
-            const dismantleDate = new Date(new Date(NOW).setDate(NOW.getDate() - Math.floor(Math.random() * 30)));
-            const dismantleId = `DSM-MOCK-${id}`;
-            dismantleInfo = { customerId: customer.id, customerName: customer.name, dismantleDate: dismantleDate.toISOString().split('T')[0], dismantleId };
-            activityLog.push({ id: `log-${id}-dismantle`, timestamp: dismantleDate.toISOString(), user: 'Sistem', action: 'Dismantle dari Pelanggan', details: `Aset ditarik dari pelanggan ${customer.name}.`, referenceId: dismantleId });
+        });
+    });
 
-            const dismantleStatus = (Math.random() < 0.4) ? ItemStatus.IN_PROGRESS : ItemStatus.COMPLETED;
-            const acknowledger = dismantleStatus === ItemStatus.COMPLETED ? 'Alice Johnson' : null;
-            
-            const docNumber = generateDocumentNumber('DSM', allDismantles, dismantleDate);
-
-            allDismantles.push({
-                id: dismantleId,
-                docNumber: docNumber,
-                requestNumber: poNumber,
-                assetId: id,
-                assetName: template.name,
-                dismantleDate: dismantleDate.toISOString().split('T')[0],
-                technician: engineerUsers[i % engineerUsers.length],
-                customerId: customer.id,
-                customerName: customer.name,
-                customerAddress: customer.address,
-                retrievedCondition: AssetCondition.USED_OKAY,
-                notes: 'Penarikan karena pelanggan berhenti langganan.',
-                acknowledger: acknowledger,
-                status: dismantleStatus,
-                attachments: []
-            });
-        }
-
-        allAssets.push({
-            id, name: template.name, category: template.category, type: template.type, brand: template.brand,
-            serialNumber,
+    // Add some extra random assets to reach ASSET_COUNT
+    while (allAssets.length < ASSET_COUNT) {
+         const id = `AST-${String(assetIdCounter++).padStart(4, '0')}`;
+         const template = assetTemplates[allAssets.length % assetTemplates.length];
+         allAssets.push({
+            id, name: template.name, brand: template.brand, category: template.category, type: template.type,
+            serialNumber: `SN-MANUAL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
             macAddress: `00:0A:95:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}`,
-            registrationDate: registrationDate.toISOString().split('T')[0],
+            registrationDate: new Date().toISOString().split('T')[0],
             recordedBy: 'Alice Johnson',
-            purchaseDate: purchaseDate.toISOString().split('T')[0],
+            purchaseDate: new Date().toISOString().split('T')[0],
             purchasePrice: template.price,
-            vendor: VENDORS[i % VENDORS.length],
-            poNumber,
-            invoiceNumber: `INV/${VENDORS[i % VENDORS.length].slice(0,3).toUpperCase()}/${purchaseDate.getFullYear()}/${i+1}`,
-            warrantyEndDate: warrantyEndDate.toISOString().split('T')[0],
-            location,
-            locationDetail: location === 'Gudang Inventori' ? `Rak ${String.fromCharCode(65 + (i % 5))}-${(i % 10) + 1}` : null,
-            currentUser,
-            status,
-            condition,
-            woRoIntNumber: `REG-${id}`,
-            notes: isDismantled ? `Aset bekas dari pelanggan ${dismantleInfo?.customerName}.` : null,
+            vendor: VENDORS[0], poNumber: null, invoiceNumber: null, warrantyEndDate: null,
+            location: 'Gudang Inventori', currentUser: null,
+            status: AssetStatus.IN_STORAGE, condition: AssetCondition.BRAND_NEW,
+            woRoIntNumber: null, notes: null, attachments: [],
+            activityLog: [{ id: `log-${id}-create`, timestamp: new Date().toISOString(), user: 'Alice Johnson', action: 'Aset Dicatat', details: 'Aset dicatat secara manual.' }],
+         });
+    }
+};
+generateAssets();
+export const mockAssets = allAssets;
+
+
+// STEP 3: Generate Handovers, Dismantles, Installations, and Maintenances
+const generateActivities = () => {
+    const engineerUsers = initialMockUsers.filter(u => u.divisionId === 3);
+    const activeCustomers = mockCustomers.filter(c => c.status === CustomerStatus.ACTIVE);
+    
+    // Assign some assets to users and customers
+    allAssets.forEach((asset, i) => {
+        if (i % 3 === 0 && asset.status === AssetStatus.IN_STORAGE) { // Assign to user
+            const user = initialMockUsers[i % initialMockUsers.length];
+            if (user.role !== 'Super Admin') {
+                asset.currentUser = user.name;
+                asset.status = AssetStatus.IN_USE;
+                asset.location = `Digunakan oleh ${user.name}`;
+            }
+        } else if (i % 5 === 0 && asset.status === AssetStatus.IN_STORAGE && asset.category === 'Perangkat Pelanggan (CPE)' && activeCustomers.length > 0) { // Install at customer
+            const customer = activeCustomers[i % activeCustomers.length];
+            asset.currentUser = customer.id;
+            asset.status = AssetStatus.IN_USE;
+            asset.location = `Terpasang di Pelanggan ${customer.name}`;
+        }
+    });
+
+    // Generate maintenances dynamically based on installed assets
+    for (let i = 0; i < 5; i++) {
+        const customerWithAsset = mockCustomers.find(c => allAssets.some(a => a.currentUser === c.id));
+        if (!customerWithAsset) continue;
+
+        const oldAsset = allAssets.find(a => a.currentUser === customerWithAsset.id && a.category === 'Perangkat Pelanggan (CPE)');
+        if (!oldAsset) continue;
+
+        const newAsset = allAssets.find(a => a.status === AssetStatus.IN_STORAGE && a.name === oldAsset.name && !allMaintenances.some(m => m.replacements?.some(r => r.newAssetId === a.id)));
+        if (!newAsset) continue;
+
+        const maintenanceDate = new Date(new Date().setDate(NOW.getDate() - (5 - i)));
+        const docNumber = generateDocumentNumber('MNT', allMaintenances, maintenanceDate);
+        
+        const materialAsset = allAssets.find(a => a.name === 'Konektor Fast Connector SC' && a.status === AssetStatus.IN_STORAGE);
+
+        allMaintenances.push({
+            id: `MNT-00${i + 1}`, docNumber, maintenanceDate: maintenanceDate.toISOString(),
+            technician: engineerUsers[i % engineerUsers.length].name,
+            customerId: customerWithAsset.id, customerName: customerWithAsset.name,
+            assets: [{ assetId: oldAsset.id, assetName: oldAsset.name }],
+            problemDescription: 'Indikator LOS berkedip, koneksi intermittent.',
+            actionsTaken: 'Kabel dropcore disambung ulang, unit ONT diganti.',
+            workTypes: ['Ganti Perangkat', 'Splicing FO'], priority: 'Tinggi', status: ItemStatus.COMPLETED,
+            completedBy: 'Alice Johnson', completionDate: new Date(new Date(maintenanceDate).setDate(maintenanceDate.getDate() + 1)).toISOString(),
             attachments: [],
-            activityLog,
-            isDismantled,
-            dismantleInfo,
-            lastModifiedBy: null,
-            lastModifiedDate: null,
+            materialsUsed: [{ 
+                materialAssetId: materialAsset?.id,
+                itemName: 'Konektor Fast Connector SC', 
+                brand: 'Generic', 
+                quantity: 2 
+            }],
+            replacements: [{ oldAssetId: oldAsset.id, retrievedAssetCondition: AssetCondition.MAJOR_DAMAGE, newAssetId: newAsset.id }]
         });
     }
 };
+generateActivities();
 
-generateMockAssets();
-export const mockAssets: Asset[] = allAssets;
-export const mockHandovers: Handover[] = allHandovers;
-export const mockDismantles: Dismantle[] = allDismantles;
-
-// 6. REQUESTS
-export const initialMockRequests: Request[] = Array.from({ length: REQUEST_COUNT }, (_, i) => {
-    const user = initialMockUsers[i % initialMockUsers.length];
-    const division = mockDivisions.find(d => d.id === user.divisionId)?.name || 'N/A';
-    const requestDate = new Date(new Date(NOW).setHours(NOW.getHours() - ((REQUEST_COUNT - i) * 3) ));
-    
-    const statuses = [ItemStatus.APPROVED, ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.REJECTED, ItemStatus.COMPLETED, ItemStatus.PENDING, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED];
-    const status = statuses[i % statuses.length];
-
-    const requestedModelTemplate = assetTemplates[i % assetTemplates.length];
-    
-    const orderTypes: OrderDetails[] = [
-        { type: 'Regular Stock' },
-        { type: 'Urgent', justification: 'Router core pelanggan korporat down, perlu pengganti segera.' },
-        { type: 'Project Based', project: 'Instalasi Klien Baru - PT. Maju Jaya' },
-        { type: 'Urgent', justification: 'Stok OLT habis untuk aktivasi area baru.' },
-    ];
-
-    const quantity = Math.floor(Math.random() * 3) + 1;
-    const totalValue = requestedModelTemplate.price * quantity;
-
-    const request: Request = {
-        id: `REQ-${String(REQUEST_COUNT - i).padStart(3, '0')}`,
-        requester: user.name,
-        division,
-        requestDate: requestDate.toISOString(),
-        status,
-        order: orderTypes[i % orderTypes.length],
-        items: [{
-            id: 1,
-            itemName: requestedModelTemplate.name,
-            itemTypeBrand: requestedModelTemplate.brand,
-            stock: 5, // Mocked stock
-            quantity,
-            keterangan: `Kebutuhan untuk divisi ${division}`
-        }],
-        totalValue,
-        logisticApprover: null, logisticApprovalDate: null, finalApprover: null, finalApprovalDate: null,
-        rejectionReason: null, rejectedBy: null, rejectionDate: null, rejectedByDivision: null, isRegistered: false,
-        isPrioritizedByCEO: false,
-        ceoDispositionDate: null,
-        progressUpdateRequest: undefined,
-    };
-    
-    // Make some requests high value for testing tiered approval
-    if (i % 10 === 0 && requestedModelTemplate.price < 5000000) {
-        request.items[0].quantity = 5;
-        request.totalValue = requestedModelTemplate.price * 5;
-    }
-     if (i % 15 === 0) {
-        request.totalValue = 12000000; // Force a high-value request
-    }
-
-
-    const approvalDate = new Date(new Date(requestDate).setDate(requestDate.getDate() + 1));
-    const purchaseFillDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 1));
-
-    if ([ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
-        request.logisticApprover = 'Alice Johnson';
-        request.logisticApprovalDate = approvalDate.toISOString().split('T')[0];
-    }
-    if ([ItemStatus.AWAITING_CEO_APPROVAL, ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
-        request.purchaseDetails = { 1: {
-            purchasePrice: totalValue,
-            vendor: VENDORS[i % VENDORS.length],
-            poNumber: `PO-${String(REQUEST_COUNT - i).padStart(3, '0')}`,
-            invoiceNumber: `INV/${VENDORS[i % VENDORS.length].slice(0, 3).toUpperCase()}/${purchaseFillDate.getFullYear()}/${i + 1}`,
-            purchaseDate: purchaseFillDate.toISOString().split('T')[0],
-            warrantyEndDate: new Date(new Date(purchaseFillDate).setFullYear(purchaseFillDate.getFullYear() + 1)).toISOString().split('T')[0],
-            filledBy: 'Brian Adams',
-            fillDate: purchaseFillDate.toISOString()
-        }};
-    }
-    if ([ItemStatus.APPROVED, ItemStatus.COMPLETED, ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED].includes(status)) {
-        request.finalApprover = 'John Doe';
-        request.finalApprovalDate = new Date(new Date(purchaseFillDate).setDate(purchaseFillDate.getDate() + 1)).toISOString().split('T')[0];
-    }
-    if ([ItemStatus.PURCHASING, ItemStatus.IN_DELIVERY, ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(status)) {
-        request.estimatedDeliveryDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 7)).toISOString().split('T')[0];
-    }
-    if ([ItemStatus.ARRIVED, ItemStatus.COMPLETED].includes(status)) {
-        request.arrivalDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 6)).toISOString().split('T')[0];
-        request.receivedBy = 'Alice Johnson';
-    }
-    if (status === ItemStatus.COMPLETED) {
-        request.isRegistered = true;
-    }
-    if (status === ItemStatus.REJECTED) {
-        request.rejectedBy = 'Brian Adams';
-        request.rejectionDate = approvalDate.toISOString().split('T')[0];
-        request.rejectionReason = 'Stok tidak mencukupi dan pengadaan tidak disetujui.';
-        request.rejectedByDivision = 'Purchase';
-    }
-
-    // Add specific examples for new disposition features
-    if (i === 5) { // Example for an acknowledged progress request
-        request.status = ItemStatus.PURCHASING;
-        request.progressUpdateRequest = {
-            requestedBy: 'John Doe',
-            requestDate: new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 2)).toISOString(),
-            isAcknowledged: true,
-            acknowledgedBy: 'Brian Adams',
-            acknowledgedDate: new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 3)).toISOString()
-        };
-    }
-
-    if (i === 10) { // Example for a pending progress request
-        request.status = ItemStatus.IN_DELIVERY;
-        request.progressUpdateRequest = {
-            requestedBy: 'John Doe',
-            requestDate: new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 4)).toISOString(),
-            isAcknowledged: false,
-        };
-    }
-
-    if (i === 15) { // Example for CEO Prioritization
-        request.status = ItemStatus.APPROVED;
-        request.isPrioritizedByCEO = true;
-        request.ceoDispositionDate = new Date(new Date(approvalDate).setDate(approvalDate.getDate() + 2)).toISOString();
-    }
-    
-    if (request.id === 'REQ-118') { // Example for Follow Up
-        request.lastFollowUpAt = new Date(new Date().setHours(NOW.getHours() - 1)).toISOString();
-    }
-    
-    if (request.id === 'REQ-119') { // Example for CEO Follow up
-        request.status = ItemStatus.LOGISTIC_APPROVED;
-        request.logisticApprover = 'Brian Adams';
-        request.logisticApprovalDate = new Date().toISOString();
-        request.ceoFollowUpSent = true;
-    }
-
-
-    return request;
-});
-
-// FIX: Change mock loan requests to use 'items' array instead of 'assetId' and 'assetName'
-export const mockLoanRequests: LoanRequest[] = [
-    {
-        id: 'LREQ-001',
-        requester: 'Citra Lestari',
-        division: 'Teknisi',
-        items: [{
-            id: 1,
-            itemName: 'Laptop ThinkPad T480',
-            brand: 'Lenovo',
-            quantity: 1,
-            returnDate: new Date(new Date(NOW).setDate(NOW.getDate() + 5)).toISOString().split('T')[0],
-        }],
-        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 2)).toISOString(),
-        status: LoanRequestStatus.PENDING,
-        notes: 'Dibutuhkan untuk pengerjaan proyek klien di luar kantor selama seminggu.'
-    },
-    {
-        id: 'LREQ-002',
-        requester: 'Manager NOC',
-        division: 'NOC',
-        items: [{
-            id: 1,
-            itemName: 'OTDR AQ7280',
-            brand: 'Yokogawa',
-            quantity: 1,
-            returnDate: new Date(new Date(NOW).setDate(NOW.getDate() - 1)).toISOString().split('T')[0],
-        }],
-        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 5)).toISOString(),
-        status: LoanRequestStatus.RETURNED,
-        approver: 'Alice Johnson',
-        approvalDate: new Date(new Date(NOW).setDate(NOW.getDate() - 4)).toISOString(),
-        actualReturnDate: new Date(new Date(NOW).setDate(NOW.getDate() - 1)).toISOString(),
-        handoverId: 'HO-LREQ-002',
-// FIX: Added missing 'notes' property.
-        notes: null
-    },
-    {
-        id: 'LREQ-003',
-        requester: 'Citra Lestari',
-        division: 'Teknisi',
-        items: [{
-            id: 1,
-            itemName: 'Fusion Splicer 90S',
-            brand: 'Fujikura',
-            quantity: 1,
-            returnDate: new Date(new Date(NOW).setDate(NOW.getDate() - 2)).toISOString().split('T')[0],
-        }],
-        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 10)).toISOString(),
-        status: LoanRequestStatus.OVERDUE,
-        approver: 'Alice Johnson',
-        approvalDate: new Date(new Date(NOW).setDate(NOW.getDate() - 9)).toISOString(),
-        handoverId: 'HO-LREQ-003',
-// FIX: Added missing 'notes' property.
-        notes: 'Pekerjaan splicing di area baru.'
-    },
-     {
-        id: 'LREQ-004',
-        requester: 'Eko Pratama',
-        division: 'Teknisi',
-        items: [{
-            id: 1,
-            itemName: 'Laptop ThinkPad T480',
-            brand: 'Lenovo',
-            quantity: 1,
-            returnDate: new Date(new Date(NOW).setDate(NOW.getDate() + 10)).toISOString().split('T')[0],
-        }],
-        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 3)).toISOString(),
-        status: LoanRequestStatus.REJECTED,
-        approver: 'Alice Johnson',
-        approvalDate: new Date(new Date(NOW).setDate(NOW.getDate() - 3)).toISOString(),
-        rejectionReason: 'Semua laptop teknisi sedang digunakan atau dalam perbaikan.',
-// FIX: Added missing 'notes' property.
-        notes: 'Untuk presentasi proyek.'
-    },
-    {
-        id: 'LREQ-005',
-        requester: 'Budi Santoso',
-        division: 'Teknisi',
-        items: [{
-            id: 1,
-            itemName: 'Power Meter',
-            brand: 'Joinwit',
-            quantity: 1,
-            returnDate: null,
-        }],
-        requestDate: new Date(new Date(NOW).setDate(NOW.getDate() - 1)).toISOString(),
-        status: LoanRequestStatus.PENDING,
-        notes: 'Untuk cadangan di mobil operasional, tanggal kembali belum ditentukan.'
-    }
-];
-
-export const mockMaintenances: Maintenance[] = [
-    {
-        id: 'MNT-001',
-        docNumber: 'WO-MT-20241017-0001',
-        requestNumber: 'REQ-115',
-        maintenanceDate: new Date(new Date().setDate(NOW.getDate() - 5)).toISOString(),
-        technician: 'Citra Lestari',
-        customerId: 'TMI-1001',
-        customerName: 'Ahmad Santoso',
-        assets: [{ assetId: 'AST-005', assetName: 'ONT F609' }],
-        problemDescription: 'Lampu LOS berkedip merah, koneksi internet terputus.',
-        actionsTaken: 'Ditemukan kabel putus di dekat rumah pelanggan. Dilakukan penyambungan ulang.',
-        workTypes: ['Splicing FO'],
-        priority: 'Tinggi',
-        status: ItemStatus.COMPLETED,
-        completedBy: 'Alice Johnson',
-        completionDate: new Date(new Date().setDate(NOW.getDate() - 4)).toISOString(),
-        attachments: [],
-        materialsUsed: [
-            { itemName: 'Konektor Fast Connector SC', brand: 'Generic', quantity: 2 }
-        ],
-    },
-    {
-        id: 'MNT-002',
-        docNumber: 'WO-MT-20241018-0001',
-        maintenanceDate: new Date(new Date().setDate(NOW.getDate() - 2)).toISOString(),
-        technician: 'Hadi Gunawan',
-        customerId: 'TMI-1015',
-        customerName: 'Gita Wijaya',
-        assets: [{ assetId: 'AST-012', assetName: 'Router WiFi Archer C6' }],
-        problemDescription: 'Konektor RJ45 di ujung kabel LAN ke router rusak (patah).',
-        actionsTaken: 'Kabel dipotong dan dipasang konektor RJ45 yang baru.',
-        workTypes: ['Ganti Konektor'],
-        priority: 'Rendah',
-        status: ItemStatus.IN_PROGRESS,
-        attachments: [],
-        materialsUsed: [
-            { itemName: 'Kabel UTP Cat6 305m', brand: 'Belden', quantity: 1 }
-        ],
-    },
-    {
-        id: 'MNT-003',
-        docNumber: 'WO-MT-20241019-0001',
-        maintenanceDate: new Date(new Date().setDate(NOW.getDate() - 1)).toISOString(),
-        technician: 'Citra Lestari',
-        customerId: 'TMI-1002',
-        customerName: 'Budi Wijaya',
-        assets: [{ assetId: 'AST-008', assetName: 'ONT HG8245H' }],
-        problemDescription: 'Perangkat ONT mati total setelah tersambar petir.',
-        actionsTaken: 'ONT yang rusak ditarik dan diganti dengan unit baru dari stok gudang.',
-        workTypes: ['Ganti Perangkat'],
-        priority: 'Sedang',
-        status: ItemStatus.COMPLETED,
-        completedBy: 'Alice Johnson',
-        completionDate: new Date(new Date().setDate(NOW.getDate() - 1)).toISOString(),
-        attachments: [],
-        retrievedAssetCondition: AssetCondition.MAJOR_DAMAGE,
-        replacementAssetId: 'AST-248', // A new ONT from storage
-    },
-    {
-        id: 'MNT-004',
-        docNumber: 'WO-MT-20241020-0001',
-        maintenanceDate: new Date().toISOString(),
-        technician: 'Eko Pratama',
-        customerId: 'TMI-1001',
-        customerName: 'Ahmad Santoso',
-        assets: [
-            { assetId: 'AST-005', assetName: 'ONT F609' },
-            { assetId: 'AST-021', assetName: 'Router WiFi AX10' }
-        ],
-        problemDescription: 'Pemeriksaan rutin dan pembersihan perangkat.',
-        actionsTaken: 'Semua perangkat dibersihkan dari debu, koneksi diperiksa. Semua berfungsi normal.',
-        workTypes: ['Pemeriksaan Rutin'],
-        priority: 'Rendah',
-        status: ItemStatus.COMPLETED,
-        completedBy: 'Eko Pratama',
-        completionDate: new Date().toISOString(),
-        attachments: [],
-    },
-    {
-        id: 'MNT-005',
-        docNumber: 'WO-MT-20241021-0001',
-        maintenanceDate: new Date().toISOString(),
-        technician: 'Hadi Gunawan',
-        customerId: 'TMI-1015',
-        customerName: 'Gita Wijaya',
-        problemDescription: 'Kabel dropcore putus akibat galian.',
-        actionsTaken: 'Menarik kabel dropcore baru sepanjang 50 meter dan melakukan splicing ulang.',
-        workTypes: ['Tarik Ulang Kabel', 'Splicing FO'],
-        priority: 'Tinggi',
-        status: ItemStatus.COMPLETED,
-        completedBy: 'Hadi Gunawan',
-        completionDate: new Date().toISOString(),
-        attachments: [],
-        materialsUsed: [
-            { itemName: 'Kabel Dropcore 1 Core 150m', brand: 'FiberHome', quantity: 50 },
-            { itemName: 'Konektor Fast Connector SC', brand: 'Generic', quantity: 4 }
-        ],
-    }
-];
-
-
-// 7. NOTIFICATIONS
-export const mockNotifications: Notification[] = [
-    {
-        id: 'notif-1',
-        recipientId: 2, // Brian Adams (Admin Purchase)
-        actorName: 'Citra Lestari',
-        type: 'FOLLOW_UP',
-        isRead: false,
-        timestamp: new Date(new Date().setHours(NOW.getHours() - 1)).toISOString(),
-        referenceId: 'REQ-118',
-    },
-    {
-        id: 'notif-2',
-        recipientId: 2, // Brian Adams (Admin Purchase)
-        actorName: 'John Doe',
-        type: 'CEO_DISPOSITION',
-        isRead: false,
-        timestamp: new Date(new Date().setHours(NOW.getHours() - 2)).toISOString(),
-        referenceId: 'REQ-105',
-    },
-    {
-        id: 'notif-3',
-        recipientId: 99, // John Doe (Super Admin)
-        actorName: 'Brian Adams',
-        type: 'PROGRESS_FEEDBACK',
-        isRead: true,
-        timestamp: new Date(new Date().setDate(NOW.getDate() - 1)).toISOString(),
-        referenceId: 'REQ-115',
-        message: 'Memberi update pada #REQ-115: Status baru adalah "Proses Pengadaan"',
-    },
-    {
-        id: 'notif-4',
-        recipientId: 2, // Brian Adams (Admin Purchase)
-        actorName: 'John Doe',
-        type: 'PROGRESS_UPDATE_REQUEST',
-        isRead: false,
-        timestamp: new Date(new Date().setMinutes(NOW.getMinutes() - 30)).toISOString(),
-        referenceId: 'REQ-110',
-    },
-     {
-        id: 'notif-5',
-        recipientId: 3, // Find a staff member
-        actorName: 'Brian Adams',
-        type: 'REQUEST_REJECTED',
-        isRead: false,
-        timestamp: new Date(new Date().setHours(NOW.getHours() - 4)).toISOString(),
-        referenceId: 'REQ-114',
-    }
-];
+export const mockHandovers = allHandovers;
+export const mockDismantles = allDismantles;
+export const mockMaintenances = allMaintenances;
+export const mockNotifications = allNotifications;
+export const mockLoanRequests = allLoanRequests;

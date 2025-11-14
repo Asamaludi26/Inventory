@@ -43,7 +43,7 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
             <div className="flex-1 w-full max-w-screen-xl px-4 py-6 mx-auto sm:px-6 md:px-8">
                 <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-8">
                     {/* Main column */}
-                    <div className={`${mainColClassName} transition-all duration-300 ease-in-out`}>
+                    <div className={`${aside ? mainColClassName : 'lg:col-span-12'} transition-all duration-300 ease-in-out`}>
                         {children}
                     </div>
 

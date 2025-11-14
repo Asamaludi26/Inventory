@@ -1,4 +1,3 @@
-
 // FIX: Removed self-referential imports that cause declaration conflicts.
 // --- CORE TYPES & ENUMS ---
 
@@ -344,6 +343,7 @@ export interface Dismantle {
 }
 
 export interface MaintenanceMaterial {
+  materialAssetId?: string;
   itemName: string;
   brand: string;
   quantity: number;

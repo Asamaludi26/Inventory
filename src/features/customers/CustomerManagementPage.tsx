@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import { Page, User, Customer, Asset, PreviewData, Dismantle, ActivityLogEntry, Maintenance, AssetCategory } from '../../types';
 import CustomerListPage from './list/CustomerListPage';
@@ -52,6 +54,7 @@ const CustomerManagementPage: React.FC<CustomerManagementHubProps> = (props) => 
                         customers={props.customers}
                         setCustomers={props.setCustomers}
                         assets={props.assets}
+                        assetCategories={props.assetCategories}
                         onUpdateAsset={props.onUpdateAsset}
                         setActivePage={props.setActivePage}
                         pageInitialState={props.pageInitialState}
@@ -71,12 +74,15 @@ const CustomerManagementPage: React.FC<CustomerManagementHubProps> = (props) => 
                         users={props.users}
                         setActivePage={props.setActivePage}
                         pageInitialState={props.pageInitialState}
+                        onShowPreview={props.onShowPreview}
                     />;
         case 'detail':
             return <CustomerDetailPage 
                         customers={props.customers}
                         assets={props.assets}
                         assetCategories={props.assetCategories}
+                        maintenances={props.maintenances}
+                        dismantles={props.dismantles}
                         initialState={props.pageInitialState}
                         setActivePage={props.setActivePage}
                         onShowPreview={props.onShowPreview}

@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Customer, Asset, User, Maintenance, ItemStatus, AssetCondition, StandardItem, AssetCategory, MaintenanceMaterial, MaintenanceReplacement } from '../../../types';
+// FIX: Add AssetStatus to type imports to resolve reference error.
+import { Customer, Asset, User, Maintenance, ItemStatus, AssetCondition, StandardItem, AssetCategory, MaintenanceMaterial, MaintenanceReplacement, Attachment, AssetStatus } from '../../../types';
 import DatePicker from '../../../components/ui/DatePicker';
 import { CustomSelect } from '../../../components/ui/CustomSelect';
 import { SpinnerIcon } from '../../../components/icons/SpinnerIcon';
@@ -106,7 +106,8 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
 
         const currentlyUsedInOtherReplacements = Object.entries(replacements)
             .filter(([key]) => key !== oldAssetId)
-            .map(([, value]) => value.newAssetId);
+            // FIX: Explicitly type the 'value' parameter to resolve property access on 'unknown' type error.
+            .map(([, value]: [string, Partial<MaintenanceReplacement>]) => value.newAssetId);
 
         return assets
             .filter(a => 
@@ -243,10 +244,18 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
             return { assetId: id, assetName: asset?.name || 'N/A' };
         });
         
+        // FIX: Explicitly type the 'r' parameter to resolve property access on 'unknown' type error.
         const finalReplacements = Object.values(replacements)
-            .filter(r => r.oldAssetId && r.newAssetId && r.retrievedAssetCondition) as MaintenanceReplacement[];
+            .filter((r: Partial<MaintenanceReplacement>): r is MaintenanceReplacement => !!(r.oldAssetId && r.newAssetId && r.retrievedAssetCondition));
 
         const finalWorkTypes = finalReplacements.length > 0 ? [...new Set([...workTypes, 'Ganti Perangkat'])] : workTypes;
+
+        const processedAttachments: Attachment[] = attachments.map((file, index) => ({
+            id: Date.now() + index,
+            name: file.name,
+            url: URL.createObjectURL(file), 
+            type: file.type.startsWith('image/') ? 'image' : (file.type === 'application/pdf' ? 'pdf' : 'other'),
+        }));
 
         onSave({
             maintenanceDate: maintenanceDate!.toISOString(),
@@ -259,12 +268,18 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
             actionsTaken,
             workTypes: finalWorkTypes,
             priority,
-            attachments: [], // Simplified for now
+            attachments: processedAttachments,
             materialsUsed: additionalMaterials
                 .filter(m => m.modelKey && m.quantity)
                 .map(m => {
                     const [name, brand] = m.modelKey.split('|');
-                    return { itemName: name, brand: brand, quantity: Number(m.quantity) };
+                    const materialAsset = assets.find(a => a.name === name && a.brand === brand && a.status === AssetStatus.IN_STORAGE);
+                    return { 
+                        materialAssetId: materialAsset?.id,
+                        itemName: name, 
+                        brand: brand, 
+                        quantity: Number(m.quantity) 
+                    };
                 }),
             replacements: finalReplacements.length > 0 ? finalReplacements : undefined
         });
@@ -381,7 +396,8 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
                      <div className="mt-6 p-4 border-2 border-dashed rounded-lg bg-gray-50/30 border-gray-200">
                         <h5 className="text-base font-semibold text-gray-800 mb-4">Ringkasan Penggantian Aset</h5>
                         <div className="space-y-4">
-                            {Object.values(replacements).map(replacement => {
+                            {/* FIX: Explicitly type the 'replacement' parameter to resolve property access on 'unknown' type error. */}
+                            {Object.values(replacements).map((replacement: Partial<MaintenanceReplacement>) => {
                                 const oldAsset = assets.find(a => a.id === replacement.oldAssetId);
                                 if (!oldAsset) return null;
                                 return (

@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
@@ -668,9 +670,9 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                 handlePurchaseDetailFieldChange(itemId, 'warrantyEndDate', null);
             } else {
                 const d = new Date(purchaseDate);
-                // FIX: Explicitly cast getMonth() to number to resolve a TypeScript type inference issue.
+                // FIX: Operator '+' cannot be applied to types 'unknown' and 'number'. Explicitly cast `getMonth()` to `Number`.
                 const expectedMonth = (Number(d.getMonth()) + Number(period)) % 12;
-                // FIX: Explicitly cast getMonth() to number to resolve a TypeScript type inference issue.
+                // FIX: Operator '+' cannot be applied to types 'unknown' and 'number'. Explicitly cast `getMonth()` to `Number`.
                 d.setMonth(Number(d.getMonth()) + Number(period));
                 if (d.getMonth() !== expectedMonth) {
                     d.setDate(0);
@@ -686,7 +688,7 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
         const purchaseDateStr = itemPurchaseDetails[itemId]?.purchaseDate;
         if (purchaseDateStr && date && date > new Date(purchaseDateStr)) {
             const pDate = new Date(purchaseDateStr);
-            // FIX: Explicitly cast getMonth() to number to resolve a TypeScript type inference issue where it was being treated as 'unknown'. This fixes an operator error.
+            // FIX: Operator '+' cannot be applied to types 'unknown' and 'number'. Explicitly cast `getMonth()` to `Number`.
             let months = (date.getFullYear() - pDate.getFullYear()) * 12 + (Number(date.getMonth()) - Number(pDate.getMonth()));
             
             if (date.getDate() < pDate.getDate()) {
@@ -1304,9 +1306,7 @@ const ItemPurchaseDetailsForm: React.FC<ItemPurchaseDetailsFormProps> = ({ item,
     useEffect(() => {
         if (purchaseDate && warrantyPeriod && warrantyPeriod > 0) {
             const d = new Date(purchaseDate);
-            // FIX: Explicitly cast getMonth() to number to resolve a TypeScript type inference issue. This fixes an operator error.
             const expectedMonth = (Number(d.getMonth()) + Number(warrantyPeriod)) % 12;
-            // FIX: Explicitly cast getMonth() to number to resolve a TypeScript type inference issue. This fixes an operator error.
             d.setMonth(Number(d.getMonth()) + Number(warrantyPeriod));
             if (d.getMonth() !== expectedMonth) {
                 d.setDate(0);
@@ -1320,7 +1320,6 @@ const ItemPurchaseDetailsForm: React.FC<ItemPurchaseDetailsFormProps> = ({ item,
 
         if (purchaseDate && date && date > purchaseDate) {
             const pDate = new Date(purchaseDate);
-            // FIX: Explicitly cast getMonth() to number to resolve a TypeScript type inference issue where it was being treated as 'unknown'. This fixes an operator error.
             let months = (date.getFullYear() - pDate.getFullYear()) * 12 + (Number(date.getMonth()) - Number(pDate.getMonth()));
             
             if (date.getDate() < pDate.getDate()) {
