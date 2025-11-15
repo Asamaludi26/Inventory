@@ -30,6 +30,8 @@ export const getStatusClass = (status: ItemStatus) => {
             return 'bg-danger-light text-danger-text';
         case ItemStatus.CANCELLED:
             return 'bg-gray-200 text-gray-700';
+        case ItemStatus.AWAITING_HANDOVER:
+             return 'bg-emerald-100 text-emerald-700';
         case ItemStatus.IN_PROGRESS:
              return 'bg-gray-200 text-gray-800';
         default:
@@ -54,6 +56,8 @@ export const RequestStatusIndicator: React.FC<{ status: ItemStatus }> = ({ statu
                 return { Icon: TruckIcon, label: 'Dikirim', className: 'bg-purple-100 text-purple-700' };
             case ItemStatus.ARRIVED:
                 return { Icon: ArchiveBoxIcon, label: 'Telah Tiba', className: 'bg-teal-100 text-teal-700' };
+            case ItemStatus.AWAITING_HANDOVER:
+                return { Icon: RegisterIcon, label: 'Siap Serah Terima', className: 'bg-emerald-100 text-emerald-700' };
             case ItemStatus.COMPLETED:
                 return { Icon: BsCheckCircleFill, label: 'Selesai', className: 'bg-success-light text-success-text' };
             case ItemStatus.REJECTED:

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Page, User, Request, Asset, AssetCategory, Division, StandardItem, AssetType, Notification, LoanRequest, Handover, ParsedScanResult } from '../../types';
 
-// FIX: The import path for NewRequestPage was incorrect, pointing to an empty file. Corrected to point to the actual component location.
 import NewRequestPage from './new/NewRequestPage';
 import LoanRequestPage from './loan/LoanRequestPage';
 

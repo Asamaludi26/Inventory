@@ -28,7 +28,6 @@ export const ALL_PERMISSIONS: { group: string; permissions: { key: Permission; l
             { key: 'loan-requests:view:all', label: 'Melihat semua request pinjam' },
             { key: 'loan-requests:create', label: 'Membuat request pinjam' },
             { key: 'loan-requests:approve', label: 'Menyetujui & menetapkan aset pinjaman' },
-// FIX: Add missing 'loan-requests:return' permission.
             { key: 'loan-requests:return', label: 'Mengkonfirmasi pengembalian aset pinjaman' },
         ],
     },

@@ -48,7 +48,6 @@ export const PermissionManager: React.FC<PermissionManagerProps> = ({ currentPer
                                     id={`group-toggle-${group.group}`}
                                     checked={isAllChecked}
                                     onChange={() => handleGroupToggle(groupPermissionKeys, isAllChecked)}
-// FIX: Changed from using a ref to pass the `indeterminate` prop, which is now supported by the Checkbox component.
                                     indeterminate={isIndeterminate}
                                 />
                                 <span>Pilih Semua</span>

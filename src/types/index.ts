@@ -1,6 +1,5 @@
 
 
-// FIX: Removed self-referential imports that cause declaration conflicts.
 // --- CORE TYPES & ENUMS ---
 
 export type Page =
@@ -18,7 +17,6 @@ export type Page =
   | 'customer-detail'
   | 'customer-new'
   | 'customer-edit'
-  // FIX: Add missing page types for settings pages to resolve type errors.
   | 'pengaturan-pengguna'
   | 'user-form'
   | 'division-form'
@@ -47,7 +45,6 @@ export type Permission =
   | 'loan-requests:view:all'
   | 'loan-requests:create'
   | 'loan-requests:approve'
-  // FIX: Add missing 'loan-requests:return' permission to the type definition.
   | 'loan-requests:return'
   // Assets
   | 'assets:view'
@@ -177,7 +174,6 @@ export interface Customer {
   email: string;
   status: CustomerStatus;
   installationDate: string;
-  // FIX: Added missing 'servicePackage' property to align with mock data and component usage.
   servicePackage: string;
   activityLog: ActivityLogEntry[];
   installedMaterials?: InstalledMaterial[];
