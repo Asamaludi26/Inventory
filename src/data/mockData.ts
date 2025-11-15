@@ -1,3 +1,5 @@
+
+
 import { 
     Division, 
     User, 
@@ -22,9 +24,14 @@ import {
     LoanRequest,
     LoanRequestStatus,
     Maintenance,
-    InstalledMaterial
+    InstalledMaterial,
+    Installation,
+    InstallationAsset,
+    InstallationMaterial,
+    Permission,
 } from '../types';
 import { generateDocumentNumber } from '../utils/documentNumberGenerator';
+import { ALL_PERMISSION_KEYS } from '../utils/permissions';
 
 // --- CONFIGURATION ---
 const USER_COUNT = 50;
@@ -32,6 +39,59 @@ const ASSET_COUNT = 250;
 const REQUEST_COUNT = 120;
 const CUSTOMER_COUNT = 80;
 const NOW = new Date();
+
+// --- PERMISSION PRESETS ---
+const STAFF_PERMISSIONS: Permission[] = [
+    'dashboard:view',
+    'requests:view:own',
+    'requests:create',
+    'requests:cancel:own',
+    'loan-requests:view:own',
+    'loan-requests:create',
+    'assets:view',
+    'assets:repair:report',
+    'account:manage',
+];
+
+const LEADER_PERMISSIONS: Permission[] = [
+    ...STAFF_PERMISSIONS,
+    'requests:create:urgent',
+];
+
+const ADMIN_LOGISTIK_PERMISSIONS: Permission[] = [
+    'dashboard:view',
+    'requests:view:all',
+    'requests:approve:logistic',
+    'loan-requests:view:all',
+    'loan-requests:approve',
+// FIX: Add 'loan-requests:return' permission, which was missing from the type definition.
+    'loan-requests:return',
+    'assets:view',
+    'assets:create',
+    'assets:edit',
+    'assets:handover',
+    'assets:dismantle',
+    'assets:install',
+    'assets:repair:manage',
+    'customers:view',
+    'customers:create',
+    'customers:edit',
+    'categories:manage',
+    'account:manage',
+];
+
+const ADMIN_PURCHASE_PERMISSIONS: Permission[] = [
+    'dashboard:view',
+    'requests:view:all',
+    'requests:approve:purchase',
+    'assets:view',
+    'customers:view',
+    'categories:manage',
+    'account:manage',
+];
+
+const SUPER_ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSION_KEYS;
+
 
 // --- DATA POOLS ---
 const FIRST_NAMES = ['Ahmad', 'Budi', 'Citra', 'Dewi', 'Eko', 'Fajar', 'Gita', 'Hadi', 'Indra', 'Joko', 'Kartika', 'Lina', 'Mira', 'Nadia', 'Oscar'];
@@ -55,11 +115,11 @@ export const mockDivisions: Division[] = [
 // 2. USERS
 const generateMockUsers = (): User[] => {
     const users: User[] = [
-        { id: 1, name: 'Alice Johnson', email: 'inventory.admin@triniti.com', divisionId: 4, role: 'Admin Logistik' }, // Logistik
-        { id: 2, name: 'Brian Adams', email: 'procurement.admin@triniti.com', divisionId: 6, role: 'Admin Purchase' }, // Finance
-        { id: 99, name: 'John Doe', email: 'super.admin@triniti.com', divisionId: 5, role: 'Super Admin' }, // Administrasi
-        { id: 101, name: 'Manager NOC', email: 'manager.noc@triniti.com', divisionId: 1, role: 'Leader' }, // NOC
-        { id: 102, name: 'Citra Lestari', email: 'citra.lestari0@triniti.com', divisionId: 3, role: 'Staff' } // Teknisi
+        { id: 1, name: 'Alice Johnson', email: 'inventory.admin@triniti.com', divisionId: 4, role: 'Admin Logistik', permissions: ADMIN_LOGISTIK_PERMISSIONS }, // Logistik
+        { id: 2, name: 'Brian Adams', email: 'procurement.admin@triniti.com', divisionId: 6, role: 'Admin Purchase', permissions: ADMIN_PURCHASE_PERMISSIONS }, // Finance
+        { id: 99, name: 'John Doe', email: 'super.admin@triniti.com', divisionId: 5, role: 'Super Admin', permissions: SUPER_ADMIN_PERMISSIONS }, // Administrasi
+        { id: 101, name: 'Manager NOC', email: 'manager.noc@triniti.com', divisionId: 1, role: 'Leader', permissions: LEADER_PERMISSIONS }, // NOC
+        { id: 102, name: 'Citra Lestari', email: 'citra.lestari0@triniti.com', divisionId: 3, role: 'Staff', permissions: STAFF_PERMISSIONS } // Teknisi
     ];
     let userIdCounter = 3;
 
@@ -72,11 +132,12 @@ const generateMockUsers = (): User[] => {
 
         // Prevent duplicate Admin in Logistik
         if (division.id === 4 && users.some(u => u.divisionId === 4 && u.role === 'Admin Logistik')) {
-             users.push({ id: userIdCounter, name, email, divisionId: division.id, role: 'Staff' });
+             users.push({ id: userIdCounter, name, email, divisionId: division.id, role: 'Staff', permissions: STAFF_PERMISSIONS });
         } else {
             // Assign Leader role to every 5th staff in non-special divisions (not Logistik or Administrasi)
             let role: UserRole = (userIdCounter % 5 === 0 && division.id !== 4 && division.id !== 5) ? 'Leader' : 'Staff';
-            users.push({ id: userIdCounter, name, email, divisionId: division.id, role: role });
+            const permissions = role === 'Leader' ? LEADER_PERMISSIONS : STAFF_PERMISSIONS;
+            users.push({ id: userIdCounter, name, email, divisionId: division.id, role, permissions });
         }
         userIdCounter++;
     }
@@ -92,26 +153,6 @@ const generateMockCustomers = (): Customer[] => {
         const name = `${firstName} ${lastName}`;
         const installDate = new Date(new Date(NOW).setDate(NOW.getDate() - (i * 5)));
         
-        const installedMaterials: InstalledMaterial[] = [];
-        if (i % 3 === 0 && i < 30) { // Add materials to the first 10 active customers
-            installedMaterials.push({
-                itemName: 'Kabel Dropcore 1 Core 150m',
-                brand: 'FiberHome',
-                quantity: Math.floor(Math.random() * 200) + 20, // Generate 20-219 to test conversion
-                unit: 'meter',
-                installationDate: installDate.toISOString().split('T')[0]
-            });
-        }
-        if (i % 5 === 0 && i < 30) {
-             installedMaterials.push({
-                itemName: 'Konektor Fast Connector SC',
-                brand: 'Generic',
-                quantity: Math.floor(Math.random() * 150) + 10, // Generate 10-159 to test conversion
-                unit: 'pcs',
-                installationDate: installDate.toISOString().split('T')[0]
-            });
-        }
-
         return {
             id: `TMI-${String(1001 + i).padStart(5, '0')}`,
             name: name,
@@ -128,11 +169,11 @@ const generateMockCustomers = (): Customer[] => {
                 action: 'Pelanggan Dibuat',
                 details: 'Data pelanggan awal dibuat oleh sistem.'
             }],
-            installedMaterials: installedMaterials.length > 0 ? installedMaterials : undefined
+            installedMaterials: []
         };
     });
 };
-export const mockCustomers: Customer[] = generateMockCustomers();
+export let mockCustomers: Customer[] = generateMockCustomers();
 
 // 4. ASSET CATEGORIES (ISP SPECIFIC)
 export const initialAssetCategories: AssetCategory[] = [
@@ -158,6 +199,8 @@ export const initialAssetCategories: AssetCategory[] = [
             { id: 7, name: 'Kabel UTP', trackingMethod: 'bulk', unitOfMeasure: 'box', baseUnitOfMeasure: 'meter', quantityPerUnit: 305, standardItems: [{ id: 11, name: 'Kabel UTP Cat6 305m', brand: 'Belden' }] },
             { id: 8, name: 'Konektor', trackingMethod: 'bulk', unitOfMeasure: 'pack', baseUnitOfMeasure: 'pcs', quantityPerUnit: 100, standardItems: [{ id: 12, name: 'Konektor Fast Connector SC', brand: 'Generic' }] },
             { id: 9, name: 'ODP', standardItems: [{ id: 13, name: 'ODP 16 Core', brand: 'Generic' }] },
+            { id: 17, name: 'Patchcord', trackingMethod: 'bulk', unitOfMeasure: 'pcs', baseUnitOfMeasure: 'pcs', quantityPerUnit: 1, standardItems: [{ id: 22, name: 'Patchcord SC-UPC 3M', brand: 'Generic' }] },
+            { id: 18, name: 'Adaptor', trackingMethod: 'bulk', unitOfMeasure: 'pcs', baseUnitOfMeasure: 'pcs', quantityPerUnit: 1, standardItems: [{ id: 23, name: 'Adaptor 12V 1A', brand: 'Generic' }] },
         ]
     },
     {
@@ -180,17 +223,12 @@ export const initialAssetCategories: AssetCategory[] = [
 ];
 
 // --- GENERATION PIPELINE ---
-// This pipeline generates data in a specific order to ensure referential integrity.
-// 1. Generate master data (users, customers, categories).
-// 2. Generate requests based on master data.
-// 3. Generate assets based on *completed* requests.
-// 4. Generate handovers, dismantles, and maintenances based on existing assets and users/customers.
-
 let allAssets: Asset[] = [];
 let allHandovers: Handover[] = [];
 let allDismantles: Dismantle[] = [];
 let allRequests: Request[] = [];
 let allMaintenances: Maintenance[] = [];
+let allInstallations: Installation[] = [];
 let allNotifications: Notification[] = [];
 let allLoanRequests: LoanRequest[] = [];
 
@@ -205,7 +243,6 @@ initialAssetCategories.forEach(cat => cat.types.forEach(type => type.standardIte
     assetTemplates.push({ category: cat.name, type: type.name, ...item, price });
 })));
 
-// STEP 1: Generate Requests
 const generateRequests = () => {
     allRequests = Array.from({ length: REQUEST_COUNT }, (_, i) => {
         const user = initialMockUsers[i % initialMockUsers.length];
@@ -293,14 +330,9 @@ const generateRequests = () => {
         return request;
     });
 };
-generateRequests();
-export const initialMockRequests = allRequests;
 
-
-// STEP 2: Generate Assets
 const generateAssets = () => {
     let assetIdCounter = 1;
-    // Create assets from completed/arrived requests
     const assetGeneratingRequests = allRequests.filter(r => [ItemStatus.ARRIVED, ItemStatus.AWAITING_HANDOVER, ItemStatus.COMPLETED].includes(r.status));
     
     assetGeneratingRequests.forEach(req => {
@@ -310,7 +342,6 @@ const generateAssets = () => {
                 const id = `AST-${String(assetIdCounter++).padStart(4, '0')}`;
                 const template = assetTemplates.find(t => t.name === item.itemName && t.brand === item.itemTypeBrand);
                 const purchaseDetails = req.purchaseDetails?.[item.id];
-
                 const registrationDate = new Date(req.arrivalDate!);
                 registrationDate.setDate(registrationDate.getDate() + 1);
 
@@ -324,23 +355,16 @@ const generateAssets = () => {
                     purchaseDate: purchaseDetails?.purchaseDate || new Date().toISOString().split('T')[0],
                     purchasePrice: (purchaseDetails?.purchasePrice || template?.price || 0) / qty,
                     vendor: purchaseDetails?.vendor || VENDORS[0],
-                    poNumber: req.id,
-                    invoiceNumber: purchaseDetails?.invoiceNumber || null,
-                    warrantyEndDate: purchaseDetails?.warrantyEndDate || null,
-                    location: 'Gudang Inventori',
-                    currentUser: null,
-                    status: AssetStatus.IN_STORAGE,
-                    condition: AssetCondition.BRAND_NEW,
-                    woRoIntNumber: req.id,
-                    notes: null,
-                    attachments: [],
+                    poNumber: req.id, invoiceNumber: purchaseDetails?.invoiceNumber || null, warrantyEndDate: purchaseDetails?.warrantyEndDate || null,
+                    location: 'Gudang Inventori', currentUser: null,
+                    status: AssetStatus.IN_STORAGE, condition: AssetCondition.BRAND_NEW,
+                    woRoIntNumber: req.id, notes: null, attachments: [],
                     activityLog: [{ id: `log-${id}-create`, timestamp: registrationDate.toISOString(), user: 'Alice Johnson', action: 'Aset Dicatat', details: `Aset dicatat dari request ${req.id}.` }],
                 });
             }
         });
     });
 
-    // Add some extra random assets to reach ASSET_COUNT
     while (allAssets.length < ASSET_COUNT) {
          const id = `AST-${String(assetIdCounter++).padStart(4, '0')}`;
          const template = assetTemplates[allAssets.length % assetTemplates.length];
@@ -348,10 +372,8 @@ const generateAssets = () => {
             id, name: template.name, brand: template.brand, category: template.category, type: template.type,
             serialNumber: `SN-MANUAL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
             macAddress: `00:0A:95:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}:${Math.floor(Math.random()*255).toString(16).padStart(2,'0').toUpperCase()}`,
-            registrationDate: new Date().toISOString().split('T')[0],
-            recordedBy: 'Alice Johnson',
-            purchaseDate: new Date().toISOString().split('T')[0],
-            purchasePrice: template.price,
+            registrationDate: new Date().toISOString().split('T')[0], recordedBy: 'Alice Johnson',
+            purchaseDate: new Date().toISOString().split('T')[0], purchasePrice: template.price,
             vendor: VENDORS[0], poNumber: null, invoiceNumber: null, warrantyEndDate: null,
             location: 'Gudang Inventori', currentUser: null,
             status: AssetStatus.IN_STORAGE, condition: AssetCondition.BRAND_NEW,
@@ -360,72 +382,204 @@ const generateAssets = () => {
          });
     }
 };
-generateAssets();
-export const mockAssets = allAssets;
 
-
-// STEP 3: Generate Handovers, Dismantles, Installations, and Maintenances
-const generateActivities = () => {
-    const engineerUsers = initialMockUsers.filter(u => u.divisionId === 3);
+const generateInstallations = () => {
     const activeCustomers = mockCustomers.filter(c => c.status === CustomerStatus.ACTIVE);
-    
-    // Assign some assets to users and customers
-    allAssets.forEach((asset, i) => {
-        if (i % 3 === 0 && asset.status === AssetStatus.IN_STORAGE) { // Assign to user
-            const user = initialMockUsers[i % initialMockUsers.length];
-            if (user.role !== 'Super Admin') {
-                asset.currentUser = user.name;
-                asset.status = AssetStatus.IN_USE;
-                asset.location = `Digunakan oleh ${user.name}`;
-            }
-        } else if (i % 5 === 0 && asset.status === AssetStatus.IN_STORAGE && asset.category === 'Perangkat Pelanggan (CPE)' && activeCustomers.length > 0) { // Install at customer
-            const customer = activeCustomers[i % activeCustomers.length];
-            asset.currentUser = customer.id;
-            asset.status = AssetStatus.IN_USE;
-            asset.location = `Terpasang di Pelanggan ${customer.name}`;
-        }
-    });
+    const technicians = initialMockUsers.filter(u => u.divisionId === 3);
+    const ceo = initialMockUsers.find(u => u.role === 'Super Admin');
 
-    // Generate maintenances dynamically based on installed assets
-    for (let i = 0; i < 5; i++) {
-        const customerWithAsset = mockCustomers.find(c => allAssets.some(a => a.currentUser === c.id));
-        if (!customerWithAsset) continue;
+    const dropcoreAsset = allAssets.find(a => a.name === 'Kabel Dropcore 1 Core 150m');
+    const connectorAsset = allAssets.find(a => a.name === 'Konektor Fast Connector SC');
 
-        const oldAsset = allAssets.find(a => a.currentUser === customerWithAsset.id && a.category === 'Perangkat Pelanggan (CPE)');
-        if (!oldAsset) continue;
+    for (let i = 0; i < 20; i++) {
+        const installableAssets = allAssets.filter(a => {
+            const category = initialAssetCategories.find(c => c.name === a.category);
+            return category?.isCustomerInstallable && a.status === AssetStatus.IN_STORAGE && category.types.find(t => t.name === a.type)?.trackingMethod !== 'bulk';
+        });
 
-        const newAsset = allAssets.find(a => a.status === AssetStatus.IN_STORAGE && a.name === oldAsset.name && !allMaintenances.some(m => m.replacements?.some(r => r.newAssetId === a.id)));
-        if (!newAsset) continue;
+        if (installableAssets.length === 0 || activeCustomers.length === 0 || technicians.length === 0) break;
 
-        const maintenanceDate = new Date(new Date().setDate(NOW.getDate() - (5 - i)));
-        const docNumber = generateDocumentNumber('MNT', allMaintenances, maintenanceDate);
+        const customer = activeCustomers[i % activeCustomers.length];
+        const technician = technicians[i % technicians.length];
+        const installationDate = new Date(new Date().setDate(NOW.getDate() - (40 - i)));
         
-        const materialAsset = allAssets.find(a => a.name === 'Konektor Fast Connector SC' && a.status === AssetStatus.IN_STORAGE);
+        const assetToInstall = installableAssets[0];
+        const assetsInstalled: InstallationAsset[] = [{
+            assetId: assetToInstall.id, assetName: assetToInstall.name, serialNumber: assetToInstall.serialNumber,
+        }];
+        
+        const assetIndex = allAssets.findIndex(a => a.id === assetToInstall.id);
+        if (assetIndex > -1) {
+            allAssets[assetIndex].status = AssetStatus.IN_USE;
+            allAssets[assetIndex].currentUser = customer.id;
+            allAssets[assetIndex].location = `Terpasang di: ${customer.address}`;
+            allAssets[assetIndex].activityLog.push({ id: `log-inst-${assetToInstall.id}`, timestamp: installationDate.toISOString(), user: technician.name, action: 'Instalasi Pelanggan', details: `Dipasang untuk pelanggan ${customer.name} (${customer.id}).` });
+        }
 
-        allMaintenances.push({
-            id: `MNT-00${i + 1}`, docNumber, maintenanceDate: maintenanceDate.toISOString(),
-            technician: engineerUsers[i % engineerUsers.length].name,
-            customerId: customerWithAsset.id, customerName: customerWithAsset.name,
-            assets: [{ assetId: oldAsset.id, assetName: oldAsset.name }],
-            problemDescription: 'Indikator LOS berkedip, koneksi intermittent.',
-            actionsTaken: 'Kabel dropcore disambung ulang, unit ONT diganti.',
-            workTypes: ['Ganti Perangkat', 'Splicing FO'], priority: 'Tinggi', status: ItemStatus.COMPLETED,
-            completedBy: 'Alice Johnson', completionDate: new Date(new Date(maintenanceDate).setDate(maintenanceDate.getDate() + 1)).toISOString(),
-            attachments: [],
-            materialsUsed: [{ 
-                materialAssetId: materialAsset?.id,
-                itemName: 'Konektor Fast Connector SC', 
-                brand: 'Generic', 
-                quantity: 2 
-            }],
-            replacements: [{ oldAssetId: oldAsset.id, retrievedAssetCondition: AssetCondition.MAJOR_DAMAGE, newAssetId: newAsset.id }]
+        const materialsUsed: InstallationMaterial[] = [
+            { materialAssetId: dropcoreAsset?.id, itemName: 'Kabel Dropcore 1 Core 150m', brand: 'FiberHome', quantity: Math.floor(Math.random() * 50) + 20, unit: 'meter' },
+            { materialAssetId: connectorAsset?.id, itemName: 'Konektor Fast Connector SC', brand: 'Generic', quantity: Math.floor(Math.random() * 4) + 2, unit: 'pcs' }
+        ];
+        
+        const customerIndex = mockCustomers.findIndex(c => c.id === customer.id);
+        if (customerIndex > -1) {
+            const customerToUpdate = mockCustomers[customerIndex];
+            if (!customerToUpdate.installedMaterials) customerToUpdate.installedMaterials = [];
+            materialsUsed.forEach(newMat => {
+                const existingMat = customerToUpdate.installedMaterials!.find(em => em.itemName === newMat.itemName && em.brand === newMat.brand);
+                if (existingMat) existingMat.quantity += newMat.quantity;
+                else customerToUpdate.installedMaterials!.push({ ...newMat, installationDate: installationDate.toISOString().split('T')[0] });
+            });
+        }
+
+        const docNumber = generateDocumentNumber('INST', allInstallations, installationDate);
+        allInstallations.push({
+            id: `INST-${String(i + 1).padStart(3, '0')}`, 
+            docNumber, 
+            requestNumber: i % 3 === 0 ? `REQ-${String(i + 10).padStart(3, '0')}` : undefined,
+            installationDate: installationDate.toISOString().split('T')[0],
+            technician: technician.name, 
+            customerId: customer.id, 
+            customerName: customer.name,
+            assetsInstalled, 
+            materialsUsed, 
+            status: ItemStatus.COMPLETED, 
+            notes: 'Instalasi berjalan lancar.',
+            acknowledger: ceo?.name,
+            createdBy: technician.name, // Assume the technician creates the form
         });
     }
 };
-generateActivities();
 
+const generateMaintenances = () => {
+    const technicians = initialMockUsers.filter(u => u.divisionId === 3);
+
+    for (let i = 0; i < 10; i++) {
+        const assetsInUseAtCustomer = allAssets.filter(a => a.status === AssetStatus.IN_USE && a.currentUser?.startsWith('TMI-'));
+        if (assetsInUseAtCustomer.length === 0 || technicians.length === 0) break;
+
+        const oldAsset = assetsInUseAtCustomer[i % assetsInUseAtCustomer.length];
+        const customer = mockCustomers.find(c => c.id === oldAsset.currentUser);
+        const newAsset = allAssets.find(a => a.status === AssetStatus.IN_STORAGE && a.name === oldAsset.name && !allMaintenances.some(m => m.replacements?.some(r => r.newAssetId === a.id)));
+        
+        if (!customer || !newAsset) continue;
+
+        const maintenanceDate = new Date(new Date().setDate(NOW.getDate() - (15 - i)));
+        const docNumber = generateDocumentNumber('MNT', allMaintenances, maintenanceDate);
+        
+        allMaintenances.push({
+            id: `MNT-${String(i + 1).padStart(3, '0')}`, 
+            docNumber, 
+            requestNumber: i % 2 === 0 ? `REQ-${String(i + 20).padStart(3, '0')}` : undefined,
+            maintenanceDate: maintenanceDate.toISOString(),
+            technician: technicians[i % technicians.length].name,
+            customerId: customer.id, customerName: customer.name,
+            assets: [{ assetId: oldAsset.id, assetName: oldAsset.name }],
+            problemDescription: 'Koneksi intermittent, indikator LOS berkedip.',
+            actionsTaken: 'Pergantian unit ONT.', workTypes: ['Ganti Perangkat'], priority: 'Tinggi', status: ItemStatus.COMPLETED,
+            completedBy: 'Alice Johnson', completionDate: new Date(new Date(maintenanceDate).setDate(maintenanceDate.getDate() + 1)).toISOString(),
+            attachments: [],
+            materialsUsed: [{ itemName: 'Konektor Fast Connector SC', brand: 'Generic', quantity: 2, materialAssetId: allAssets.find(a => a.name.includes('Konektor'))?.id }],
+            replacements: [{ oldAssetId: oldAsset.id, retrievedAssetCondition: AssetCondition.MAJOR_DAMAGE, newAssetId: newAsset.id }]
+        });
+        
+        // Update old asset
+        const oldAssetIndex = allAssets.findIndex(a => a.id === oldAsset.id);
+        if (oldAssetIndex > -1) {
+            allAssets[oldAssetIndex].status = AssetStatus.IN_STORAGE;
+            allAssets[oldAssetIndex].condition = AssetCondition.MAJOR_DAMAGE;
+            allAssets[oldAssetIndex].currentUser = null;
+            allAssets[oldAssetIndex].location = 'Gudang Inventori';
+        }
+
+        // Update new asset
+        const newAssetIndex = allAssets.findIndex(a => a.id === newAsset.id);
+        if (newAssetIndex > -1) {
+            allAssets[newAssetIndex].status = AssetStatus.IN_USE;
+            allAssets[newAssetIndex].currentUser = customer.id;
+            allAssets[newAssetIndex].location = `Terpasang di: ${customer.address}`;
+        }
+    }
+};
+
+const generateDismantles = () => {
+    const technicians = initialMockUsers.filter(u => u.divisionId === 3);
+    
+    for (let i = 0; i < 5; i++) {
+        const assetsToDismantle = allAssets.filter(a => a.status === AssetStatus.IN_USE && a.currentUser?.startsWith('TMI-') && !allDismantles.some(d => d.assetId === a.id));
+        if (assetsToDismantle.length === 0 || technicians.length === 0) break;
+
+        const asset = assetsToDismantle[0];
+        const customer = mockCustomers.find(c => c.id === asset.currentUser);
+        if (!customer) continue;
+
+        const dismantleDate = new Date(new Date().setDate(NOW.getDate() - (5 - i)));
+        const docNumber = generateDocumentNumber('DSM', allDismantles, dismantleDate);
+
+        allDismantles.push({
+            id: `DSM-${String(i + 1).padStart(3, '0')}`, docNumber, assetId: asset.id, assetName: asset.name,
+            dismantleDate: dismantleDate.toISOString(), technician: technicians[i % technicians.length].name,
+            customerName: customer.name, customerId: customer.id, customerAddress: customer.address,
+            retrievedCondition: AssetCondition.USED_OKAY, notes: 'Pelanggan berhenti berlangganan.',
+            acknowledger: 'Alice Johnson', status: ItemStatus.COMPLETED, attachments: [],
+        });
+
+        const assetIndex = allAssets.findIndex(a => a.id === asset.id);
+        if (assetIndex > -1) {
+            allAssets[assetIndex].status = AssetStatus.IN_STORAGE;
+            allAssets[assetIndex].condition = AssetCondition.USED_OKAY;
+            allAssets[assetIndex].currentUser = null;
+            allAssets[assetIndex].location = 'Gudang Inventori';
+            allAssets[assetIndex].isDismantled = true;
+            allAssets[assetIndex].dismantleInfo = { customerId: customer.id, customerName: customer.name, dismantleDate: dismantleDate.toISOString(), dismantleId: `DSM-00${i + 1}` };
+        }
+    }
+};
+
+const assignInitialAssetsToUsers = (users: User[], assets: Asset[]) => {
+    const assignments = [
+        { userName: 'Citra Lestari', assetName: 'Laptop ThinkPad T480' },
+        { userName: 'Manager NOC', assetName: 'PC Rakitan Core i7' },
+        { userName: 'Alice Johnson', assetName: 'Fusion Splicer 90S' },
+        { userName: 'Citra Lestari', assetName: 'Optical Power Meter' },
+        { userName: 'Manager NOC', assetName: 'Monitor LG 24 inch' },
+    ];
+
+    assignments.forEach(assignment => {
+        const user = users.find(u => u.name === assignment.userName);
+        if (!user) return;
+
+        const assetIndex = assets.findIndex(a => a.name === assignment.assetName && a.status === AssetStatus.IN_STORAGE);
+        if (assetIndex === -1) return;
+
+        assets[assetIndex].status = AssetStatus.IN_USE;
+        assets[assetIndex].currentUser = user.name;
+        assets[assetIndex].location = `Digunakan oleh ${user.name}`;
+        assets[assetIndex].activityLog.push({
+            id: `log-assign-${assets[assetIndex].id}`,
+            timestamp: new Date().toISOString(),
+            user: 'System',
+            action: 'Serah Terima Internal',
+            details: `Aset diserahkan kepada ${user.name} saat inisialisasi data.`
+        });
+    });
+};
+
+
+// --- FINAL EXECUTION ---
+generateRequests();
+generateAssets();
+generateInstallations();
+generateMaintenances();
+generateDismantles();
+assignInitialAssetsToUsers(initialMockUsers, allAssets);
+
+// --- EXPORTS ---
+export const initialMockRequests = allRequests;
+export const mockAssets = allAssets;
 export const mockHandovers = allHandovers;
 export const mockDismantles = allDismantles;
 export const mockMaintenances = allMaintenances;
+export const mockInstallations = allInstallations;
 export const mockNotifications = allNotifications;
 export const mockLoanRequests = allLoanRequests;

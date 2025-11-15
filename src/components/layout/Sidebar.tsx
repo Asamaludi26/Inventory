@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-import { Page, User, UserRole } from '../../types';
+import { Page, User, Permission } from '../../types';
+import { hasPermission } from '../../utils/permissions';
 import { DashboardIcon } from '../icons/DashboardIcon';
 import { RequestIcon } from '../icons/RequestIcon';
 import { RegisterIcon } from '../icons/RegisterIcon';
@@ -18,6 +20,7 @@ import { WrenchIcon } from '../icons/WrenchIcon';
 import { FileSignatureIcon } from '../icons/FileSignatureIcon';
 import { FileTextIcon } from '../icons/FileTextIcon';
 import { JournalCheckIcon } from '../icons/JournalCheckIcon';
+import { UserCogIcon } from '../icons/UserCogIcon';
 
 interface SidebarProps {
   currentUser: User;
@@ -31,7 +34,7 @@ type MenuItem = {
   id: string; // Unique identifier for the item itself
   label: string;
   icon: React.FC<{ className?: string }>;
-  roles?: UserRole[];
+  permission?: Permission;
   children?: MenuItem[];
   page?: Page; // The page ID it navigates to, if different from id
   filter?: Record<string, any>; // Filters to pass to the page
@@ -40,47 +43,49 @@ type MenuItem = {
 };
 
 const allMenuItems: MenuItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
+  { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, permission: 'dashboard:view' },
   {
     id: 'assetManagement',
     label: 'Pusat Aset',
     icon: AssetIcon,
+    permission: 'assets:view', // A user needs at least view permission to see this parent menu
     children: [
-      { id: 'registration', label: 'Catat Aset', icon: RegisterIcon, roles: ['Admin Logistik', 'Super Admin'] },
-      { id: 'stock', label: 'Stok Aset', icon: BoxIcon },
+      { id: 'registration', label: 'Catat Aset', icon: RegisterIcon, permission: 'assets:create' },
+      { id: 'stock', label: 'Stok Aset', icon: BoxIcon, permission: 'assets:view' },
       {
         id: 'request-parent',
         label: 'Request Aset',
         icon: RequestIcon,
+        permission: 'requests:create',
         children: [
-          { id: 'request-new', page: 'request', label: 'Request Baru', icon: RequestIcon },
-          { id: 'request-loan', page: 'request-pinjam', label: 'Request Pinjam', icon: JournalCheckIcon },
+          { id: 'request-new', page: 'request', label: 'Request Baru', icon: RequestIcon, permission: 'requests:view:own' },
+          { id: 'request-loan', page: 'request-pinjam', label: 'Request Pinjam', icon: JournalCheckIcon, permission: 'loan-requests:view:own' },
         ],
       },
-      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon },
-      { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, roles: ['Admin Logistik', 'Super Admin'] },
+      { id: 'handover', label: 'Handover Aset', icon: HandoverIcon, permission: 'assets:handover' },
+      { id: 'repair', label: 'Perbaikan Aset', icon: WrenchIcon, permission: 'assets:repair:manage' },
     ],
   },
   {
     id: 'customerManagement',
     label: 'Manajemen Pelanggan',
     icon: CustomerIcon,
-    roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'],
+    permission: 'customers:view',
     children: [
-      { id: 'customers', label: 'Daftar Pelanggan', icon: UsersIcon },
-      { id: 'customer-installation-form', page: 'customer-installation-form', label: 'Form Instalasi', icon: FileSignatureIcon },
-      { id: 'customer-maintenance-form', page: 'customer-maintenance-form', label: 'Manajemen Maintenance', icon: WrenchIcon },
-      { id: 'customer-dismantle', page: 'customer-dismantle', label: 'Data Dismantle', icon: DismantleIcon },
+      { id: 'customers', label: 'Daftar Pelanggan', icon: UsersIcon, permission: 'customers:view' },
+      { id: 'customer-installation-form', page: 'customer-installation-form', label: 'Manajemen Instalasi', icon: FileSignatureIcon, permission: 'assets:install' },
+      { id: 'customer-maintenance-form', page: 'customer-maintenance-form', label: 'Manajemen Maintenance', icon: WrenchIcon, permission: 'assets:repair:manage' },
+      { id: 'customer-dismantle', page: 'customer-dismantle', label: 'Data Dismantle', icon: DismantleIcon, permission: 'assets:dismantle' },
     ],
   },
   {
     id: 'settings',
     label: 'Pengaturan',
     icon: SettingsIcon,
-    roles: ['Super Admin', 'Admin Logistik', 'Admin Purchase'],
     children: [
-        { id: 'settings-pengguna', page: 'pengaturan-pengguna', label: 'Akun & Divisi', icon: UsersIcon, roles: ['Super Admin'] },
-        { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon, roles: ['Admin Logistik', 'Admin Purchase', 'Super Admin'] },
+        { id: 'settings-akun', page: 'pengaturan-akun', label: 'Kelola Akun', icon: UserCogIcon, permission: 'account:manage' },
+        { id: 'settings-pengguna', page: 'pengaturan-pengguna', label: 'Akun & Divisi', icon: UsersIcon, permission: 'users:view' },
+        { id: 'settings-kategori', page: 'kategori', label: 'Kategori & Model', icon: CategoryIcon, permission: 'categories:manage' },
     ]
   },
 ];
@@ -152,35 +157,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
     });
 
     const menuItems = React.useMemo(() => {
-        return allMenuItems.filter(item => {
-            if (item.roles) {
-                return item.roles.includes(currentUser.role);
-            }
-            return true;
-        }).map(item => {
-            if (item.children) {
-                const visibleChildren = item.children.filter(child => {
-                    if (child.roles) {
-                        return child.roles.includes(currentUser.role);
+        const filterItems = (items: MenuItem[]): MenuItem[] => {
+            return items
+                .filter(item => {
+                    // If an item has a permission, check it. If not, it's public.
+                    if (item.permission) {
+                        return hasPermission(currentUser, item.permission);
+                    }
+                    // For parent menus without a specific permission, show if any child is visible.
+                    if(item.children){
+                        return item.children.some(child => child.permission ? hasPermission(currentUser, child.permission) : true);
                     }
                     return true;
-                }).map(child => { // Recursive check for grandchildren
-                    if (child.children) {
-                        const visibleGrandchildren = child.children.filter(grandchild => {
-                            if (grandchild.roles) {
-                                return grandchild.roles.includes(currentUser.role);
-                            }
-                            return true;
-                        });
-                        return { ...child, children: visibleGrandchildren };
+                })
+                .map(item => {
+                    if (item.children) {
+                        return { ...item, children: filterItems(item.children) };
                     }
-                    return child;
-                });
-                return { ...item, children: visibleChildren };
-            }
-            return item;
-        });
-    }, [currentUser.role]);
+                    return item;
+                })
+                .filter(item => !item.children || item.children.length > 0); // Hide empty parent menus
+        };
+
+        return filterItems(allMenuItems);
+    }, [currentUser]);
 
 
     useEffect(() => {
@@ -226,7 +226,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                                 key={item.id} 
                                 item={item}
                                 activePage={activePage} 
-                                onClick={() => handleNavClick(item.id as Page)}
+                                onClick={() => handleNavClick((item.page || item.id) as Page)}
                             />
                         );
                     }

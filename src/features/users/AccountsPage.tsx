@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Division, User, UserRole, Page } from '../../types';
+import { Division, User, UserRole, Page, Asset, Request, PreviewData } from '../../types';
 import Modal from '../../components/ui/Modal';
 import { PencilIcon } from '../../components/icons/PencilIcon';
 import { useNotification } from '../../providers/NotificationProvider';
@@ -17,20 +18,21 @@ import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
 import { SearchIcon } from '../../components/icons/SearchIcon';
 import { CloseIcon } from '../../components/icons/CloseIcon';
 import { PaginationControls } from '../../components/ui/PaginationControls';
-import { Avatar } from '../../components/ui/Avatar';
 import { ExclamationTriangleIcon } from '../../components/icons/ExclamationTriangleIcon';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { FilterIcon } from '../../components/icons/FilterIcon';
+import { hasPermission } from '../../utils/permissions';
 
 type View = 'users' | 'divisions';
 
 interface AccountsPageProps {
     currentUser: User;
     users: User[];
-    setUsers: React.Dispatch<React.SetStateAction<User[]>>;
     divisions: Division[];
-    setDivisions: React.Dispatch<React.SetStateAction<Division[]>>;
     setActivePage: (page: Page, initialState?: any) => void;
+    assets: Asset[];
+    requests: Request[];
+    onShowPreview: (data: PreviewData) => void;
 }
 
 const getRoleClass = (role: UserRole) => {
@@ -45,179 +47,8 @@ const getRoleClass = (role: UserRole) => {
 
 const userRoles: UserRole[] = ['Staff', 'Leader', 'Admin Logistik', 'Admin Purchase', 'Super Admin'];
 
-
-const UserForm: React.FC<{ 
-    divisions: Division[], 
-    onSave: (user: Omit<User, 'id'>, id?: number) => void,
-    onClose: () => void,
-    editingUser: User | null 
-}> = ({ divisions, onSave, onClose, editingUser }) => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [selectedRole, setSelectedRole] = useState<UserRole>('Staff');
-    const [selectedDivisionId, setSelectedDivisionId] = useState<string>(divisions[0]?.id.toString() || '');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const addNotification = useNotification();
-    
-    const inventoryDivisionId = divisions.find(d => d.name === 'Logistik')?.id.toString();
-
-    useEffect(() => {
-        if (editingUser) {
-            setName(editingUser.name);
-            setEmail(editingUser.email);
-            setSelectedRole(editingUser.role);
-            setSelectedDivisionId(editingUser.divisionId?.toString() || '');
-        } else {
-            setName('');
-            setEmail('');
-            setSelectedRole('Staff');
-            setSelectedDivisionId(divisions[0]?.id.toString() || '');
-        }
-    }, [editingUser, divisions]);
-
-    useEffect(() => {
-        if (selectedRole === 'Admin Logistik' && inventoryDivisionId) {
-            setSelectedDivisionId(inventoryDivisionId);
-        }
-    }, [selectedRole, inventoryDivisionId]);
-
-    const handleDivisionChange = (divisionId: string) => {
-        if (divisionId !== inventoryDivisionId && selectedRole === 'Admin Logistik') {
-            setSelectedRole('Staff');
-        }
-        setSelectedDivisionId(divisionId);
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name || !email) {
-            addNotification('Nama dan Email wajib diisi.', 'error');
-            return;
-        }
-        setIsSubmitting(true);
-        setTimeout(() => { // Simulate API Call
-            onSave({
-                name,
-                email,
-                role: selectedRole,
-                divisionId: selectedRole === 'Super Admin' ? null : parseInt(selectedDivisionId),
-            }, editingUser?.id);
-            setIsSubmitting(false);
-        }, 1000);
-    };
-    
-    return (
-        <form onSubmit={handleSubmit}>
-            <div className="p-6 space-y-6">
-                <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nama Lengkap</label>
-                    <div className="mt-1">
-                        <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
-                    </div>
-                </div>
-                <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-                    <div className="mt-1">
-                        <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
-                    </div>
-                </div>
-                <div>
-                    <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
-                    <div className="mt-1">
-                        <CustomSelect
-                             options={userRoles.map(r => ({ value: r, label: r }))}
-                             value={selectedRole}
-                             onChange={(value) => setSelectedRole(value as UserRole)}
-                        />
-                    </div>
-                    {selectedRole === 'Admin Logistik' && <p className="mt-2 text-xs text-gray-500">Role Admin Logistik hanya berlaku untuk Divisi Logistik.</p>}
-                </div>
-                <div>
-                    <label htmlFor="division" className="block text-sm font-medium text-gray-700">Divisi</label>
-                    <div className="mt-1">
-                        <CustomSelect
-                             options={selectedRole === 'Super Admin'
-                                ? [{ value: '', label: 'N/A' }]
-                                : divisions.map(d => ({ value: d.id.toString(), label: d.name }))
-                            }
-                             value={selectedDivisionId}
-                            onChange={handleDivisionChange}
-                            disabled={selectedRole === 'Super Admin' || selectedRole === 'Admin Logistik'}
-                            placeholder="Pilih Divisi"
-                        />
-                    </div>
-                </div>
-            </div>
-            <div className="flex items-center justify-end px-6 py-4 space-x-3 bg-gray-50 border-t border-gray-200 rounded-b-xl">
-                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
-                    {isSubmitting && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                    {editingUser ? 'Simpan Perubahan' : 'Simpan Akun'}
-                </button>
-            </div>
-        </form>
-    );
-};
-
-const DivisionForm: React.FC<{ 
-    onSave: (division: Omit<Division, 'id'>, id?: number) => void,
-    onClose: () => void,
-    editingDivision: Division | null
-}> = ({ onSave, onClose, editingDivision }) => {
-    const [name, setName] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const addNotification = useNotification();
-
-    useEffect(() => {
-        if(editingDivision) {
-            setName(editingDivision.name);
-        } else {
-            setName('');
-        }
-    }, [editingDivision]);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name) {
-            addNotification('Nama divisi wajib diisi.', 'error');
-            return;
-        }
-        setIsSubmitting(true);
-        setTimeout(() => {
-            onSave({ name }, editingDivision?.id);
-            setIsSubmitting(false);
-        }, 1000);
-    };
-
-    return (
-         <form onSubmit={handleSubmit}>
-            <div className="p-6">
-                <div>
-                    <label htmlFor="divisionName" className="block text-sm font-medium text-gray-700">Nama Divisi</label>
-                    <div className="mt-1">
-                        <input type="text" id="divisionName" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" placeholder="Contoh: Finance"/>
-                    </div>
-                </div>
-            </div>
-            <div className="flex items-center justify-end px-6 py-4 space-x-3 bg-gray-50 border-t border-gray-200 rounded-b-xl">
-                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                <button type="submit" disabled={isSubmitting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
-                    {isSubmitting && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                    {editingDivision ? 'Simpan Perubahan' : 'Simpan Divisi'}
-                </button>
-            </div>
-        </form>
-    );
-};
-
-
-export function AccountsPage({ currentUser, users, setUsers, divisions, setDivisions, setActivePage }: AccountsPageProps): React.ReactElement {
+export function AccountsPage({ currentUser, users, divisions, setActivePage, assets, requests, onShowPreview }: AccountsPageProps): React.ReactElement {
     const [activeView, setActiveView] = useState<View>('users');
-    const [isUserFormModalOpen, setIsUserFormModalOpen] = useState(false);
-    const [isDivisionFormModalOpen, setIsDivisionFormModalOpen] = useState(false);
-    const [userToEdit, setUserToEdit] = useState<User | null>(null);
-    const [divisionToEdit, setDivisionToEdit] = useState<Division | null>(null);
-
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [divisionToDelete, setDivisionToDelete] = useState<Division | null>(null);
     const [bulkDeleteConfirmation, setBulkDeleteConfirmation] = useState<View | null>(null);
@@ -270,8 +101,25 @@ export function AccountsPage({ currentUser, users, setUsers, divisions, setDivis
         setIsFilterPanelOpen(false);
     };
     
+    const usersWithData = useMemo(() => users.map(user => ({
+        ...user,
+        assetCount: assets.filter(a => a.currentUser === user.name).length,
+    })), [users, assets]);
+
+    const divisionsWithData = useMemo(() => divisions.map(division => {
+        const members = users.filter(u => u.divisionId === division.id);
+        const memberNames = members.map(m => m.name);
+        const totalAssets = assets.filter(a => a.currentUser && memberNames.includes(a.currentUser)).length;
+        return {
+            ...division,
+            memberCount: members.length,
+            totalAssets: totalAssets,
+        };
+    }), [divisions, users, assets]);
+
+
     const filteredUsers = useMemo(() => {
-        return users
+        return usersWithData
             .filter(user => {
                 const searchLower = userSearchQuery.toLowerCase();
                 return (
@@ -281,15 +129,15 @@ export function AccountsPage({ currentUser, users, setUsers, divisions, setDivis
             })
             .filter(user => userFilters.role ? user.role === userFilters.role : true)
             .filter(user => userFilters.divisionId ? user.divisionId?.toString() === userFilters.divisionId : true);
-    }, [users, userSearchQuery, userFilters]);
+    }, [usersWithData, userSearchQuery, userFilters]);
 
     const filteredDivisions = useMemo(() => {
-        return divisions.filter(d => d.name.toLowerCase().includes(divisionSearchQuery.toLowerCase()));
-    }, [divisions, divisionSearchQuery]);
+        return divisionsWithData.filter(d => d.name.toLowerCase().includes(divisionSearchQuery.toLowerCase()));
+    }, [divisionsWithData, divisionSearchQuery]);
 
 
-    const { items: sortedUsers, requestSort: requestUserSort, sortConfig: userSortConfig } = useSortableData<User>(filteredUsers, { key: 'name', direction: 'ascending' });
-    const { items: sortedDivisions, requestSort: requestDivisionSort, sortConfig: divisionSortConfig } = useSortableData<Division>(filteredDivisions, { key: 'name', direction: 'ascending' });
+    const { items: sortedUsers, requestSort: requestUserSort, sortConfig: userSortConfig } = useSortableData(filteredUsers, { key: 'name', direction: 'ascending' });
+    const { items: sortedDivisions, requestSort: requestDivisionSort, sortConfig: divisionSortConfig } = useSortableData(filteredDivisions, { key: 'name', direction: 'ascending' });
     
     const totalUserItems = sortedUsers.length;
     const totalUserPages = Math.ceil(totalUserItems / itemsPerPage);
@@ -370,154 +218,7 @@ export function AccountsPage({ currentUser, users, setUsers, divisions, setDivis
              exportToCSV(dataToExport, 'daftar_divisi');
         }
     }
-
-    const handleOpenUserForm = (user: User | null) => {
-        setUserToEdit(user);
-        setIsUserFormModalOpen(true);
-    };
-
-    const handleOpenDivisionForm = (division: Division | null) => {
-        setDivisionToEdit(division);
-        setIsDivisionFormModalOpen(true);
-    };
-
-    const handleSaveUser = (userData: Omit<User, 'id'>, id?: number) => {
-        if(id) { // Update
-            setUsers(prev => prev.map(u => u.id === id ? { ...u, ...userData } : u));
-            addNotification('Akun berhasil diperbarui.', 'success');
-        } else { // Create
-            const newUser = { ...userData, id: Math.max(...users.map(u => u.id), 0) + 1 };
-            setUsers(prev => [newUser, ...prev]);
-            addNotification('Akun baru berhasil ditambahkan.', 'success');
-        }
-        setIsUserFormModalOpen(false);
-        setUserToEdit(null);
-    };
-
-    const handleSaveDivision = (divisionData: Omit<Division, 'id'>, id?: number) => {
-        if(id) { // Update
-            setDivisions(prev => prev.map(d => d.id === id ? { ...d, ...divisionData } : d));
-            addNotification('Divisi berhasil diperbarui.', 'success');
-        } else { // Create
-            const newDivision = { ...divisionData, id: Math.max(...divisions.map(d => d.id), 0) + 1 };
-            setDivisions(prev => [newDivision, ...prev]);
-            addNotification('Divisi baru berhasil ditambahkan.', 'success');
-        }
-        setIsDivisionFormModalOpen(false);
-        setDivisionToEdit(null);
-    };
     
-    const handleConfirmUserDelete = () => {
-        if (!userToDelete) return;
-
-        if (userToDelete.role === 'Super Admin' || userToDelete.id === currentUser.id) {
-            addNotification('Akun Super Admin atau akun Anda sendiri tidak dapat dihapus.', 'error');
-            setUserToDelete(null);
-            return;
-        }
-        
-        setIsLoading(true);
-        setTimeout(() => {
-            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-            addNotification(`Akun ${userToDelete.name} berhasil dihapus.`, 'success');
-            setUserToDelete(null);
-            setIsLoading(false);
-        }, 1000);
-    };
-
-    const handleConfirmDivisionDelete = () => {
-        if (!divisionToDelete) return;
-
-        const isDivisionInUse = users.some(user => user.divisionId === divisionToDelete.id);
-        if (isDivisionInUse) {
-            addNotification('Divisi tidak dapat dihapus karena masih memiliki anggota.', 'error');
-            setDivisionToDelete(null);
-            return;
-        }
-        
-        setIsLoading(true);
-        setTimeout(() => {
-            setDivisions(prev => prev.filter(d => d.id !== divisionToDelete.id));
-            addNotification(`Divisi ${divisionToDelete.name} berhasil dihapus.`, 'success');
-            setDivisionToDelete(null);
-            setIsLoading(false);
-        }, 1000);
-    };
-
-    const handleBulkDelete = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            if (bulkDeleteConfirmation === 'users') {
-                const deletableUserIds = selectedUserIds.filter(id => {
-                    const user = users.find(u => u.id === id);
-                    return user && user.role !== 'Super Admin' && user.id !== currentUser.id;
-                });
-                
-                setUsers(prev => prev.filter(u => !deletableUserIds.includes(u.id)));
-
-                let message = `${deletableUserIds.length} akun berhasil dihapus.`;
-                if (skippableUsersCount > 0) {
-                    message += ` ${skippableUsersCount} akun dilewati (Super Admin / akun Anda).`;
-                }
-                addNotification(message, 'success');
-            } else if (bulkDeleteConfirmation === 'divisions') {
-                const deletableDivisionIds = selectedDivisionIds.filter(id => !users.some(u => u.divisionId === id));
-                
-                setDivisions(prev => prev.filter(d => !deletableDivisionIds.includes(d.id)));
-
-                let message = `${deletableDivisionIds.length} divisi berhasil dihapus.`;
-                if (skippableDivisionsCount > 0) {
-                    message += ` ${skippableDivisionsCount} divisi dilewati karena masih memiliki anggota.`;
-                }
-                 addNotification(message, 'success');
-            }
-            
-            setBulkDeleteConfirmation(null);
-            handleCancelBulkMode();
-            setIsLoading(false);
-        }, 1000);
-    };
-
-    const handleBulkMoveDivision = () => {
-        if (!targetDivisionId) {
-            addNotification('Pilih divisi tujuan.', 'error');
-            return;
-        }
-        setIsLoading(true);
-        setTimeout(() => {
-            setUsers(prev => prev.map(u => selectedUserIds.includes(u.id) ? { ...u, divisionId: targetDivisionId } : u));
-            addNotification(`${selectedUserIds.length} akun berhasil dipindahkan.`, 'success');
-            setIsLoading(false);
-            setIsMoveDivisionModalOpen(false);
-            handleCancelBulkMode();
-        }, 1000);
-    };
-
-    const handleBulkChangeRole = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            setUsers(prev => prev.map(u => {
-                if (selectedUserIds.includes(u.id)) {
-                    const updatedUser = { ...u, role: targetRole };
-                    if (targetRole === 'Super Admin') {
-                        updatedUser.divisionId = null;
-                    } else if (targetRole === 'Admin Logistik') {
-                        const inventoryDivision = divisions.find(d => d.name === 'Logistik');
-                        if (inventoryDivision) {
-                            updatedUser.divisionId = inventoryDivision.id;
-                        }
-                    }
-                    return updatedUser;
-                }
-                return u;
-            }));
-            addNotification(`${selectedUserIds.length} akun berhasil diubah rolenya.`, 'success');
-            setIsLoading(false);
-            setIsChangeRoleModalOpen(false);
-            handleCancelBulkMode();
-        }, 1000);
-    };
-
     const longPressHandlers = useLongPress(() => setIsBulkSelectMode(true), 500);
 
     const SortableUserHeader: React.FC<any> = ({ children, columnKey, sortConfig, requestSort, className }) => {
@@ -564,12 +265,14 @@ export function AccountsPage({ currentUser, users, setUsers, divisions, setDivis
                     <button onClick={handleExport} className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border rounded-lg shadow-sm hover:bg-gray-50">
                         <ExportIcon className="w-4 h-4"/> Export CSV
                     </button>
-                    <button
-                        onClick={() => activeView === 'users' ? handleOpenUserForm(null) : handleOpenDivisionForm(null)}
-                        className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover"
-                    >
-                        {activeView === 'users' ? 'Tambah Akun' : 'Tambah Divisi'}
-                    </button>
+                    {hasPermission(currentUser, activeView === 'users' ? 'users:create' : 'divisions:manage') && (
+                        <button
+                            onClick={() => activeView === 'users' ? setActivePage('user-form') : setActivePage('division-form')}
+                            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover"
+                        >
+                            {activeView === 'users' ? 'Tambah Akun' : 'Tambah Divisi'}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -652,29 +355,32 @@ export function AccountsPage({ currentUser, users, setUsers, divisions, setDivis
                                         <SortableUserHeader columnKey="email" sortConfig={userSortConfig} requestSort={requestUserSort}>Email</SortableUserHeader>
                                         <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Divisi</th>
                                         <SortableUserHeader columnKey="role" sortConfig={userSortConfig} requestSort={requestUserSort}>Role</SortableUserHeader>
+                                        <SortableUserHeader columnKey="assetCount" sortConfig={userSortConfig} requestSort={requestUserSort} className="justify-center">Jumlah Aset</SortableUserHeader>
                                         <th className="relative px-6 py-3"><span className="sr-only">Aksi</span></th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {paginatedUsers.map(user => (
-                                        <tr key={user.id} {...longPressHandlers} onClick={() => isBulkSelectMode && setSelectedUserIds(prev => prev.includes(user.id) ? prev.filter(id => id !== user.id) : [...prev, user.id])} className={`cursor-pointer transition-colors ${selectedUserIds.includes(user.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                        <tr key={user.id} {...longPressHandlers} onClick={() => isBulkSelectMode ? setSelectedUserIds(prev => prev.includes(user.id) ? prev.filter(id => id !== user.id) : [...prev, user.id]) : setActivePage('user-detail', { userId: user.id })} className={`cursor-pointer transition-colors ${selectedUserIds.includes(user.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                                             {isBulkSelectMode && <td className="px-6 py-4" onClick={e => e.stopPropagation()}><Checkbox checked={selectedUserIds.includes(user.id)} onChange={() => setSelectedUserIds(prev => prev.includes(user.id) ? prev.filter(id => id !== user.id) : [...prev, user.id])} /></td>}
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar name={user.name} className="w-8 h-8 text-xs"/>
-                                                    <div>
-                                                        <div className="text-sm font-semibold text-gray-900">{user.name}</div>
-                                                        {user.id === currentUser.id && <span className="text-xs text-tm-primary font-bold">(Anda)</span>}
-                                                    </div>
+                                                <div>
+                                                    <div className="text-sm font-semibold text-gray-900">{user.name}</div>
+                                                    {user.id === currentUser.id && <span className="text-xs text-tm-primary font-bold">(Anda)</span>}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{user.email}</td>
                                             <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{getDivisionName(user.divisionId)}</td>
                                             <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getRoleClass(user.role)}`}>{user.role}</span></td>
+                                            <td className="px-6 py-4 text-sm font-medium text-center text-gray-800 whitespace-nowrap">{user.assetCount}</td>
                                             <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                                 <div className="flex items-center justify-end space-x-2">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleOpenUserForm(user); }} className="p-2 text-gray-500 rounded-full hover:bg-yellow-100 hover:text-yellow-600"><PencilIcon className="w-4 h-4"/></button>
-                                                    <button onClick={(e) => { e.stopPropagation(); setUserToDelete(user); }} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
+                                                    {hasPermission(currentUser, 'users:edit') && (
+                                                        <button onClick={(e) => { e.stopPropagation(); setActivePage('user-form', { editingUser: user }); }} className="p-2 text-gray-500 rounded-full hover:bg-yellow-100 hover:text-yellow-600"><PencilIcon className="w-4 h-4"/></button>
+                                                    )}
+                                                    {hasPermission(currentUser, 'users:delete') && (
+                                                        <button onClick={(e) => { e.stopPropagation(); setUserToDelete(user); }} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -713,19 +419,21 @@ export function AccountsPage({ currentUser, users, setUsers, divisions, setDivis
                                     <tr>
                                         {isBulkSelectMode && <th className="px-6 py-3"><Checkbox checked={selectedDivisionIds.length > 0 && selectedDivisionIds.length === paginatedDivisions.length} onChange={e => setSelectedDivisionIds(e.target.checked ? paginatedDivisions.map(d => d.id) : [])} /></th>}
                                         <SortableDivisionHeader columnKey="name" sortConfig={divisionSortConfig} requestSort={requestDivisionSort}>Nama Divisi</SortableDivisionHeader>
-                                        <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Jumlah Anggota</th>
+                                        <SortableDivisionHeader columnKey="memberCount" sortConfig={divisionSortConfig} requestSort={requestDivisionSort}>Jumlah Anggota</SortableDivisionHeader>
+                                        <SortableDivisionHeader columnKey="totalAssets" sortConfig={divisionSortConfig} requestSort={requestDivisionSort}>Total Aset</SortableDivisionHeader>
                                         <th className="relative px-6 py-3"><span className="sr-only">Aksi</span></th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {paginatedDivisions.map(division => (
-                                        <tr key={division.id} {...longPressHandlers} onClick={() => isBulkSelectMode && setSelectedDivisionIds(prev => prev.includes(division.id) ? prev.filter(id => id !== division.id) : [...prev, division.id])} className={`cursor-pointer transition-colors ${selectedDivisionIds.includes(division.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                        <tr key={division.id} {...longPressHandlers} onClick={() => isBulkSelectMode ? setSelectedDivisionIds(prev => prev.includes(division.id) ? prev.filter(id => id !== division.id) : [...prev, division.id]) : setActivePage('division-detail', { divisionId: division.id })} className={`cursor-pointer transition-colors ${selectedDivisionIds.includes(division.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                                             {isBulkSelectMode && <td className="px-6 py-4" onClick={e => e.stopPropagation()}><Checkbox checked={selectedDivisionIds.includes(division.id)} onChange={() => setSelectedDivisionIds(prev => prev.includes(division.id) ? prev.filter(id => id !== division.id) : [...prev, division.id])} /></td>}
                                             <td className="px-6 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap">{division.name}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">{users.filter(u => u.divisionId === division.id).length}</td>
+                                            <td className="px-6 py-4 text-sm text-center text-gray-700 whitespace-nowrap">{division.memberCount}</td>
+                                            <td className="px-6 py-4 text-sm text-center text-gray-700 whitespace-nowrap">{division.totalAssets}</td>
                                             <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                                                 <div className="flex items-center justify-end space-x-2">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleOpenDivisionForm(division); }} className="p-2 text-gray-500 rounded-full hover:bg-yellow-100 hover:text-yellow-600"><PencilIcon className="w-4 h-4"/></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); setActivePage('division-form', { editingDivision: division }); }} className="p-2 text-gray-500 rounded-full hover:bg-yellow-100 hover:text-yellow-600"><PencilIcon className="w-4 h-4"/></button>
                                                     <button onClick={(e) => { e.stopPropagation(); setDivisionToDelete(division); }} className="p-2 text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
                                                 </div>
                                             </td>
@@ -739,16 +447,13 @@ export function AccountsPage({ currentUser, users, setUsers, divisions, setDivis
                 </div>
             )}
             
-            {isUserFormModalOpen && <Modal isOpen={isUserFormModalOpen} onClose={() => setIsUserFormModalOpen(false)} title={userToEdit ? 'Edit Akun' : 'Tambah Akun Baru'} hideDefaultCloseButton disableContentPadding><UserForm divisions={divisions} onSave={handleSaveUser} onClose={() => setIsUserFormModalOpen(false)} editingUser={userToEdit} /></Modal>}
-            {isDivisionFormModalOpen && <Modal isOpen={isDivisionFormModalOpen} onClose={() => setIsDivisionFormModalOpen(false)} title={divisionToEdit ? 'Edit Divisi' : 'Tambah Divisi Baru'} hideDefaultCloseButton disableContentPadding><DivisionForm onSave={handleSaveDivision} onClose={() => setIsDivisionFormModalOpen(false)} editingDivision={divisionToEdit} /></Modal>}
-
             {userToDelete && <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title="Konfirmasi Hapus Akun" size="md">
                 <p className="text-sm text-gray-600">Anda yakin ingin menghapus akun <strong>{userToDelete.name}</strong>? Tindakan ini tidak dapat diurungkan.</p>
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setUserToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleConfirmUserDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus</button></div>
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setUserToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={() => {}} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus</button></div>
             </Modal>}
              {divisionToDelete && <Modal isOpen={!!divisionToDelete} onClose={() => setDivisionToDelete(null)} title="Konfirmasi Hapus Divisi" size="md">
                 <p className="text-sm text-gray-600">Anda yakin ingin menghapus divisi <strong>{divisionToDelete.name}</strong>? Aksi ini tidak dapat diurungkan.</p>
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setDivisionToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleConfirmDivisionDelete} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus</button></div>
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setDivisionToDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={() => {}} disabled={isLoading} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">{isLoading && <SpinnerIcon className="w-4 h-4 mr-2"/>} Hapus</button></div>
             </Modal>}
         </div>
     );

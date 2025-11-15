@@ -30,7 +30,10 @@ import type {
     Notification,
     Attachment,
     LoanRequest,
-    Maintenance
+    Maintenance,
+    // FIX: Add missing Installation type to handle installation data.
+    Installation,
+    InstalledMaterial
 } from './types';
 
 // Services
@@ -66,6 +69,7 @@ import { WrenchIcon } from './components/icons/WrenchIcon';
 import { RegisterIcon } from './components/icons/RegisterIcon';
 import { DashboardIcon } from './components/icons/DashboardIcon';
 import { PencilIcon } from './components/icons/PencilIcon';
+import { UserCogIcon } from './components/icons/UserCogIcon';
 
 // Page / Feature Components
 import LoginPage from './features/auth/LoginPage';
@@ -75,11 +79,17 @@ import LoanRequestPage from './features/requests/loan/LoanRequestPage';
 import ItemRegistration from './features/assetRegistration/RegistrationPage';
 import ItemHandoverPage from './features/handover/HandoverPage';
 import RepairManagementPage from './features/repair/RepairManagementPage';
-import StockOverviewPage from './features/stock/StockOverviewPage';
 import CustomerManagementPage from './features/customers/CustomerManagementPage';
 import { AccountsPage } from './features/users/AccountsPage';
 import CategoryManagementPage from './features/categories/CategoryManagementPage';
 import PreviewModal from './features/preview/PreviewModal';
+import ManageAccountPage from './features/users/ManageAccountPage';
+import UserFormPage from './features/users/UserFormPage';
+import DivisionFormPage from './features/users/DivisionFormPage';
+import UserDetailPage from './features/users/UserDetailPage';
+import DivisionDetailPage from './features/users/DivisionDetailPage';
+// FIX: Add missing import for StockOverviewPage.
+import StockOverviewPage from './features/stock/StockOverviewPage';
 
 // Feature Sub-components
 import ReportDamageModal from './features/stock/components/ReportDamageModal';
@@ -454,7 +464,11 @@ const UnderConstructionPage: React.FC<{ title: string; setActivePage: (page: Pag
     );
 };
 
-const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ currentUser, onLogout }) => {
+const AppContent: React.FC<{ 
+    currentUser: User; 
+    onLogout: () => void;
+    onUpdateCurrentUser: (user: User) => void;
+}> = ({ currentUser, onLogout, onUpdateCurrentUser }) => {
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pageInitialState, setPageInitialState] = useState<any>(null);
@@ -468,6 +482,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
   const [handovers, setHandovers] = useState<Handover[]>([]);
   const [dismantles, setDismantles] = useState<Dismantle[]>([]);
   const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
+  const [installations, setInstallations] = useState<Installation[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [divisions, setDivisions] = useState<Division[]>([]);
@@ -524,6 +539,7 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                 setNotifications(data.notifications);
                 setLoanRequests(data.loanRequests);
                 setMaintenances(data.maintenances);
+                setInstallations(data.installations);
 
             } catch (err: any) {
                 setError(err.message || 'Gagal memuat data aplikasi. Silakan coba muat ulang halaman.');
@@ -904,6 +920,166 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       setAssetToInstall(null);
   };
 
+  const handleSaveInstallation = (installationData: Omit<Installation, 'id' | 'status'>) => {
+    const newInstallation: Installation = {
+        ...installationData,
+        id: `INST-${String(installations.length + 1).padStart(3, '0')}`,
+        status: ItemStatus.COMPLETED,
+    };
+    setAndPersist(setInstallations, prev => [newInstallation, ...prev], 'app_installations');
+
+    // Update assets status and location
+    installationData.assetsInstalled.forEach(item => {
+        if (item.assetId) {
+            handleUpdateAsset(item.assetId, {
+                status: AssetStatus.IN_USE,
+                currentUser: installationData.customerId,
+                location: `Terpasang di: ${installationData.customerName}`,
+            }, {
+                user: installationData.technician,
+                action: 'Instalasi Pelanggan',
+                details: `Aset dipasang untuk pelanggan ${installationData.customerName}.`,
+                referenceId: newInstallation.id,
+            });
+        }
+    });
+
+    // Update customer's installed materials
+    if (installationData.materialsUsed && installationData.materialsUsed.length > 0) {
+        setAndPersist(setCustomers, (prevCustomers) => 
+            prevCustomers.map(c => {
+                if (c.id === installationData.customerId) {
+                    const existingMaterials = c.installedMaterials || [];
+                    const updatedMaterials = [...existingMaterials];
+                    
+                    installationData.materialsUsed!.forEach(newMat => {
+                        const existingMatIndex = updatedMaterials.findIndex(em => em.itemName === newMat.itemName && em.brand === newMat.brand);
+                        if (existingMatIndex > -1) {
+                            updatedMaterials[existingMatIndex].quantity += newMat.quantity;
+                        } else {
+                            updatedMaterials.push({ ...newMat, installationDate: installationData.installationDate });
+                        }
+                    });
+                    return { ...c, installedMaterials: updatedMaterials };
+                }
+                return c;
+            }), 'app_customers');
+    }
+
+    addNotification(`Berita acara instalasi ${newInstallation.docNumber} berhasil dibuat.`, 'success');
+    handleSetActivePage('customer-detail', { customerId: installationData.customerId });
+  };
+
+  const handleSaveMaintenance = (maintenanceData: Omit<Maintenance, 'id' | 'status' | 'docNumber'>) => {
+    const newDocNumber = generateDocumentNumber('MNT', maintenances, new Date(maintenanceData.maintenanceDate));
+    const newMaintenance: Maintenance = {
+        ...maintenanceData,
+        id: `MNT-${Date.now()}`,
+        docNumber: newDocNumber,
+        status: ItemStatus.COMPLETED,
+        completedBy: currentUser.name,
+        completionDate: new Date().toISOString(),
+    };
+    setAndPersist(setMaintenances, prev => [newMaintenance, ...prev], 'app_maintenances');
+
+    // Asset Replacement Logic
+    if (maintenanceData.replacements && maintenanceData.replacements.length > 0) {
+        maintenanceData.replacements.forEach(rep => {
+            handleUpdateAsset(rep.oldAssetId, { status: AssetStatus.IN_STORAGE, condition: rep.retrievedAssetCondition, currentUser: null, location: 'Gudang Inventori' }, { user: currentUser.name, action: 'Ditarik saat Maintenance', details: `Aset ditarik karena rusak dan diganti. Ref: ${newDocNumber}`, referenceId: newDocNumber });
+            handleUpdateAsset(rep.newAssetId, { status: AssetStatus.IN_USE, currentUser: maintenanceData.customerId, location: `Terpasang di: ${maintenanceData.customerName}` }, { user: currentUser.name, action: 'Dipasang saat Maintenance', details: `Aset dipasang sebagai pengganti. Ref: ${newDocNumber}`, referenceId: newDocNumber });
+        });
+    }
+
+    // Update Customer's Installed Materials
+    const materialsToInstall: InstalledMaterial[] = (newMaintenance.materialsUsed || []).map(material => {
+        let unit = 'pcs';
+        let convertedQuantity = material.quantity;
+        let materialFound = false;
+
+        for (const cat of assetCategories) {
+            if (materialFound) break;
+            for (const type of cat.types) {
+                if (type.trackingMethod === 'bulk' && type.standardItems?.some(item => item.name === material.itemName && item.brand === material.brand)) {
+                    unit = type.baseUnitOfMeasure || 'pcs';
+                    if (type.quantityPerUnit) {
+                        convertedQuantity = material.quantity * type.quantityPerUnit;
+                    }
+                    materialFound = true;
+                    break;
+                }
+            }
+        }
+        return {
+            itemName: material.itemName,
+            brand: material.brand,
+            quantity: convertedQuantity,
+            unit: unit,
+            installationDate: newMaintenance.maintenanceDate,
+        };
+    });
+
+    if (materialsToInstall.length > 0) {
+        setAndPersist(setCustomers, (prevCustomers) => 
+            prevCustomers.map(c => {
+                if (c.id === newMaintenance.customerId) {
+                    const existingMaterials = c.installedMaterials || [];
+                    const updatedMaterials = [...existingMaterials];
+                    
+                    materialsToInstall.forEach(newMat => {
+                        const existingMatIndex = updatedMaterials.findIndex(em => em.itemName === newMat.itemName && em.brand === newMat.brand);
+                        if (existingMatIndex > -1) {
+                            updatedMaterials[existingMatIndex] = {
+                                ...updatedMaterials[existingMatIndex],
+                                quantity: updatedMaterials[existingMatIndex].quantity + newMat.quantity
+                            };
+                        } else {
+                            updatedMaterials.push(newMat);
+                        }
+                    });
+
+                    return { ...c, installedMaterials: updatedMaterials };
+                }
+                return c;
+            }), 'app_customers');
+    }
+
+    addNotification(`Laporan maintenance ${newDocNumber} berhasil dibuat.`, 'success');
+    handleSetActivePage('customer-detail', { customerId: maintenanceData.customerId });
+  };
+
+  const handleSaveDismantle = (dismantleData: Omit<Dismantle, 'id' | 'status'>) => {
+    const newDismantle: Dismantle = {
+        ...dismantleData,
+        id: `DSM-${Date.now()}`,
+        status: ItemStatus.COMPLETED, // Dismantle is considered complete on creation by technician
+        acknowledger: currentUser.name, // In this flow, we assume the admin confirms it right away
+    };
+    setAndPersist(setDismantles, prev => [newDismantle, ...prev], 'app_dismantles');
+
+    // This is the critical part: update the asset status back to storage
+    handleUpdateAsset(dismantleData.assetId, {
+        status: AssetStatus.IN_STORAGE,
+        condition: dismantleData.retrievedCondition,
+        currentUser: null,
+        location: 'Gudang Inventori',
+        isDismantled: true,
+        dismantleInfo: {
+            customerId: dismantleData.customerId,
+            customerName: dismantleData.customerName,
+            dismantleDate: dismantleData.dismantleDate,
+            dismantleId: newDismantle.id,
+        }
+    }, {
+        user: currentUser.name,
+        action: 'Dismantle Selesai',
+        details: `Aset dari pelanggan ${dismantleData.customerName} telah diterima di gudang.`,
+        referenceId: newDismantle.id,
+    });
+    
+    addNotification(`Berita acara dismantle ${newDismantle.docNumber} berhasil dibuat dan aset telah dikembalikan ke stok.`, 'success');
+    handleSetActivePage('customer-detail', { customerId: dismantleData.customerId });
+  };
+
   const handleCompleteRequestRegistration = (
     requestId: string,
     registeredItemInfo: { requestItemId: number; count: number }
@@ -1168,6 +1344,54 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
         setAssetToDecommission(null);
     };
 
+    const handleUpdateUserAccount = async (data: { name: string; email: string; currentPassword?: string; newPassword?: string; }): Promise<boolean> => {
+        // In a real app, you'd verify the currentPassword against the backend.
+        // For this mock, we'll just check if it's provided when changing the password.
+        if (data.newPassword && !data.currentPassword) {
+            addNotification('Kata sandi saat ini harus diisi untuk mengatur kata sandi baru.', 'error');
+            return false;
+        }
+
+        const updatedUser: User = { ...currentUser, name: data.name, email: data.email };
+        
+        // Update the user in the global user list
+        setAndPersist(setUsers, (prevUsers: User[]) =>
+            prevUsers.map(u => u.id === currentUser.id ? updatedUser : u),
+            'app_users'
+        );
+
+        // Update the currently logged-in user state
+        onUpdateCurrentUser(updatedUser);
+
+        addNotification('Akun Anda berhasil diperbarui.', 'success');
+        handleSetActivePage('dashboard');
+        return true;
+    };
+    
+    const handleSaveUser = (userData: Omit<User, 'id'>, id?: number) => {
+        if (id) {
+            setAndPersist(setUsers, (prev: User[]) => prev.map(u => u.id === id ? { ...u, ...userData } : u), 'app_users');
+            addNotification('Akun berhasil diperbarui.', 'success');
+        } else {
+            const newUser = { ...userData, id: Math.max(...users.map(u => u.id), 0) + 1 };
+            setAndPersist(setUsers, (prev: User[]) => [newUser, ...prev], 'app_users');
+            addNotification('Akun baru berhasil ditambahkan.', 'success');
+        }
+        handleSetActivePage('pengaturan-pengguna');
+    };
+
+    const handleSaveDivision = (divisionData: Omit<Division, 'id'>, id?: number) => {
+        if (id) {
+            setAndPersist(setDivisions, (prev: Division[]) => prev.map(d => d.id === id ? { ...d, ...divisionData } : d), 'app_divisions');
+            addNotification('Divisi berhasil diperbarui.', 'success');
+        } else {
+            const newDivision = { ...divisionData, id: Math.max(...divisions.map(d => d.id), 0) + 1 };
+            setAndPersist(setDivisions, (prev: Division[]) => [newDivision, ...prev], 'app_divisions');
+            addNotification('Divisi baru berhasil ditambahkan.', 'success');
+        }
+        handleSetActivePage('pengaturan-pengguna');
+    };
+
 
   const handleShowPreview = (data: PreviewData) => {
     if (data.type === 'customer') {
@@ -1213,6 +1437,8 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
     'customer-new',
     'customer-edit',
     'pengaturan-pengguna',
+    'user-form',
+    'division-form',
     'kategori',
   ];
 
@@ -1282,7 +1508,60 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
       case 'repair':
         return <RepairManagementPage currentUser={currentUser} assets={assets} users={users} onShowPreview={handleShowPreview} onStartRepair={setAssetToStartRepair} onAddProgressUpdate={setAssetToUpdateProgress} onReceiveFromRepair={handleReceiveFromRepair} onCompleteRepair={setAssetToCompleteRepair} onDecommission={setAssetToDecommission} />;
       case 'pengaturan-pengguna':
-        return <AccountsPage currentUser={currentUser} users={users} setUsers={(valueOrFn) => setAndPersist(setUsers, valueOrFn, 'app_users')} divisions={divisions} setDivisions={(valueOrFn) => setAndPersist(setDivisions, valueOrFn, 'app_divisions')} setActivePage={handleSetActivePage} />;
+        return <AccountsPage 
+                  currentUser={currentUser} 
+                  users={users} 
+                  divisions={divisions} 
+                  setActivePage={handleSetActivePage} 
+                  assets={assets}
+                  requests={requests}
+                  onShowPreview={handleShowPreview}
+                />;
+      case 'user-form':
+// FIX: Pass currentUser to UserFormPage to satisfy its props requirements.
+        return <UserFormPage
+                    currentUser={currentUser}
+                    editingUser={pageInitialState?.editingUser || null}
+                    divisions={divisions}
+                    onSave={handleSaveUser}
+                    onCancel={() => handleSetActivePage('pengaturan-pengguna')}
+                />;
+      case 'division-form':
+        return <DivisionFormPage
+                    editingDivision={pageInitialState?.editingDivision || null}
+                    onSave={handleSaveDivision}
+                    onCancel={() => handleSetActivePage('pengaturan-pengguna')}
+                />;
+      case 'user-detail': {
+        const user = users.find(u => u.id === pageInitialState?.userId);
+        if (!user) return <div>Pengguna tidak ditemukan.</div>;
+        const division = divisions.find(d => d.id === user.divisionId);
+        return <UserDetailPage 
+                    user={user}
+                    currentUser={currentUser}
+                    assets={assets}
+                    requests={requests} 
+                    division={division} 
+                    onBack={() => handleSetActivePage('pengaturan-pengguna')}
+                    onEdit={() => handleSetActivePage('user-form', { editingUser: user })}
+                    onShowAssetPreview={(assetId) => handleShowPreview({ type: 'asset', id: assetId })}
+                />;
+      }
+      case 'division-detail': {
+          const division = divisions.find(d => d.id === pageInitialState?.divisionId);
+          if (!division) return <div>Divisi tidak ditemukan.</div>;
+          const members = users.filter(u => u.divisionId === division.id);
+          return <DivisionDetailPage
+                    division={division}
+                    members={members}
+                    assets={assets}
+                    onBack={() => handleSetActivePage('pengaturan-pengguna')}
+                    onEdit={() => handleSetActivePage('division-form', { editingDivision: division })}
+                    onViewMember={(userId) => handleSetActivePage('user-detail', { userId })}
+                 />;
+      }
+      case 'pengaturan-akun':
+        return <ManageAccountPage currentUser={currentUser} onSave={handleUpdateUserAccount} onBack={() => handleSetActivePage('dashboard')} />;
       case 'kategori':
         return <CategoryManagementPage currentUser={currentUser} categories={assetCategories} setCategories={(valueOrFn) => setAndPersist(setAssetCategories, valueOrFn, 'app_assetCategories')} divisions={divisions} assets={assets} openModelModal={handleOpenModelModal} openTypeModal={handleOpenTypeModal}/>;
       case 'customers':
@@ -1314,9 +1593,15 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                   pageInitialState={pageInitialState}
                   dismantles={dismantles}
                   setDismantles={(valueOrFn) => setAndPersist(setDismantles, valueOrFn, 'app_dismantles')}
+                  onSaveDismantle={handleSaveDismantle}
                   maintenances={maintenances}
                   setMaintenances={(valueOrFn) => setAndPersist(setMaintenances, valueOrFn, 'app_maintenances')}
+                  onSaveMaintenance={handleSaveMaintenance}
+                  installations={installations}
+                  setInstallations={(valueOrFn) => setAndPersist(setInstallations, valueOrFn, 'app_installations')}
+                  onSaveInstallation={handleSaveInstallation}
                   users={users}
+                  divisions={divisions}
                   prefillData={prefillDmData}
                   onClearPrefill={() => setPrefillDmData(null)}
               />;
@@ -1364,19 +1649,28 @@ const AppContent: React.FC<{ currentUser: User; onLogout: () => void; }> = ({ cu
                   </button>
                   <div className="relative" ref={profileDropdownRef}>
                         <button onClick={() => setIsProfileDropdownOpen(prev => !prev)} className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100">
-                            <img className="w-8 h-8 rounded-full" src="https://i.pravatar.cc/100" alt="User Avatar" />
-                            <div className="hidden text-right sm:block">
+                            <div className="text-right">
                                 <span className="text-sm font-medium text-gray-700">{currentUser.name}</span>
                             </div>
                             <ChevronDownIcon className={`w-4 h-4 text-gray-500 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
                          {isProfileDropdownOpen && (
-                            <div className="absolute right-0 z-30 w-48 mt-2 origin-top-right bg-white border border-gray-200 rounded-md shadow-lg">
+                            <div className="absolute right-0 z-30 w-56 mt-2 origin-top-right bg-white border border-gray-200 rounded-md shadow-lg">
                                 <div className="p-2">
                                      <div className="px-2 py-2 mb-1 border-b">
                                         <p className="text-sm font-semibold text-gray-800">{currentUser.name}</p>
                                         <p className={`text-xs font-semibold rounded-full ${getRoleClass(currentUser.role)} inline-block px-2 py-0.5 mt-1`}>{currentUser.role}</p>
                                     </div>
+                                    <button
+                                        onClick={() => {
+                                            handleSetActivePage('pengaturan-akun');
+                                            setIsProfileDropdownOpen(false);
+                                        }}
+                                        className="flex items-center w-full gap-3 px-3 py-2 text-sm text-left text-gray-700 rounded-md hover:bg-gray-100 hover:text-tm-primary"
+                                    >
+                                        <UserCogIcon className="w-4 h-4" />
+                                        <span>Kelola Akun</span>
+                                    </button>
                                     <button
                                         onClick={onLogout}
                                         className="flex items-center w-full gap-3 px-3 py-2 text-sm text-left text-gray-700 rounded-md hover:bg-gray-100 hover:text-tm-primary"
@@ -1519,11 +1813,16 @@ const App: React.FC = () => {
         addNotification('Anda telah berhasil logout.', 'success');
     };
 
+    const handleUpdateCurrentUser = (updatedUser: User) => {
+        setCurrentUser(updatedUser);
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    };
+
     if (!currentUser) {
         return <LoginPage onLogin={handleLogin} />;
     }
 
-    return <AppContent currentUser={currentUser} onLogout={handleLogout} />;
+    return <AppContent currentUser={currentUser} onLogout={handleLogout} onUpdateCurrentUser={handleUpdateCurrentUser} />;
 };
 
 const RootApp: React.FC = () => (

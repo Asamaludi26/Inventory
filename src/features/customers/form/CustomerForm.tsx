@@ -75,7 +75,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
             }
             const category = assetCategories.find(c => c.name === asset.category);
             const type = category?.types.find(t => t.name === asset.type);
-            // Default to 'individual' if trackingMethod is not specified.
+            // Default to 'individual' tracking if trackingMethod is not specified.
             // The filter should only include assets that are NOT bulk.
             return type?.trackingMethod !== 'bulk';
         });
@@ -309,7 +309,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, assets, onSave, o
                                 const asset = assets.find(a => a.id === assetId);
                                 if (!asset) return null;
                                 return (
-                                    <div key={assetId} className="flex items-center justify-between p-2 text-sm bg-gray-100 border border-gray-200 rounded-md">
+                                    <div key={assetId} className="flex items-center justify-between p-2 text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-md">
                                         <span className="truncate">{asset.name} ({asset.id})</span>
                                         <button type="button" onClick={() => handleRemoveAsset(assetId)} className="p-1 text-red-500 rounded-full hover:bg-red-100 hover:text-red-700">
                                             <TrashIcon className="w-4 h-4" />

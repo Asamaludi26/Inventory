@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 // FIX: Add AssetCategory to type imports.
 import { Page, Maintenance, User, Customer, Asset, ItemStatus, AssetStatus, ActivityLogEntry, AssetCategory, InstalledMaterial, PreviewData } from '../../../types';
@@ -20,6 +22,7 @@ interface MaintenanceManagementPageProps {
     currentUser: User;
     maintenances: Maintenance[];
     setMaintenances: React.Dispatch<React.SetStateAction<Maintenance[]>>;
+    onSaveMaintenance: (data: Omit<Maintenance, 'id' | 'status' | 'docNumber'>) => void;
     customers: Customer[];
     setCustomers: React.Dispatch<React.SetStateAction<Customer[]>>;
     assets: Asset[];
@@ -98,7 +101,7 @@ const MaintenanceTable: React.FC<{
 );
 
 const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) => {
-    const { currentUser, maintenances, setMaintenances, customers, setCustomers, assets, users, onUpdateAsset, pageInitialState, assetCategories, onShowPreview } = props;
+    const { currentUser, maintenances, setMaintenances, onSaveMaintenance, customers, setCustomers, assets, users, onUpdateAsset, pageInitialState, assetCategories, onShowPreview } = props;
     const prefillCustomerId = pageInitialState?.prefillCustomer;
     const prefillAssetId = pageInitialState?.prefillAsset;
     const [view, setView] = useState<'list' | 'form' | 'detail'>(prefillCustomerId || prefillAssetId ? 'form' : 'list');
@@ -128,85 +131,6 @@ const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) =>
     }, [sortedMaintenances, currentPage, itemsPerPage]);
 
     const totalPages = Math.ceil(sortedMaintenances.length / itemsPerPage);
-
-    const handleSave = (formData: Omit<Maintenance, 'id' | 'status' | 'docNumber'>) => {
-        setIsLoading(true);
-        setTimeout(() => {
-            const newDocNumber = generateDocumentNumber('MNT', maintenances, new Date(formData.maintenanceDate));
-            const newMaintenance: Maintenance = {
-                ...formData,
-                id: `MNT-${Date.now()}`,
-                docNumber: newDocNumber,
-                status: ItemStatus.COMPLETED,
-            };
-
-            // Asset Replacement Logic
-            if (formData.replacements && formData.replacements.length > 0) {
-                formData.replacements.forEach(rep => {
-                    onUpdateAsset(rep.oldAssetId, { status: AssetStatus.IN_STORAGE, condition: rep.retrievedAssetCondition, currentUser: null, location: 'Gudang Inventori' }, { user: currentUser.name, action: 'Ditarik saat Maintenance', details: `Aset ditarik karena rusak dan diganti. Ref: ${newDocNumber}`, referenceId: newDocNumber });
-                    onUpdateAsset(rep.newAssetId, { status: AssetStatus.IN_USE, currentUser: formData.customerId, location: `Terpasang di: ${formData.customerName}` }, { user: currentUser.name, action: 'Dipasang saat Maintenance', details: `Aset dipasang sebagai pengganti. Ref: ${newDocNumber}`, referenceId: newDocNumber });
-                });
-                addNotification('Penggantian aset berhasil diproses.', 'success');
-            }
-
-            // Update Customer's Installed Materials
-            const materialsToInstall: InstalledMaterial[] = (newMaintenance.materialsUsed || []).map(material => {
-                let unit = 'pcs';
-                let convertedQuantity = material.quantity;
-                let materialFound = false;
-
-                for (const cat of assetCategories) {
-                    if (materialFound) break;
-                    for (const type of cat.types) {
-                        if (type.trackingMethod === 'bulk' && type.standardItems?.some(item => item.name === material.itemName && item.brand === material.brand)) {
-                            unit = type.baseUnitOfMeasure || 'pcs';
-                            if (type.quantityPerUnit) {
-                                convertedQuantity = material.quantity * type.quantityPerUnit;
-                            }
-                            materialFound = true;
-                            break;
-                        }
-                    }
-                }
-                return {
-                    itemName: material.itemName,
-                    brand: material.brand,
-                    quantity: convertedQuantity,
-                    unit: unit,
-                    installationDate: newMaintenance.maintenanceDate,
-                };
-            });
-
-            if (materialsToInstall.length > 0) {
-                setCustomers(prevCustomers => prevCustomers.map(c => {
-                    if (c.id === newMaintenance.customerId) {
-                        const existingMaterials = c.installedMaterials || [];
-                        const updatedMaterials = [...existingMaterials];
-                        
-                        materialsToInstall.forEach(newMat => {
-                            const existingMatIndex = updatedMaterials.findIndex(em => em.itemName === newMat.itemName && em.brand === newMat.brand);
-                            if (existingMatIndex > -1) {
-                                updatedMaterials[existingMatIndex] = {
-                                    ...updatedMaterials[existingMatIndex],
-                                    quantity: updatedMaterials[existingMatIndex].quantity + newMat.quantity
-                                };
-                            } else {
-                                updatedMaterials.push(newMat);
-                            }
-                        });
-
-                        return { ...c, installedMaterials: updatedMaterials };
-                    }
-                    return c;
-                }));
-            }
-            
-            setMaintenances(prev => [newMaintenance, ...prev]);
-            addNotification('Laporan maintenance berhasil dibuat.', 'success');
-            setView('list');
-            setIsLoading(false);
-        }, 800);
-    };
 
     const handleComplete = () => {
         if (!selectedMaintenance) return;
@@ -240,7 +164,7 @@ const MaintenanceFormPage: React.FC<MaintenanceManagementPageProps> = (props) =>
                         users={users}
                         maintenances={maintenances}
                         assetCategories={assetCategories}
-                        onSave={handleSave}
+                        onSave={onSaveMaintenance}
                         onCancel={() => setView('list')}
                         isLoading={isLoading}
                         prefillCustomerId={prefillCustomerId}

@@ -25,6 +25,7 @@ interface DismantleFormPageProps {
     currentUser: User;
     dismantles: Dismantle[];
     setDismantles: React.Dispatch<React.SetStateAction<Dismantle[]>>;
+    onSaveDismantle: (data: Omit<Dismantle, 'id' | 'status'>) => void;
     assets: Asset[];
     customers: Customer[];
     users: User[];
@@ -178,7 +179,7 @@ const DismantleTable: React.FC<DismantleTableProps> = ({ dismantles, onDetailCli
 };
 
 const DismantleFormPage: React.FC<DismantleFormPageProps> = (props) => {
-    const { currentUser, dismantles, setDismantles, assets, customers, users, prefillData, onClearPrefill, onUpdateAsset, onShowPreview, setActivePage, pageInitialState } = props;
+    const { currentUser, dismantles, setDismantles, onSaveDismantle, assets, customers, users, prefillData, onClearPrefill, onUpdateAsset, onShowPreview, setActivePage, pageInitialState } = props;
     const addNotification = useNotification();
     
     // --- STATE MANAGEMENT ---
@@ -250,18 +251,6 @@ const DismantleFormPage: React.FC<DismantleFormPageProps> = (props) => {
     };
 
     // --- DATA MANIPULATION HANDLERS (CRUD) ---
-    const handleCreateDismantle = (data: Omit<Dismantle, 'id' | 'status'>) => {
-        const newDismantle: Dismantle = {
-            ...data,
-            id: `DSM-${Date.now()}`, // Using timestamp for uniqueness in mock
-            status: ItemStatus.IN_PROGRESS,
-        };
-        setDismantles(prev => [newDismantle, ...prev]);
-
-        addNotification('Berita acara dismantle berhasil dibuat dan menunggu penyelesaian.', 'success');
-        handleSetView('list');
-    };
-
     const handleCompleteDismantle = () => {
         if (!selectedDismantle) return;
         setIsLoading(true);
@@ -411,7 +400,7 @@ const DismantleFormPage: React.FC<DismantleFormPageProps> = (props) => {
                     <DismantleForm 
                         currentUser={currentUser}
                         dismantles={dismantles}
-                        onSave={handleCreateDismantle}
+                        onSave={onSaveDismantle}
                         onCancel={() => handleSetView('list')}
                         customers={customers}
                         users={users}

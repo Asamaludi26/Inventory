@@ -1,7 +1,11 @@
 
 
+
+
+
+
 import React from 'react';
-import { Page, User, Customer, Asset, PreviewData, Dismantle, ActivityLogEntry, Maintenance, AssetCategory } from '../../types';
+import { Page, User, Customer, Asset, PreviewData, Dismantle, ActivityLogEntry, Maintenance, AssetCategory, Installation, Division } from '../../types';
 import CustomerListPage from './list/CustomerListPage';
 import InstallationFormPage from './installation/InstallationFormPage';
 import MaintenanceFormPage from './maintenance/MaintenanceFormPage';
@@ -24,84 +28,106 @@ interface CustomerManagementHubProps {
     // Props are now required from the unified call in App.tsx
     dismantles: Dismantle[];
     setDismantles: React.Dispatch<React.SetStateAction<Dismantle[]>>;
+    onSaveDismantle: (data: Omit<Dismantle, 'id' | 'status'>) => void;
     maintenances: Maintenance[];
     setMaintenances: React.Dispatch<React.SetStateAction<Maintenance[]>>;
+    onSaveMaintenance: (data: Omit<Maintenance, 'id' | 'status' | 'docNumber'>) => void;
+    installations: Installation[];
+    setInstallations: React.Dispatch<React.SetStateAction<Installation[]>>;
+    onSaveInstallation: (data: Omit<Installation, 'id' | 'status'>) => void;
     users: User[];
+    divisions: Division[];
     prefillData: any;
     onClearPrefill: () => void;
     pageInitialState: any;
 }
 
 const CustomerManagementPage: React.FC<CustomerManagementHubProps> = (props) => {
-    const { subPage, ...rest } = props;
+    const { subPage, currentUser, customers, setCustomers, assets, assetCategories, onInitiateDismantle, onShowPreview, setActivePage, onUpdateAsset, dismantles, setDismantles, onSaveDismantle, maintenances, setMaintenances, onSaveMaintenance, installations, setInstallations, onSaveInstallation, users, divisions, prefillData, onClearPrefill, pageInitialState } = props;
 
     switch (subPage) {
         case 'list':
             return <CustomerListPage 
-                        currentUser={props.currentUser}
-                        customers={props.customers}
-                        setCustomers={props.setCustomers}
-                        assets={props.assets}
-                        onInitiateDismantle={props.onInitiateDismantle}
-                        onShowPreview={props.onShowPreview}
-                        setActivePage={props.setActivePage}
-                        initialFilters={props.pageInitialState}
+                        currentUser={currentUser}
+                        customers={customers}
+                        setCustomers={setCustomers}
+                        assets={assets}
+                        onInitiateDismantle={onInitiateDismantle}
+                        onShowPreview={onShowPreview}
+                        setActivePage={setActivePage}
+                        initialFilters={pageInitialState}
                     />;
         case 'new':
         case 'edit':
              return <CustomerFormPage
-                        currentUser={props.currentUser}
-                        customers={props.customers}
-                        setCustomers={props.setCustomers}
-                        assets={props.assets}
-                        assetCategories={props.assetCategories}
-                        onUpdateAsset={props.onUpdateAsset}
-                        setActivePage={props.setActivePage}
-                        pageInitialState={props.pageInitialState}
+                        currentUser={currentUser}
+                        customers={customers}
+                        setCustomers={setCustomers}
+                        assets={assets}
+                        assetCategories={assetCategories}
+                        onUpdateAsset={onUpdateAsset}
+                        setActivePage={setActivePage}
+                        pageInitialState={pageInitialState}
                     />;
         case 'installation':
-            return <InstallationFormPage setActivePage={props.setActivePage} />;
+            return <InstallationFormPage 
+                        currentUser={currentUser}
+                        installations={installations}
+                        setInstallations={setInstallations}
+                        onSaveInstallation={onSaveInstallation}
+                        customers={customers}
+                        assets={assets}
+                        users={users}
+                        divisions={divisions}
+                        assetCategories={assetCategories}
+                        setActivePage={setActivePage}
+                        pageInitialState={pageInitialState}
+                        onShowPreview={onShowPreview}
+                    />;
         case 'maintenance':
             return <MaintenanceFormPage 
-                        currentUser={props.currentUser}
-                        maintenances={props.maintenances}
-                        setMaintenances={props.setMaintenances}
-                        customers={props.customers}
-                        setCustomers={props.setCustomers}
-                        assets={props.assets}
-                        assetCategories={props.assetCategories}
-                        onUpdateAsset={props.onUpdateAsset}
-                        users={props.users}
-                        setActivePage={props.setActivePage}
-                        pageInitialState={props.pageInitialState}
-                        onShowPreview={props.onShowPreview}
+                        currentUser={currentUser}
+                        maintenances={maintenances}
+                        setMaintenances={setMaintenances}
+                        onSaveMaintenance={onSaveMaintenance}
+                        customers={customers}
+                        setCustomers={setCustomers}
+                        assets={assets}
+                        assetCategories={assetCategories}
+                        onUpdateAsset={onUpdateAsset}
+                        users={users}
+                        setActivePage={setActivePage}
+                        pageInitialState={pageInitialState}
+                        onShowPreview={onShowPreview}
                     />;
         case 'detail':
             return <CustomerDetailPage 
-                        customers={props.customers}
-                        assets={props.assets}
-                        assetCategories={props.assetCategories}
-                        maintenances={props.maintenances}
-                        dismantles={props.dismantles}
-                        initialState={props.pageInitialState}
-                        setActivePage={props.setActivePage}
-                        onShowPreview={props.onShowPreview}
-                        onInitiateDismantle={props.onInitiateDismantle}
+                        customers={customers}
+                        assets={assets}
+                        assetCategories={assetCategories}
+                        maintenances={maintenances}
+                        dismantles={dismantles}
+                        installations={installations}
+                        initialState={pageInitialState}
+                        setActivePage={setActivePage}
+                        onShowPreview={onShowPreview}
+                        onInitiateDismantle={onInitiateDismantle}
                     />;
         case 'dismantle':
             return <DismantleFormPage
-                        currentUser={props.currentUser}
-                        dismantles={props.dismantles!}
-                        setDismantles={props.setDismantles!}
-                        assets={props.assets}
-                        customers={props.customers}
-                        users={props.users!}
-                        prefillData={props.prefillData}
-                        onClearPrefill={props.onClearPrefill!}
-                        onUpdateAsset={props.onUpdateAsset!}
-                        onShowPreview={props.onShowPreview}
-                        setActivePage={props.setActivePage}
-                        pageInitialState={props.pageInitialState}
+                        currentUser={currentUser}
+                        dismantles={dismantles!}
+                        setDismantles={setDismantles!}
+                        onSaveDismantle={onSaveDismantle}
+                        assets={assets}
+                        customers={customers}
+                        users={users!}
+                        prefillData={prefillData}
+                        onClearPrefill={onClearPrefill!}
+                        onUpdateAsset={onUpdateAsset!}
+                        onShowPreview={onShowPreview}
+                        setActivePage={setActivePage}
+                        pageInitialState={pageInitialState}
                     />;
         default:
              return <CustomerListPage 

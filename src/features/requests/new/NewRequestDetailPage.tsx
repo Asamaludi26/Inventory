@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
@@ -670,10 +667,10 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                 handlePurchaseDetailFieldChange(itemId, 'warrantyEndDate', null);
             } else {
                 const d = new Date(purchaseDate);
-                // FIX: Operator '+' cannot be applied to types 'unknown' and 'number'. Explicitly cast `getMonth()` to `Number`.
-                const expectedMonth = (Number(d.getMonth()) + Number(period)) % 12;
-                // FIX: Operator '+' cannot be applied to types 'unknown' and 'number'. Explicitly cast `getMonth()` to `Number`.
-                d.setMonth(Number(d.getMonth()) + Number(period));
+                // FIX: Operator '+' cannot be applied to types 'unknown' and 'number'. Explicitly cast `getMonth()` to `number`.
+                const expectedMonth = ((d.getMonth() as number) + Number(period)) % 12;
+                // FIX: Operator '+' cannot be applied to types 'unknown' and 'number'. Explicitly cast `getMonth()` to `number`.
+                d.setMonth((d.getMonth() as number) + Number(period));
                 if (d.getMonth() !== expectedMonth) {
                     d.setDate(0);
                 }

@@ -123,7 +123,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 onClick={e => e.stopPropagation()}
-                                className="w-full h-9 py-2 pl-9 pr-4 text-sm bg-gray-100 border border-gray-300 rounded-md focus:ring-tm-accent focus:border-tm-accent"
+                                className="w-full h-9 py-2 pl-9 pr-4 text-sm bg-gray-100 text-gray-600 border border-gray-300 rounded-md focus:ring-tm-accent focus:border-tm-accent"
                             />
                         </div>
                     </div>

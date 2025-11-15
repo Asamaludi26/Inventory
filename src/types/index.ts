@@ -1,3 +1,5 @@
+
+
 // FIX: Removed self-referential imports that cause declaration conflicts.
 // --- CORE TYPES & ENUMS ---
 
@@ -18,9 +20,62 @@ export type Page =
   | 'customer-edit'
   // FIX: Add missing page types for settings pages to resolve type errors.
   | 'pengaturan-pengguna'
+  | 'user-form'
+  | 'division-form'
+  | 'user-detail'
+  | 'division-detail'
+  | 'pengaturan-akun'
   | 'kategori';
 
 export type UserRole = 'Super Admin' | 'Admin Logistik' | 'Admin Purchase' | 'Leader' | 'Staff';
+
+export type Permission =
+  // Dashboard
+  | 'dashboard:view'
+  // Requests (New)
+  | 'requests:view:own'
+  | 'requests:view:all'
+  | 'requests:create'
+  | 'requests:create:urgent'
+  | 'requests:approve:logistic'
+  | 'requests:approve:purchase'
+  | 'requests:approve:final'
+  | 'requests:cancel:own'
+  | 'requests:delete'
+  // Requests (Loan)
+  | 'loan-requests:view:own'
+  | 'loan-requests:view:all'
+  | 'loan-requests:create'
+  | 'loan-requests:approve'
+  // FIX: Add missing 'loan-requests:return' permission to the type definition.
+  | 'loan-requests:return'
+  // Assets
+  | 'assets:view'
+  | 'assets:create'
+  | 'assets:edit'
+  | 'assets:delete'
+  | 'assets:handover'
+  | 'assets:dismantle'
+  | 'assets:install'
+  | 'assets:repair:manage'
+  | 'assets:repair:report'
+  // Customers
+  | 'customers:view'
+  | 'customers:create'
+  | 'customers:edit'
+  | 'customers:delete'
+  // Settings - Users & Divisions
+  | 'users:view'
+  | 'users:create'
+  | 'users:edit'
+  | 'users:delete'
+  | 'users:reset-password'
+  | 'users:manage-permissions'
+  | 'divisions:manage'
+  // Settings - Categories
+  | 'categories:manage'
+  // Personal Account
+  | 'account:manage';
 
 export enum CustomerStatus {
   ACTIVE = 'Aktif',
@@ -87,6 +142,7 @@ export interface User {
   email: string;
   divisionId: number | null;
   role: UserRole;
+  permissions: Permission[];
 }
 
 export interface ActivityLogEntry {
@@ -379,6 +435,36 @@ export interface Maintenance {
   replacementAssetId?: string;
   materialsUsed?: MaintenanceMaterial[];
   replacements?: MaintenanceReplacement[];
+}
+
+export interface InstallationAsset {
+  assetId: string;
+  assetName: string;
+  serialNumber?: string;
+}
+
+export interface InstallationMaterial {
+  materialAssetId?: string;
+  itemName: string;
+  brand: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface Installation {
+  id: string;
+  docNumber: string;
+  requestNumber?: string;
+  installationDate: string;
+  technician: string;
+  customerId: string;
+  customerName: string;
+  assetsInstalled: InstallationAsset[];
+  materialsUsed?: InstallationMaterial[];
+  status: ItemStatus;
+  notes?: string;
+  acknowledger?: string;
+  createdBy?: string;
 }
 
 

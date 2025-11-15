@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Customer, Asset, Page, PreviewData, AssetCategory, Maintenance, Dismantle } from '../../../types';
+import { Customer, Asset, Page, PreviewData, AssetCategory, Maintenance, Dismantle, Installation } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
 import { getStatusClass } from '../list/CustomerListPage';
 import { PencilIcon } from '../../../components/icons/PencilIcon';
@@ -17,6 +17,7 @@ interface CustomerDetailPageProps {
     assetCategories: AssetCategory[];
     maintenances: Maintenance[];
     dismantles: Dismantle[];
+    installations: Installation[];
     initialState: { customerId: string };
     setActivePage: (page: Page, filters?: any) => void;
     onShowPreview: (data: PreviewData) => void;
@@ -35,28 +36,24 @@ const ActivityTimeline: React.FC<{
     customerAssets: Asset[];
     maintenances: Maintenance[];
     dismantles: Dismantle[];
+    installations: Installation[];
     onShowPreview: (data: PreviewData) => void;
-    // FIX: Add setActivePage to props to make it available inside the component.
     setActivePage: (page: Page, filters?: any) => void;
-}> = ({ customer, customerAssets, maintenances, dismantles, onShowPreview, setActivePage }) => {
+}> = ({ customer, customerAssets, maintenances, dismantles, installations, onShowPreview, setActivePage }) => {
     
     const activities = useMemo(() => {
         const allActivities: { date: Date; type: 'Instalasi' | 'Maintenance' | 'Dismantle'; title: string; details: React.ReactNode; onClick: () => void; icon: React.FC<{className?:string}> }[] = [];
 
-        // 1. Installation Activities from Asset Logs
-        customerAssets.forEach(asset => {
-            asset.activityLog
-                .filter(log => log.action === 'Instalasi Pelanggan' || log.action === 'Dipasang saat Maintenance')
-                .forEach(log => {
-                    allActivities.push({
-                        date: new Date(log.timestamp),
-                        type: 'Instalasi',
-                        title: `Instalasi: ${asset.name}`,
-                        details: <><p className="text-xs text-gray-500">Oleh: {log.user}</p></>,
-                        onClick: () => onShowPreview({ type: 'asset', id: asset.id }),
-                        icon: HandoverIcon,
-                    });
-                });
+        // 1. Installation Activities
+        installations.filter(inst => inst.customerId === customer.id).forEach(inst => {
+            allActivities.push({
+                date: new Date(inst.installationDate),
+                type: 'Instalasi',
+                title: `Instalasi: ${inst.docNumber}`,
+                details: <><p className="text-xs text-gray-500">Oleh Teknisi: {inst.technician}</p></>,
+                onClick: () => setActivePage('customer-installation-form', { openDetailForId: inst.id }),
+                icon: CustomerIcon,
+            });
         });
 
         // 2. Maintenance Activities
@@ -81,14 +78,14 @@ const ActivityTimeline: React.FC<{
                 type: 'Dismantle',
                 title: `Dismantle: ${d.assetName}`,
                 details: <><p className="text-xs text-gray-500">Teknisi: {d.technician}</p></>,
-                onClick: () => onShowPreview({ type: 'dismantle', id: d.id }),
+                onClick: () => setActivePage('customer-dismantle', { openDetailForId: d.id }),
                 icon: DismantleIcon,
             });
         });
 
         return allActivities.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-    }, [customer.id, customerAssets, maintenances, dismantles, onShowPreview, setActivePage]);
+    }, [customer.id, customerAssets, maintenances, dismantles, installations, onShowPreview, setActivePage]);
     
     if (activities.length === 0) {
         return (
@@ -123,7 +120,7 @@ const ActivityTimeline: React.FC<{
     );
 };
 
-const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, assets, assetCategories, maintenances, dismantles, initialState, setActivePage, onShowPreview, onInitiateDismantle }) => {
+const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, assets, assetCategories, maintenances, dismantles, installations, initialState, setActivePage, onShowPreview, onInitiateDismantle }) => {
     const [activeTab, setActiveTab] = useState<'detail' | 'aktivitas'>('detail');
     
     const customer = useMemo(() => customers.find(c => c.id === initialState.customerId), [customers, initialState.customerId]);
@@ -281,6 +278,13 @@ const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, asse
             <div className="p-5 bg-white border border-gray-200/80 rounded-xl shadow-sm">
                 <h3 className="text-base font-semibold text-gray-800 mb-4">Aksi Cepat</h3>
                 <div className="space-y-3">
+                    <button
+                        onClick={() => setActivePage('customer-installation-form', { prefillCustomer: customer.id })}
+                        className="w-full justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-success rounded-lg shadow-sm hover:bg-green-700"
+                    >
+                        <CustomerIcon className="w-4 h-4"/>
+                        Instalasi
+                    </button>
                     <Tooltip text={customerAssets.length === 0 ? "Pelanggan tidak memiliki aset untuk di-maintenance" : "Buat laporan maintenance untuk aset pelanggan"}>
                         <div className="w-full">
                             <button
@@ -306,15 +310,6 @@ const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, asse
                             </button>
                         </div>
                     </Tooltip>
-                </div>
-                <div className="mt-6 pt-4 border-t">
-                     <button
-                        onClick={() => setActivePage('customer-installation-form')}
-                        className="w-full justify-center inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-success rounded-lg shadow-sm hover:bg-green-700"
-                    >
-                        <CustomerIcon className="w-4 h-4"/>
-                        Instalasi
-                    </button>
                 </div>
             </div>
         </div>
@@ -365,6 +360,7 @@ const CustomerDetailPage: React.FC<CustomerDetailPageProps> = ({ customers, asse
                         customerAssets={customerAssets}
                         maintenances={maintenances}
                         dismantles={dismantles}
+                        installations={installations}
                         onShowPreview={onShowPreview}
                         setActivePage={setActivePage}
                     />
