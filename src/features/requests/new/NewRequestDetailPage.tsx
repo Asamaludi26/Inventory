@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
@@ -794,8 +796,10 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                 handlePurchaseDetailFieldChange(itemId, 'warrantyEndDate', null);
             } else {
                 const d = new Date(purchaseDate);
-                const expectedMonth = (Number(d.getMonth()) + Number(period)) % 12;
-                d.setMonth(Number(d.getMonth()) + Number(period));
+                // FIX: Ensure 'period' is treated as a number in arithmetic operations to avoid potential type errors.
+                const numericPeriod = Number(period);
+                const expectedMonth = (d.getMonth() + numericPeriod) % 12;
+                d.setMonth(d.getMonth() + numericPeriod);
                 if (d.getMonth() !== expectedMonth) {
                     d.setDate(0);
                 }
@@ -810,7 +814,8 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
         const purchaseDateStr = itemPurchaseDetails[itemId]?.purchaseDate;
         if (purchaseDateStr && date && date > new Date(purchaseDateStr)) {
             const pDate = new Date(purchaseDateStr);
-            let months = (date.getFullYear() - pDate.getFullYear()) * 12 + (Number(date.getMonth()) - Number(pDate.getMonth()));
+            // FIX: Remove redundant Number() conversion for getMonth() which already returns a number.
+            let months = (date.getFullYear() - pDate.getFullYear()) * 12 + (date.getMonth() - pDate.getMonth());
             
             if (date.getDate() < pDate.getDate()) {
                 months--;

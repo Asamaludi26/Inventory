@@ -1,6 +1,7 @@
 
 
 
+
 import { 
     Division, 
     User, 
@@ -19,6 +20,7 @@ import {
     RequestItem,
     ItemStatus,
     Handover,
+    HandoverItem,
     Dismantle,
     OrderDetails,
     Notification,
@@ -30,6 +32,7 @@ import {
     InstallationAsset,
     InstallationMaterial,
     Permission,
+    LoanItem,
 } from '../types';
 import { generateDocumentNumber } from '../utils/documentNumberGenerator';
 import { ALL_PERMISSION_KEYS } from '../utils/permissions';
@@ -39,6 +42,7 @@ const USER_COUNT = 50;
 const ASSET_COUNT = 250;
 const REQUEST_COUNT = 120;
 const CUSTOMER_COUNT = 80;
+const LOAN_REQUEST_COUNT = 50;
 const NOW = new Date();
 
 // --- PERMISSION PRESETS ---
@@ -338,6 +342,42 @@ const generateAssetsHandoversDismantles = () => {
         assets.push(asset);
     });
     mockAssets = assets;
+    
+    // Generate some handovers for COMPLETED requests
+    const completedRequests = initialMockRequests.filter(r => 
+        r.status === ItemStatus.COMPLETED || r.status === ItemStatus.AWAITING_HANDOVER
+    );
+
+    completedRequests.slice(0, 20).forEach((req, i) => {
+        const assetsForReq = mockAssets.filter(a => a.poNumber === req.id);
+        if (assetsForReq.length > 0) {
+            const handoverDate = new Date(req.requestDate);
+            handoverDate.setDate(handoverDate.getDate() + 5);
+
+            const newDocNumber = generateDocumentNumber('HO-RO', handovers, handoverDate);
+            const newHandover: Handover = {
+                id: `HO-${String(i + 1).padStart(3, '0')}`,
+                docNumber: newDocNumber,
+                handoverDate: handoverDate.toISOString().split('T')[0],
+                menyerahkan: 'Alice Johnson',
+                penerima: req.requester,
+                mengetahui: 'John Doe',
+                woRoIntNumber: req.id,
+                items: assetsForReq.map(asset => ({
+                    id: Date.now() + Math.random(),
+                    assetId: asset.id,
+                    itemName: asset.name,
+                    itemTypeBrand: asset.brand,
+                    conditionNotes: 'Kondisi Baru',
+                    quantity: 1,
+                    checked: true,
+                })),
+                status: ItemStatus.COMPLETED,
+            };
+            handovers.push(newHandover);
+        }
+    });
+    
     mockHandovers = handovers;
     mockDismantles = dismantles;
 };
@@ -348,8 +388,140 @@ const generateLoanRequestsAndMaintenances = () => {
     const loanRequests: LoanRequest[] = [];
     const maintenances: Maintenance[] = [];
 
-    // ... (rest of the function is okay)
-    
+    const loanableAssetTemplates = assetTemplates.filter(t => 
+        ['Alat Kerja Lapangan', 'Aset Kantor'].includes(t.category)
+    );
+
+    if (loanableAssetTemplates.length === 0) {
+        loanableAssetTemplates.push(...assetTemplates.filter(t => t.category === 'Perangkat Pelanggan (CPE)'));
+    }
+
+    for (let i = 0; i < LOAN_REQUEST_COUNT; i++) {
+        const user = initialMockUsers[i % initialMockUsers.length];
+        const division = mockDivisions.find(d => d.id === user.divisionId)?.name || 'N/A';
+        const requestDate = new Date(new Date(NOW).setHours(NOW.getHours() - ((LOAN_REQUEST_COUNT - i) * 8)));
+
+        const statuses = [LoanRequestStatus.PENDING, LoanRequestStatus.APPROVED, LoanRequestStatus.REJECTED, LoanRequestStatus.ON_LOAN, LoanRequestStatus.RETURNED, LoanRequestStatus.OVERDUE, LoanRequestStatus.AWAITING_RETURN];
+        const status = statuses[i % statuses.length];
+
+        const items: LoanItem[] = [];
+        const numItems = Math.floor(Math.random() * 2) + 1;
+        for (let j = 0; j < numItems; j++) {
+            const template = loanableAssetTemplates[(i + j) % loanableAssetTemplates.length];
+            const returnDate = new Date(requestDate);
+            returnDate.setDate(returnDate.getDate() + (status === LoanRequestStatus.OVERDUE ? -7 : 14));
+
+            items.push({
+                id: j + 1,
+                itemName: template.name,
+                brand: template.brand,
+                quantity: 1,
+                keterangan: `Untuk pengerjaan proyek ${division}`,
+                returnDate: status !== LoanRequestStatus.REJECTED ? returnDate.toISOString().split('T')[0] : null,
+            });
+        }
+
+        const loanRequest: LoanRequest = {
+            id: `LREQ-${String(LOAN_REQUEST_COUNT - i).padStart(3, '0')}`,
+            requester: user.name,
+            division,
+            requestDate: requestDate.toISOString(),
+            status,
+            items,
+            notes: `Kebutuhan mendesak untuk tim ${division}.`,
+            approver: undefined,
+            approvalDate: undefined,
+            rejectionReason: undefined,
+            assignedAssetIds: {},
+            handoverId: undefined,
+            actualReturnDate: undefined,
+        };
+
+        if ([LoanRequestStatus.APPROVED, LoanRequestStatus.ON_LOAN, LoanRequestStatus.RETURNED, LoanRequestStatus.OVERDUE, LoanRequestStatus.AWAITING_RETURN].includes(status)) {
+            loanRequest.approver = 'Alice Johnson';
+            loanRequest.approvalDate = new Date(new Date(requestDate).setDate(requestDate.getDate() + 1)).toISOString();
+            
+            let allAssetsFound = true;
+            loanRequest.items.forEach(item => {
+                const availableAssets = mockAssets.filter(a => 
+                    a.name === item.itemName &&
+                    a.brand === item.brand &&
+                    a.status === AssetStatus.IN_STORAGE
+                );
+
+                if (availableAssets.length >= item.quantity) {
+                    const assetsToAssign = availableAssets.slice(0, item.quantity);
+                    loanRequest.assignedAssetIds![item.id] = assetsToAssign.map(a => a.id);
+
+                    if ([LoanRequestStatus.ON_LOAN, LoanRequestStatus.OVERDUE, LoanRequestStatus.AWAITING_RETURN].includes(status)) {
+                        assetsToAssign.forEach(assignedAsset => {
+                            const assetIndex = mockAssets.findIndex(a => a.id === assignedAsset.id);
+                            if (assetIndex !== -1) {
+                                mockAssets[assetIndex].status = AssetStatus.IN_USE;
+                                mockAssets[assetIndex].currentUser = loanRequest.requester;
+                                mockAssets[assetIndex].location = `Dipinjam oleh: ${loanRequest.requester}`;
+                            }
+                        });
+                    }
+                } else {
+                    allAssetsFound = false;
+                }
+            });
+
+            if (allAssetsFound && (status === LoanRequestStatus.ON_LOAN || status === LoanRequestStatus.RETURNED)) {
+                 const handoverDate = new Date(loanRequest.approvalDate!);
+                 handoverDate.setHours(handoverDate.getHours() + 2);
+                 
+                 const handoverDocNumber = generateDocumentNumber('HO-LN', mockHandovers, handoverDate);
+                 const handoverId = `HO-${String(mockHandovers.length + 1).padStart(3, '0')}`;
+
+                 const handoverItems: HandoverItem[] = [];
+                 for (const itemId in loanRequest.assignedAssetIds) {
+                     const assetIds = loanRequest.assignedAssetIds[itemId];
+                     assetIds.forEach(assetId => {
+                         const asset = mockAssets.find(a => a.id === assetId);
+                         if (asset) {
+                             handoverItems.push({
+                                 id: Date.now() + Math.random(),
+                                 assetId: asset.id,
+                                 itemName: asset.name,
+                                 itemTypeBrand: asset.brand,
+                                 conditionNotes: 'Kondisi baik saat dipinjamkan',
+                                 quantity: 1,
+                                 checked: true,
+                             });
+                         }
+                     });
+                 }
+
+                 const newHandover: Handover = {
+                     id: handoverId,
+                     docNumber: handoverDocNumber,
+                     handoverDate: handoverDate.toISOString().split('T')[0],
+                     menyerahkan: 'Alice Johnson',
+                     penerima: loanRequest.requester,
+                     mengetahui: 'John Doe',
+                     woRoIntNumber: loanRequest.id,
+                     items: handoverItems,
+                     status: ItemStatus.COMPLETED,
+                 };
+                 mockHandovers.push(newHandover);
+                 loanRequest.handoverId = handoverId;
+            }
+
+            if (status === LoanRequestStatus.RETURNED) {
+                loanRequest.actualReturnDate = new Date().toISOString();
+            }
+        }
+        
+        if (status === LoanRequestStatus.REJECTED) {
+            loanRequest.approver = 'Alice Johnson';
+            loanRequest.approvalDate = new Date(new Date(requestDate).setDate(requestDate.getDate() + 1)).toISOString();
+            loanRequest.rejectionReason = 'Aset tidak tersedia untuk jangka waktu yang diminta.';
+        }
+
+        loanRequests.push(loanRequest);
+    }
     mockLoanRequests = loanRequests;
     mockMaintenances = maintenances;
 }
