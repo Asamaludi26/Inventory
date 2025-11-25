@@ -5,9 +5,10 @@ import { useNotification } from '../../providers/NotificationProvider';
 import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import FormPageLayout from '../../components/layout/FormPageLayout';
-import { hasPermission } from '../../utils/permissions';
+import { hasPermission, MANDATORY_PERMISSIONS, ROLE_DEFAULT_PERMISSIONS } from '../../utils/permissions';
 import { PermissionManager } from './components/PermissionManager';
 import { LockIcon } from '../../components/icons/LockIcon';
+import { InfoIcon } from '../../components/icons/InfoIcon';
 
 const userRoles: UserRole[] = ['Staff', 'Leader', 'Admin Logistik', 'Admin Purchase', 'Super Admin'];
 
@@ -32,6 +33,9 @@ const UserFormPage: React.FC<UserFormPageProps> = ({ currentUser, divisions, onS
     const inventoryDivisionId = divisions.find(d => d.name === 'Logistik')?.id.toString();
     const canManagePermissions = hasPermission(currentUser, 'users:manage-permissions');
 
+    const isSuperAdminAccount = editingUser?.role === 'Super Admin';
+
+    // Initial Load
     useEffect(() => {
         if (editingUser) {
             setName(editingUser.name);
@@ -44,9 +48,32 @@ const UserFormPage: React.FC<UserFormPageProps> = ({ currentUser, divisions, onS
             setEmail('');
             setSelectedRole('Staff');
             setSelectedDivisionId(divisions[0]?.id.toString() || '');
-            setPermissions([]); // Start with no permissions for a new user
+            // Initialize with default permissions for Staff
+            setPermissions(ROLE_DEFAULT_PERMISSIONS['Staff'] || []); 
         }
     }, [editingUser, divisions]);
+
+    // Automatic Permission Update on Role Change
+    useEffect(() => {
+        // Determine if we should reset permissions
+        let shouldReset = false;
+
+        if (!editingUser) {
+            // New User: Always reset when role changes (unless it's the very first render, which this handles too)
+            shouldReset = true;
+        } else {
+            // Existing User: Only reset if the selected role is DIFFERENT from the user's original role.
+            // This preserves any custom permissions the user might have had if the role wasn't changed.
+            if (selectedRole !== editingUser.role) {
+                shouldReset = true;
+            }
+        }
+
+        if (shouldReset) {
+            const defaults = ROLE_DEFAULT_PERMISSIONS[selectedRole] || [];
+            setPermissions(defaults);
+        }
+    }, [selectedRole, editingUser]);
 
     useEffect(() => {
         if (selectedRole === 'Admin Logistik' && inventoryDivisionId) {
@@ -86,25 +113,36 @@ const UserFormPage: React.FC<UserFormPageProps> = ({ currentUser, divisions, onS
             actions={
                 <>
                     <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button type="submit" form="user-form" disabled={isSubmitting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
-                        {isSubmitting && <SpinnerIcon className="w-5 h-5 mr-2" />}
-                        {editingUser ? 'Simpan Perubahan' : 'Simpan Akun'}
-                    </button>
+                    {!isSuperAdminAccount && (
+                        <button type="submit" form="user-form" disabled={isSubmitting} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
+                            {isSubmitting && <SpinnerIcon className="w-5 h-5 mr-2" />}
+                            {editingUser ? 'Simpan Perubahan' : 'Simpan Akun'}
+                        </button>
+                    )}
                 </>
             }
         >
             <form id="user-form" onSubmit={handleSubmit} className="mx-auto space-y-8">
+                {isSuperAdminAccount && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800">
+                        <LockIcon className="w-5 h-5 mt-0.5" />
+                        <div className="text-sm">
+                            <strong>Akun Terproteksi.</strong> Peran dan hak akses akun Super Admin tidak dapat diubah untuk mencegah penguncian sistem secara tidak sengaja.
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nama Lengkap</label>
                         <div className="mt-1">
-                            <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
+                            <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} disabled={isSuperAdminAccount} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm disabled:bg-gray-200 disabled:text-gray-500" />
                         </div>
                     </div>
                     <div>
                         <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
                         <div className="mt-1">
-                            <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm" />
+                            <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} disabled={isSuperAdminAccount} required className="block w-full px-3 py-2 mt-1 text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-tm-accent focus:border-tm-accent sm:text-sm disabled:bg-gray-200 disabled:text-gray-500" />
                         </div>
                     </div>
                     <div>
@@ -114,6 +152,7 @@ const UserFormPage: React.FC<UserFormPageProps> = ({ currentUser, divisions, onS
                                 options={userRoles.map(r => ({ value: r, label: r }))}
                                 value={selectedRole}
                                 onChange={(value) => setSelectedRole(value as UserRole)}
+                                disabled={isSuperAdminAccount}
                             />
                         </div>
                         {selectedRole === 'Admin Logistik' && <p className="mt-2 text-xs text-gray-500">Role Admin Logistik hanya berlaku untuk Divisi Logistik.</p>}
@@ -128,7 +167,7 @@ const UserFormPage: React.FC<UserFormPageProps> = ({ currentUser, divisions, onS
                                 }
                                 value={selectedDivisionId}
                                 onChange={handleDivisionChange}
-                                disabled={selectedRole === 'Super Admin' || selectedRole === 'Admin Logistik'}
+                                disabled={selectedRole === 'Super Admin' || selectedRole === 'Admin Logistik' || isSuperAdminAccount}
                                 placeholder="Pilih Divisi"
                             />
                         </div>
@@ -137,13 +176,20 @@ const UserFormPage: React.FC<UserFormPageProps> = ({ currentUser, divisions, onS
 
                 {canManagePermissions && (
                     <div className="pt-6 border-t">
-                        <div className="flex items-center gap-3 mb-4">
-                            <LockIcon className="w-6 h-6 text-tm-primary" />
-                            <h3 className="text-lg font-semibold text-tm-dark">Manajemen Hak Akses (Permissions)</h3>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <LockIcon className="w-6 h-6 text-tm-primary" />
+                                <div>
+                                    <h3 className="text-lg font-semibold text-tm-dark">Manajemen Hak Akses (Permissions)</h3>
+                                    <p className="text-xs text-gray-500">Hak akses bertanda kunci wajib dimiliki oleh role ini.</p>
+                                </div>
+                            </div>
                         </div>
                         <PermissionManager
                             currentPermissions={permissions}
                             onChange={setPermissions}
+                            selectedRole={selectedRole}
+                            disabled={isSuperAdminAccount}
                         />
                     </div>
                 )}

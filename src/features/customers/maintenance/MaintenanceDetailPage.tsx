@@ -75,7 +75,7 @@ const MaintenanceDetailPage: React.FC<MaintenanceDetailPageProps> = ({ maintenan
                     <p className="text-sm text-tm-secondary">Dokumen : {maintenance.docNumber}</p>
                 </div>
                 
-                <section className="space-y-4 text-sm">
+                <section className="space-y-4 text-sm mb-6">
                     <div className="grid grid-cols-2 gap-6">
                         <DetailItem label="Tanggal Kunjungan">{new Date(maintenance.maintenanceDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</DetailItem>
                         <DetailItem label="Teknisi">{maintenance.technician}</DetailItem>

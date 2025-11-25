@@ -258,7 +258,7 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
     const [editingThresholdKey, setEditingThresholdKey] = useState<string | null>(null);
     const [tempThreshold, setTempThreshold] = useState<string>('');
 
-    const initialFilterState = { category: '', brand: '', lowStockOnly: false, status: '', condition: '' };
+    const initialFilterState = { category: '', brand: '', lowStockOnly: false, outOfStockOnly: false, status: '', condition: '' };
     const [filters, setFilters] = useState(initialFilterState);
     const [tempFilters, setTempFilters] = useState(filters);
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -521,12 +521,14 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
         return aggregatedStock
             .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.brand.toLowerCase().includes(searchQuery.toLowerCase()))
             .filter(item => filters.category ? item.category === filters.category : true)
-            .filter(item => filters.brand ? item.brand === item.brand : true)
+            .filter(item => filters.brand ? item.brand === filters.brand : true)
             .filter(item => {
-                if (!filters.lowStockOnly) return true;
+                if (!filters.lowStockOnly && !filters.outOfStockOnly) return true;
                 const key = `${item.name}|${item.brand}`;
                 const threshold = thresholds[key] ?? LOW_STOCK_DEFAULT;
-                return item.inStorage > 0 && item.inStorage <= threshold;
+                if (filters.lowStockOnly) return item.inStorage > 0 && item.inStorage <= threshold;
+                if (filters.outOfStockOnly) return item.inStorage === 0;
+                return true;
             });
     }, [aggregatedStock, searchQuery, filters, thresholds, currentUser.role]);
 
@@ -730,10 +732,20 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                                                 <Checkbox
                                                     id="low-stock-filter"
                                                     checked={tempFilters.lowStockOnly}
-                                                    onChange={e => setTempFilters(f => ({...f, lowStockOnly: e.target.checked}))}
+                                                    onChange={e => setTempFilters(f => ({...f, lowStockOnly: e.target.checked, outOfStockOnly: e.target.checked ? false : f.outOfStockOnly }))}
                                                 />
                                                 <label htmlFor="low-stock-filter" className="ml-3 text-sm font-medium text-gray-700 cursor-pointer">
-                                                    Hanya tampilkan stok menipis
+                                                    Hanya stok menipis
+                                                </label>
+                                            </div>
+                                             <div className="flex items-center p-2 -m-2 rounded-md hover:bg-gray-50 mt-2">
+                                                <Checkbox
+                                                    id="out-of-stock-filter"
+                                                    checked={tempFilters.outOfStockOnly}
+                                                    onChange={e => setTempFilters(f => ({...f, outOfStockOnly: e.target.checked, lowStockOnly: e.target.checked ? false : f.lowStockOnly }))}
+                                                />
+                                                <label htmlFor="out-of-stock-filter" className="ml-3 text-sm font-medium text-gray-700 cursor-pointer">
+                                                    Hanya stok habis
                                                 </label>
                                             </div>
                                         </div>

@@ -1,9 +1,7 @@
 
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 // Types and Enums
-// FIX: Splitting enums from type-only imports to resolve module resolution errors.
 import { 
     ItemStatus, 
     AssetStatus, 
@@ -31,7 +29,6 @@ import type {
     Attachment,
     LoanRequest,
     Maintenance,
-    // FIX: Add missing Installation type to handle installation data.
     Installation,
     InstalledMaterial
 } from './types';
@@ -50,6 +47,7 @@ import Modal from './components/ui/Modal';
 import { ModelManagementModal } from './components/ui/ModelManagementModal';
 import { TypeManagementModal } from './components/ui/TypeManagementModal';
 import { Avatar } from './components/ui/Avatar';
+import { CommandPalette } from './components/ui/CommandPalette'; // Import CommandPalette
 
 // Icon Components
 import { MenuIcon } from './components/icons/MenuIcon';
@@ -88,8 +86,9 @@ import UserFormPage from './features/users/UserFormPage';
 import DivisionFormPage from './features/users/DivisionFormPage';
 import UserDetailPage from './features/users/UserDetailPage';
 import DivisionDetailPage from './features/users/DivisionDetailPage';
-// FIX: Add missing import for StockOverviewPage.
 import StockOverviewPage from './features/stock/StockOverviewPage';
+import PermissionDeniedPage from './features/auth/PermissionDeniedPage';
+import RequestHubPage from './features/requests/RequestHubPage';
 
 // Feature Sub-components
 import ReportDamageModal from './features/stock/components/ReportDamageModal';
@@ -445,25 +444,6 @@ const NotificationBell: React.FC<{
     );
 };
 
-const UnderConstructionPage: React.FC<{ title: string; setActivePage: (page: Page) => void; }> = ({ title, setActivePage }) => {
-    return (
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-8 text-center bg-gray-50">
-            <div>
-                <WrenchIcon className="w-16 h-16 mx-auto text-amber-400" />
-                <h1 className="mt-4 text-2xl font-bold text-gray-800">{title}</h1>
-                <p className="mt-2 text-gray-600">Fitur ini sedang dalam tahap pengembangan dan akan segera tersedia.</p>
-                <button 
-                    onClick={() => setActivePage('dashboard')}
-                    className="inline-flex items-center justify-center gap-2 mt-6 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover"
-                >
-                    <DashboardIcon className="w-4 h-4" />
-                    Kembali ke Dashboard
-                </button>
-            </div>
-        </div>
-    );
-};
-
 const AppContent: React.FC<{ 
     currentUser: User; 
     onLogout: () => void;
@@ -507,6 +487,8 @@ const AppContent: React.FC<{
   // QR Scanner context state
   const [scanContext, setScanContext] = useState<'global' | 'form'>('global');
   const [formScanCallback, setFormScanCallback] = useState<((data: ParsedScanResult) => void) | null>(null);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
 
   // Asset Damage Report Flow Modals
   const [assetToReport, setAssetToReport] = useState<Asset | null>(null);
@@ -551,12 +533,20 @@ const AppContent: React.FC<{
         loadData();
     }, [addNotification]);
     
-    // Smart Background Scanning for external devices
+    // Smart Background Scanning & Command Palette Shortcut
     useEffect(() => {
         let scanBuffer = '';
         let lastKeyTime = Date.now();
 
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Command Palette Shortcut (Ctrl+K or Cmd+K)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsCommandPaletteOpen(prev => !prev);
+                return;
+            }
+
+            // Barcode Scanner Logic
             const target = e.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
                 return;
@@ -1371,6 +1361,13 @@ const AppContent: React.FC<{
     const handleSaveUser = (userData: Omit<User, 'id'>, id?: number) => {
         if (id) {
             setAndPersist(setUsers, (prev: User[]) => prev.map(u => u.id === id ? { ...u, ...userData } : u), 'app_users');
+            
+            // CRITICAL FIX: If the user being edited is the currently logged-in user, update their session state immediately.
+            if (id === currentUser.id) {
+                const updatedCurrentUser = { ...currentUser, ...userData };
+                onUpdateCurrentUser(updatedCurrentUser);
+            }
+
             addNotification('Akun berhasil diperbarui.', 'success');
         } else {
             const newUser = { ...userData, id: Math.max(...users.map(u => u.id), 0) + 1 };
@@ -1444,30 +1441,30 @@ const AppContent: React.FC<{
 
   const renderPage = () => {
     if (currentUser.role === 'Staff' && staffRestrictedPages.includes(activePage)) {
-        return (
-            <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-8 text-center bg-gray-50">
-                <div>
-                    <ExclamationTriangleIcon className="w-16 h-16 mx-auto text-amber-400" />
-                    <h1 className="mt-4 text-2xl font-bold text-gray-800">Akses Ditolak</h1>
-                    <p className="mt-2 text-gray-600">Anda tidak memiliki izin untuk mengakses halaman ini. Silakan hubungi administrator.</p>
-                </div>
-            </div>
-        );
+        return <PermissionDeniedPage />;
     }
 
     switch (activePage) {
       case 'dashboard':
         return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
       case 'request':
-        return <NewRequestPage 
+      case 'request-pinjam':
+        return <RequestHubPage 
+                  activePage={activePage}
                   currentUser={currentUser} 
                   requests={requests} 
                   setRequests={(valueOrFn) => setAndPersist(setRequests, valueOrFn, 'app_requests')} 
+                  loanRequests={loanRequests}
+                  setLoanRequests={(valueOrFn) => setAndPersist(setLoanRequests, valueOrFn, 'app_loanRequests')}
                   assets={assets}
+                  setAssets={(valueOrFn) => setAndPersist(setAssets, valueOrFn, 'app_assets')}
+                  handovers={handovers}
+                  setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')}
                   assetCategories={assetCategories} 
                   divisions={divisions} 
                   onInitiateRegistration={handleInitiateRegistration} 
                   onInitiateHandoverFromRequest={handleInitiateHandoverFromRequest} 
+                  onInitiateHandoverFromLoan={handleInitiateHandoverFromLoan}
                   initialFilters={pageInitialState} 
                   onClearInitialFilters={clearPageInitialState} 
                   onShowPreview={handleShowPreview} 
@@ -1478,23 +1475,6 @@ const AppContent: React.FC<{
                   notifications={notifications} 
                   addNotification={addAppNotification} 
                   markNotificationsAsRead={markNotificationsAsRead}
-                />;
-      case 'request-pinjam':
-        return <LoanRequestPage
-                  currentUser={currentUser} 
-                  loanRequests={loanRequests}
-                  setLoanRequests={(valueOrFn) => setAndPersist(setLoanRequests, valueOrFn, 'app_loanRequests')}
-                  assets={assets}
-                  setAssets={(valueOrFn) => setAndPersist(setAssets, valueOrFn, 'app_assets')}
-                  users={users}
-                  divisions={divisions}
-                  handovers={handovers}
-                  setHandovers={(valueOrFn) => setAndPersist(setHandovers, valueOrFn, 'app_handovers')}
-                  setActivePage={handleSetActivePage}
-                  onShowPreview={handleShowPreview}
-                  onInitiateHandoverFromLoan={handleInitiateHandoverFromLoan}
-                  assetCategories={assetCategories}
-                  addNotification={addAppNotification}
                   setIsGlobalScannerOpen={setIsGlobalScannerOpen}
                   setScanContext={setScanContext}
                   setFormScanCallback={setFormScanCallback}
@@ -1723,6 +1703,15 @@ const AppContent: React.FC<{
             onReceiveFromRepair={handleReceiveFromRepair}
             onDecommission={setAssetToDecommission}
             onAddProgressUpdate={setAssetToUpdateProgress}
+        />
+        <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setIsCommandPaletteOpen(false)}
+            assets={assets}
+            users={users}
+            customers={customers}
+            onNavigate={handleSetActivePage}
+            onShowPreview={handleShowPreview}
         />
         {modelModalState && (
           <ModelManagementModal

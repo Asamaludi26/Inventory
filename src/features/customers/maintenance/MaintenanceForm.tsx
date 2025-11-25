@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Customer, Asset, User, Maintenance, ItemStatus, AssetCondition, StandardItem, AssetCategory, MaintenanceMaterial, MaintenanceReplacement, Attachment, AssetStatus } from '../../../types';
 import DatePicker from '../../../components/ui/DatePicker';
@@ -124,7 +126,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
 
 
     const materialOptions = useMemo(() => {
-        const items: { value: string, label: string }[] = [];
+        const items: { value: string, label: string, unit: string }[] = [];
         assetCategories.forEach(cat => {
             if (cat.isCustomerInstallable) {
                 cat.types.forEach(type => {
@@ -132,7 +134,8 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
                         (type.standardItems || []).forEach(item => {
                             items.push({
                                 value: `${item.name}|${item.brand}`,
-                                label: `${item.name} - ${item.brand}`
+                                label: `${item.name} - ${item.brand}`,
+                                unit: type.baseUnitOfMeasure || 'pcs'
                             });
                         });
                     }
@@ -287,11 +290,16 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({ currentUser, customer
             .map(m => {
                 const [name, brand] = m.modelKey.split('|');
                 const materialAsset = assets.find(a => a.name === name && a.brand === brand && a.status === AssetStatus.IN_STORAGE);
+                
+                const selectedOption = materialOptions.find(opt => opt.value === m.modelKey);
+                const unit = selectedOption?.unit || 'pcs';
+
                 return {
                     materialAssetId: materialAsset?.id,
                     itemName: name,
                     brand,
                     quantity: Number(m.quantity),
+                    unit,
                 };
             });
             

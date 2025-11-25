@@ -56,6 +56,9 @@ export type Permission =
   | 'assets:install'
   | 'assets:repair:manage'
   | 'assets:repair:report'
+  // Stock Management
+  | 'stock:view'
+  | 'stock:manage' // Untuk edit threshold, opname, dll
   // Customers
   | 'customers:view'
   | 'customers:create'
@@ -71,6 +74,9 @@ export type Permission =
   | 'divisions:manage'
   // Settings - Categories
   | 'categories:manage'
+  // Reports & Exports
+  | 'reports:view'
+  | 'data:export'
   // Personal Account
   | 'account:manage';
 
@@ -399,6 +405,7 @@ export interface MaintenanceMaterial {
   itemName: string;
   brand: string;
   quantity: number;
+  unit: string;
 }
 
 export interface MaintenanceReplacement {

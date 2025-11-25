@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Page, User, Permission } from '../../types';
 import { hasPermission } from '../../utils/permissions';
 import { DashboardIcon } from '../icons/DashboardIcon';
@@ -56,7 +56,6 @@ const allMenuItems: MenuItem[] = [
         id: 'request-parent',
         label: 'Request Aset',
         icon: RequestIcon,
-        permission: 'requests:create',
         children: [
           { id: 'request-new', page: 'request', label: 'Request Baru', icon: RequestIcon, permission: 'requests:view:own' },
           { id: 'request-loan', page: 'request-pinjam', label: 'Request Pinjam', icon: JournalCheckIcon, permission: 'loan-requests:view:own' },
@@ -156,30 +155,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
         return initialState;
     });
 
-    const menuItems = React.useMemo(() => {
-        const filterItems = (items: MenuItem[]): MenuItem[] => {
-            return items
-                .filter(item => {
-                    // If an item has a permission, check it. If not, it's public.
-                    if (item.permission) {
-                        return hasPermission(currentUser, item.permission);
+    const menuItems = useMemo(() => {
+        // Fungsi rekursif untuk memfilter menu
+        const filterVisibleItems = (items: MenuItem[]): MenuItem[] => {
+            return items.reduce((acc: MenuItem[], item) => {
+                // 1. Cek Permission Item (jika ada)
+                if (item.permission && !hasPermission(currentUser, item.permission)) {
+                    return acc;
+                }
+
+                // 2. Proses Children (Rekursif)
+                if (item.children && item.children.length > 0) {
+                    const visibleChildren = filterVisibleItems(item.children);
+                    
+                    // Jika setelah difilter tidak ada children yang tersisa
+                    if (visibleChildren.length === 0) {
+                        // Jika item ini adalah "folder" (tidak punya halaman sendiri), maka jangan tampilkan
+                        if (!item.page && !item.path) {
+                            return acc;
+                        }
+                        // Jika punya halaman sendiri, hapus children property tapi tetap tampilkan item
+                        return [...acc, { ...item, children: undefined }];
                     }
-                    // For parent menus without a specific permission, show if any child is visible.
-                    if(item.children){
-                        return item.children.some(child => child.permission ? hasPermission(currentUser, child.permission) : true);
-                    }
-                    return true;
-                })
-                .map(item => {
-                    if (item.children) {
-                        return { ...item, children: filterItems(item.children) };
-                    }
-                    return item;
-                })
-                .filter(item => !item.children || item.children.length > 0); // Hide empty parent menus
+
+                    // Jika ada children yang tersisa, tampilkan item beserta children yang sudah difilter
+                    return [...acc, { ...item, children: visibleChildren }];
+                }
+
+                // 3. Item biasa (tanpa children), permission sudah lolos di langkah 1
+                return [...acc, item];
+            }, []);
         };
 
-        return filterItems(allMenuItems);
+        return filterVisibleItems(allMenuItems);
     }, [currentUser]);
 
 
@@ -242,8 +250,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                                 onClick={() => setOpenMenus(prev => ({...prev, [item.id]: !prev[item.id]}))}
                                 className={`flex items-center justify-between w-full px-4 py-2.5 my-1 rounded-md text-sm font-medium transition-colors duration-200 group focus:outline-none ${isParentActive ? 'text-white' : 'text-gray-400'} hover:bg-gray-700/40 hover:text-white`}
                             >
-                                <item.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isParentActive ? 'text-white' : 'text-gray-500'}`} />
-                                <span className="flex-1 text-left">{item.label}</span>
+                                <div className="flex items-center">
+                                    <item.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isParentActive ? 'text-white' : 'text-gray-500'}`} />
+                                    <span className="flex-1 text-left">{item.label}</span>
+                                </div>
                                 <ChevronDownIcon className={`w-5 h-5 transform transition-transform duration-200 ${openMenus[item.id] ? 'rotate-180' : 'rotate-0'}`} />
                             </button>
                             <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openMenus[item.id] ? 'max-h-96' : 'max-h-0'}`}>
@@ -269,8 +279,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                                                     onClick={() => setOpenMenus(prev => ({...prev, [child.id]: !prev[child.id]}))}
                                                     className={`flex items-center justify-between w-full px-4 py-2.5 my-1 rounded-md text-sm font-medium transition-colors duration-200 group focus:outline-none ${isChildParentActive ? 'text-white' : 'text-gray-400'} hover:bg-gray-700/40 hover:text-white`}
                                                 >
-                                                    <child.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isChildParentActive ? 'text-white' : 'text-gray-500'}`} />
-                                                    <span className="flex-1 text-left">{child.label}</span>
+                                                    <div className="flex items-center">
+                                                        <child.icon className={`flex-shrink-0 w-5 h-5 mr-4 transition-colors group-hover:text-white ${isChildParentActive ? 'text-white' : 'text-gray-500'}`} />
+                                                        <span className="flex-1 text-left">{child.label}</span>
+                                                    </div>
                                                     <ChevronDownIcon className={`w-5 h-5 transform transition-transform duration-200 ${openMenus[child.id] ? 'rotate-180' : 'rotate-0'}`} />
                                                 </button>
                                                 <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openMenus[child.id] ? 'max-h-96' : 'max-h-0'}`}>
@@ -296,7 +308,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentUser, activePage, setAc
                 })}
             </nav>
             <div className="p-4 border-t border-gray-700/80">
-                <p className="text-xs text-center text-gray-500">© 2024 Triniti Media Indonesia</p>
+                <p className="text-xs text-center text-gray-500">© 2025 Triniti Media Indonesia</p>
             </div>
         </div>
     );

@@ -5,7 +5,6 @@ import Modal from '../../components/ui/Modal';
 import { ClickableLink } from '../../components/ui/ClickableLink';
 import { ChevronLeftIcon } from '../../components/icons/ChevronLeftIcon';
 import { ChevronRightIcon } from '../../components/icons/ChevronRightIcon';
-// FIX: The import path for getRequestStatusClass was incorrect, pointing to an empty file. Corrected to point to the actual component location.
 import { getStatusClass as getRequestStatusClass } from '../requests/new/components/RequestStatus';
 import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
 import { getStatusClass as getCustomerStatusClass } from '../customers/list/CustomerListPage';
@@ -28,6 +27,8 @@ import { CheckIcon } from '../../components/icons/CheckIcon';
 import { ExclamationTriangleIcon } from '../../components/icons/ExclamationTriangleIcon';
 import { TrashIcon } from '../../components/icons/TrashIcon';
 import { UsersIcon } from '../../components/icons/UsersIcon';
+import { calculateAssetDepreciation } from '../../utils/depreciation';
+import { DollarIcon } from '../../components/icons/DollarIcon';
 
 interface PreviewModalProps {
     currentUser: User;
@@ -114,6 +115,44 @@ const RepairStatusCard: React.FC<{ asset: Asset }> = ({ asset }) => {
                     </>
                 )}
             </dl>
+        </div>
+    );
+};
+
+const DepreciationCard: React.FC<{ asset: Asset }> = ({ asset }) => {
+    const depreciation = useMemo(() => calculateAssetDepreciation(asset), [asset]);
+
+    if (!depreciation) return null;
+
+    return (
+        <div className="p-4 mt-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+                <DollarIcon className="w-5 h-5 text-green-700" />
+                <h3 className="text-sm font-bold text-green-800">Estimasi Nilai Aset (Depresiasi)</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+                 <div>
+                    <p className="text-xs text-green-600">Nilai Perolehan</p>
+                    <p className="font-semibold text-gray-800">Rp {depreciation.initialValue.toLocaleString('id-ID')}</p>
+                 </div>
+                 <div>
+                    <p className="text-xs text-green-600">Nilai Buku Saat Ini</p>
+                    <p className="font-bold text-green-800 text-lg">Rp {depreciation.currentValue.toLocaleString('id-ID')}</p>
+                 </div>
+                 <div>
+                    <p className="text-xs text-green-600">Umur Ekonomis</p>
+                    <p className="text-gray-800">{depreciation.usefulLifeYears} Tahun ({depreciation.monthsPassed} bulan berjalan)</p>
+                 </div>
+                 <div>
+                    <p className="text-xs text-green-600">Penyusutan per Bulan</p>
+                    <p className="text-gray-800">Rp {depreciation.monthlyDepreciation.toLocaleString('id-ID')}</p>
+                 </div>
+            </div>
+            {depreciation.isFullyDepreciated && (
+                <div className="mt-3 px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded inline-block">
+                    Aset telah habis masa manfaat ekonomisnya
+                </div>
+            )}
         </div>
     );
 };
@@ -259,6 +298,7 @@ const PreviewModal: React.FC<PreviewModalProps> = (props) => {
                                                 <PreviewItem label="No. PO" value={<ClickableLink onClick={() => onShowPreview({type: 'request', id: asset.poNumber!})}>{asset.poNumber}</ClickableLink>} />
                                                 <PreviewItem label="No. Invoice" value={asset.invoiceNumber} />
                                             </dl>
+                                            <DepreciationCard asset={asset} />
                                         </div>
                                     )}
                                     <div>
