@@ -1,5 +1,6 @@
+
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Asset, AssetStatus, Page, PreviewData, AssetCategory, Handover, User, AssetCondition, Division, LoanRequest, LoanRequestStatus } from '../../types';
+import { Asset, AssetStatus, Page, PreviewData, AssetCategory, Handover, User, AssetCondition, Division, LoanRequest, LoanRequestStatus, Request } from '../../types';
 import { useSortableData, SortConfig } from '../../hooks/useSortableData';
 import { PaginationControls } from '../../components/ui/PaginationControls';
 import { SearchIcon } from '../../components/icons/SearchIcon';
@@ -23,11 +24,13 @@ import { UsersIcon } from '../../components/icons/UsersIcon';
 import { WrenchIcon } from '../../components/icons/WrenchIcon';
 import { EyeIcon } from '../../components/icons/EyeIcon';
 import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
-import { BsUpcScan, BsGeoAlt, BsCalendarCheck, BsTag, BsShieldCheck } from 'react-icons/bs';
+import { BsUpcScan, BsCalendarCheck, BsTag, BsShieldCheck } from 'react-icons/bs';
 import { CopyIcon } from '../../components/icons/CopyIcon';
 import { useNotification } from '../../providers/NotificationProvider';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { JournalCheckIcon } from '../../components/icons/JournalCheckIcon';
+import { SummaryCard } from '../dashboard/components/SummaryCard';
+import { DismantleIcon } from '../../components/icons/DismantleIcon';
 
 
 interface StockOverviewPageProps {
@@ -41,7 +44,7 @@ interface StockOverviewPageProps {
     initialFilters?: any;
     onClearInitialFilters: () => void;
     handovers: Handover[];
-    requests: any[]; // Added requests prop
+    requests: Request[];
     onReportDamage: (asset: Asset) => void;
     loanRequests: LoanRequest[];
 }
@@ -60,28 +63,6 @@ interface StockItem {
 }
 
 const LOW_STOCK_DEFAULT = 5;
-
-const SummaryCard: React.FC<{ title: string; value: string | number; icon: React.FC<{ className?: string }>; onClick?: () => void; isActive?: boolean; tooltipText?: string }> = ({ title, value, icon: Icon, onClick, isActive = false, tooltipText }) => {
-    return (
-        <div 
-            onClick={onClick} 
-            className={`p-6 bg-white border rounded-xl shadow-md transition-all duration-300
-                ${onClick ? 'cursor-pointer hover:shadow-lg hover:border-tm-accent/50 hover:-translate-y-1' : ''}
-                ${isActive ? 'border-tm-primary ring-2 ring-tm-accent/50' : 'border-gray-200/80'}
-            `}
-        >
-            <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium tracking-wide text-gray-500">{title}</h3>
-                    <p className="mt-2 text-3xl font-bold text-tm-dark truncate" title={tooltipText || (typeof value === 'string' ? value : undefined)}>{value}</p>
-                </div>
-                <div className={`flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-lg transition-colors ${isActive ? 'bg-info-light text-info-text' : 'bg-tm-light text-tm-primary'}`}>
-                    <Icon className="w-6 h-6" />
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const SortableHeader: React.FC<{
     children: React.ReactNode;
@@ -168,8 +149,10 @@ const AssetCard: React.FC<{
     onShowDetail: (data: PreviewData) => void;
     onReportDamage: (asset: Asset) => void;
     isLoaned?: boolean;
+    loanId?: string;
     returnDate?: string | null;
-}> = ({ asset, dateReceived, onShowDetail, onReportDamage, isLoaned, returnDate }) => {
+    onReturn?: () => void;
+}> = ({ asset, dateReceived, onShowDetail, onReportDamage, isLoaned, loanId, returnDate, onReturn }) => {
     const addNotification = useNotification();
     const ConditionIcon = getConditionInfo(asset.condition).Icon;
     const conditionColor = getConditionInfo(asset.condition).color;
@@ -236,14 +219,25 @@ const AssetCard: React.FC<{
                     <EyeIcon className="w-4 h-4"/>
                     Detail
                 </button>
-                 <button
-                    onClick={() => onReportDamage(asset)}
-                    disabled={asset.status === AssetStatus.DAMAGED}
-                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-white transition-colors bg-amber-500 border border-amber-500 rounded-lg shadow-sm hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                    <WrenchIcon className="w-4 h-4"/>
-                    Laporkan
-                </button>
+                
+                {isLoaned && onReturn ? (
+                    <button
+                        onClick={onReturn}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-white transition-colors bg-purple-600 border border-purple-600 rounded-lg shadow-sm hover:bg-purple-700"
+                    >
+                        <DismantleIcon className="w-4 h-4"/>
+                        Kembalikan
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => onReportDamage(asset)}
+                        disabled={asset.status === AssetStatus.DAMAGED}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-white transition-colors bg-amber-500 border border-amber-500 rounded-lg shadow-sm hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                        <WrenchIcon className="w-4 h-4"/>
+                        Laporkan
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -311,12 +305,18 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
         // 1. Permanently assigned assets
         const permanentlyAssigned = assets.filter(a => a.currentUser === currentUser.name);
 
-        // 2. Loaned assets
+        // 2. Loaned assets (Exclude returned ones)
         const myActiveLoans = loanRequests.filter(
-            lr => lr.requester === currentUser.name && lr.status === LoanRequestStatus.ON_LOAN
+            lr => lr.requester === currentUser.name && 
+                  (lr.status === LoanRequestStatus.ON_LOAN || lr.status === LoanRequestStatus.OVERDUE)
         );
 
-        const loanedAssetIds = myActiveLoans.flatMap(lr => Object.values(lr.assignedAssetIds || {}).flat());
+        const loanedAssetIds = myActiveLoans.flatMap(lr => {
+             const allAssigned = Object.values(lr.assignedAssetIds || {}).flat();
+             const returnedIds = lr.returnedAssetIds || [];
+             return allAssigned.filter(id => !returnedIds.includes(id));
+        });
+        
         const loanedAssets = assets.filter(a => loanedAssetIds.includes(a.id));
 
         // 3. Combine and deduplicate
@@ -327,12 +327,16 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
         const finalMyAssets = Array.from(allMyAssetsMap.values());
         
         // 4. Create a map for loaned asset details (like return date)
-        const finalLoanedAssetDetails = new Map<string, { returnDate: string | null }>();
+        const finalLoanedAssetDetails = new Map<string, { returnDate: string | null, loanId: string }>();
         myActiveLoans.forEach(loan => {
             loan.items.forEach(item => {
                 const assignedIds = loan.assignedAssetIds?.[item.id] || [];
+                const returnedIds = loan.returnedAssetIds || [];
+                
                 assignedIds.forEach(assetId => {
-                    finalLoanedAssetDetails.set(assetId, { returnDate: item.returnDate || null });
+                    if (!returnedIds.includes(assetId)) {
+                        finalLoanedAssetDetails.set(assetId, { returnDate: item.returnDate || null, loanId: loan.id });
+                    }
                 });
             });
         });
@@ -554,40 +558,15 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
             ...[...new Set(myAssets.map(a => a.status))].map(s => ({ value: s, label: s }))
         ], [myAssets]);
 
-        const StaffStatCard: React.FC<{ title: string; value: number; icon: React.FC<{className?:string}>; color: 'blue' | 'green' | 'amber'; isActive: boolean; onClick: () => void;}> = ({ title, value, icon: Icon, color, isActive, onClick }) => {
-            const colors = {
-                blue: { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' },
-                green: { bg: 'bg-green-50', text: 'text-green-800', border: 'border-green-500' },
-                amber: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-500' },
-            };
-            const currentColors = colors[color];
-            return (
-                <div
-                    onClick={onClick}
-                    className={`relative p-5 rounded-xl border-2 transition-all duration-300 cursor-pointer group hover:shadow-lg hover:-translate-y-1 ${isActive ? `${currentColors.bg} ${currentColors.border}` : 'bg-white border-gray-200/80 hover:border-tm-accent/50'}`}
-                >
-                    <div className="flex items-center gap-4">
-                        <div className={`flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-full ${isActive ? 'bg-white' : currentColors.bg} ${currentColors.text} transition-colors`}>
-                            <Icon className="w-6 h-6"/>
-                        </div>
-                        <div>
-                            <p className="text-3xl font-bold text-tm-dark">{value}</p>
-                            <p className="text-sm font-medium text-gray-500">{title}</p>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
         return (
             <div className="p-4 sm:p-6 md:p-8 space-y-8">
                 <h1 className="text-3xl font-bold text-tm-dark">Aset Saya</h1>
                 
                 {staffSummary && (
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        <StaffStatCard title="Total Aset Saya" value={staffSummary.total} icon={ArchiveBoxIcon} color="blue" isActive={!filters.condition} onClick={() => setFilters(f => ({...f, condition: ''}))} />
-                        <StaffStatCard title="Kondisi Baik" value={staffSummary.goodCondition} icon={BsShieldCheck} color="green" isActive={filters.condition === 'GOOD'} onClick={() => setFilters(f => ({...f, condition: 'GOOD'}))} />
-                        <StaffStatCard title="Perlu Perhatian" value={staffSummary.needsAttention} icon={ExclamationTriangleIcon} color="amber" isActive={filters.condition === 'ATTENTION'} onClick={() => setFilters(f => ({...f, condition: 'ATTENTION'}))} />
+                        <SummaryCard title="Total Aset Saya" value={staffSummary.total} icon={ArchiveBoxIcon} color="blue" isActive={!filters.condition} onClick={() => setFilters(f => ({...f, condition: ''}))} />
+                        <SummaryCard title="Kondisi Baik" value={staffSummary.goodCondition} icon={BsShieldCheck} color="green" isActive={filters.condition === 'GOOD'} onClick={() => setFilters(f => ({...f, condition: 'GOOD'}))} />
+                        <SummaryCard title="Perlu Perhatian" value={staffSummary.needsAttention} icon={ExclamationTriangleIcon} color="amber" isActive={filters.condition === 'ATTENTION'} onClick={() => setFilters(f => ({...f, condition: 'ATTENTION'}))} />
                     </div>
                 )}
                 
@@ -623,6 +602,10 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                                         onReportDamage={onReportDamage}
                                         isLoaned={isLoaned}
                                         returnDate={loanDetails?.returnDate || null}
+                                        onReturn={isLoaned && loanDetails ? () => setActivePage('request-pinjam', {
+                                            openDetailForId: loanDetails.loanId,
+                                            preselectReturnAssetId: asset.id
+                                        }) : undefined}
                                     />
                                 );
                             })}
@@ -658,19 +641,24 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
             
             {summaryData && (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    <SummaryCard title="Total Tipe Aset" value={summaryData.totalTypes} icon={AssetIcon} />
+                    <SummaryCard title="Total Tipe Aset" value={summaryData.totalTypes} icon={AssetIcon} color="blue" />
                     <SummaryCard 
                         title="Total Nilai Stok Gudang" 
                         value={shortStockValue}
                         tooltipText={fullStockValue}
-                        icon={DollarIcon} 
+                        icon={DollarIcon}
+                        color="green" 
                     />
-                    <SummaryCard title="Stok Menipis" value={summaryData.lowStockItems} icon={ExclamationTriangleIcon} onClick={() => { 
+                    <SummaryCard title="Stok Menipis" value={summaryData.lowStockItems} icon={ExclamationTriangleIcon} color="amber" onClick={() => { 
                         const newFilterState = !filters.lowStockOnly;
                         setFilters(f => ({ ...initialFilterState, lowStockOnly: newFilterState }));
                         setTempFilters(f => ({ ...initialFilterState, lowStockOnly: newFilterState })); 
                     }} isActive={filters.lowStockOnly} />
-                    <SummaryCard title="Stok Habis" value={summaryData.outOfStockItems} icon={InboxIcon} />
+                    <SummaryCard title="Stok Habis" value={summaryData.outOfStockItems} icon={InboxIcon} color="red" onClick={() => {
+                         const newFilterState = !filters.outOfStockOnly;
+                         setFilters(f => ({ ...initialFilterState, outOfStockOnly: newFilterState }));
+                         setTempFilters(f => ({ ...initialFilterState, outOfStockOnly: newFilterState }));
+                    }} isActive={filters.outOfStockOnly} />
                 </div>
             )}
             

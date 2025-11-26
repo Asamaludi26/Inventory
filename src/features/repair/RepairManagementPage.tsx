@@ -13,6 +13,7 @@ import { WrenchIcon } from '../../components/icons/WrenchIcon';
 import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
 import { ClickableLink } from '../../components/ui/ClickableLink';
 import { BsTools, BsTruck } from 'react-icons/bs';
+import { SummaryCard } from '../dashboard/components/SummaryCard';
 
 interface RepairManagementPageProps {
     currentUser: User;
@@ -56,27 +57,6 @@ const SortableHeader: React.FC<{
                 <span className="opacity-50 group-hover:opacity-100">{getSortIcon()}</span>
             </button>
         </th>
-    );
-};
-
-const SummaryCard: React.FC<{ title: string, value: number, icon: React.FC<{className?:string}>, color: 'amber' | 'blue' | 'purple' }> = ({ title, value, icon: Icon, color }) => {
-    const colors = {
-        amber: 'bg-amber-100 text-amber-700',
-        blue: 'bg-blue-100 text-blue-700',
-        purple: 'bg-purple-100 text-purple-700',
-    };
-    return (
-        <div className="p-5 bg-white border border-gray-200/80 rounded-xl shadow-sm">
-            <div className="flex items-center gap-4">
-                <div className={`flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-lg ${colors[color]}`}>
-                    <Icon className="w-6 h-6"/>
-                </div>
-                <div>
-                    <p className="text-3xl font-bold text-tm-dark">{value}</p>
-                    <p className="text-sm font-medium text-gray-500">{title}</p>
-                </div>
-            </div>
-        </div>
     );
 };
 

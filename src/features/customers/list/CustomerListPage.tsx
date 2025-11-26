@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Customer, CustomerStatus, Asset, User, PreviewData, Page } from '../../../types';
 import { useSortableData } from '../../../hooks/useSortableData';
@@ -23,6 +24,7 @@ import { CustomSelect } from '../../../components/ui/CustomSelect';
 import { UsersIcon } from '../../../components/icons/UsersIcon';
 import { FilterIcon } from '../../../components/icons/FilterIcon';
 import { CheckIcon } from '../../../components/icons/CheckIcon';
+import { SummaryCard } from '../../dashboard/components/SummaryCard';
 
 interface CustomerListPageProps {
     currentUser: User;
@@ -43,44 +45,6 @@ export const getStatusClass = (status: CustomerStatus) => {
         default: return 'bg-gray-100 text-gray-800';
     }
 };
-
-const SummaryCard: React.FC<{
-    title: string;
-    value: number;
-    icon: React.FC<{ className?: string }>;
-    onClick: () => void;
-    isActive: boolean;
-    color: 'blue' | 'green' | 'amber' | 'gray';
-}> = ({ title, value, icon: Icon, onClick, isActive, color }) => {
-    const colorClasses = {
-        blue: { text: 'text-blue-700', bg: 'bg-blue-100', border: 'border-blue-500' },
-        green: { text: 'text-green-700', bg: 'bg-green-100', border: 'border-green-500' },
-        amber: { text: 'text-amber-700', bg: 'bg-amber-100', border: 'border-amber-500' },
-        gray: { text: 'text-gray-700', bg: 'bg-gray-100', border: 'border-gray-500' },
-    };
-
-    const currentColors = colorClasses[color];
-
-    return (
-        <div
-            onClick={onClick}
-            className={`p-4 bg-white rounded-lg cursor-pointer transition-all duration-200 border-l-4 hover:shadow-md hover:border-l-tm-primary ${
-                isActive ? `ring-2 ring-offset-1 ${currentColors.border} ring-opacity-60` : 'border-gray-200/80'
-            } ${currentColors.border}`}
-        >
-            <div className="flex items-center gap-4">
-                <div className={`flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full ${currentColors.bg}`}>
-                    <Icon className={`w-5 h-5 ${currentColors.text}`} />
-                </div>
-                <div className="flex-1">
-                    <p className="text-2xl font-bold text-tm-dark">{value}</p>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</p>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 const CustomerListPage: React.FC<CustomerListPageProps> = ({ currentUser, customers, setCustomers, assets, onShowPreview, setActivePage, initialFilters }) => {
     const [searchQuery, setSearchQuery] = useState('');

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
@@ -30,11 +31,9 @@ import { Avatar } from '../../../components/ui/Avatar';
 import Modal from '../../../components/ui/Modal';
 import { PencilIcon } from '../../../components/icons/PencilIcon';
 import { TrashIcon } from '../../../components/icons/TrashIcon';
-import { ExclamationTriangleIcon } from '../../../components/icons/ExclamationTriangleIcon';
 import { SendIcon } from '../../../components/icons/SendIcon';
 import { ReplyIcon } from '../../../components/icons/ReplyIcon';
 import { hasPermission } from '../../../utils/permissions';
-
 
 interface RequestDetailPageProps {
     request: Request;
@@ -64,7 +63,30 @@ interface RequestDetailPageProps {
     assetCategories: AssetCategory[];
 }
 
-// Updated to check permission instead of just role
+// Helper: ActionButton
+const ActionButton: React.FC<{ onClick?: () => void, text: string, icon?: React.FC<{className?:string}>, color: 'primary'|'success'|'danger'|'info'|'secondary'|'special', disabled?: boolean }> = ({ onClick, text, icon: Icon, color, disabled }) => {
+    const colors = {
+        primary: "bg-tm-primary hover:bg-tm-primary-hover text-white",
+        success: "bg-success hover:bg-green-700 text-white",
+        danger: "bg-danger hover:bg-red-700 text-white",
+        info: "bg-info hover:bg-blue-700 text-white",
+        secondary: "bg-gray-600 hover:bg-gray-700 text-white", // Updated to dark gray for better visibility
+        special: "bg-purple-600 hover:bg-purple-700 text-white",
+    };
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg shadow-sm transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${colors[color]}`}
+        >
+            {disabled && <SpinnerIcon className="w-4 h-4" />}
+            {Icon && <Icon className="w-4 h-4" />}
+            {text}
+        </button>
+    );
+};
+
 const canViewPrice = (user: User) => hasPermission(user, 'requests:approve:purchase');
 
 const TimelineStep: React.FC<{
@@ -178,7 +200,6 @@ const ProcurementProgressCard: React.FC<{ request: Request, assets: Asset[] }> =
         </section>
     );
 };
-
 
 const ApprovalProgress: React.FC<{ request: Request }> = ({ request }) => {
     if (request.status === ItemStatus.REJECTED && request.rejectedBy && request.rejectionDate) {
@@ -368,7 +389,7 @@ const StatusAndActionSidebar: React.FC<RequestDetailPageProps & {
                  if (canApprovePurchase || canApproveLogistic) {
                      return <ActionButton onClick={() => onUpdateRequestStatus(ItemStatus.ARRIVED)} disabled={isLoading} text="Tandai Barang Tiba" color="primary" icon={ArchiveBoxIcon} />;
                 }
-                 if (canApproveFinal && !request.progressUpdateRequest?.isAcknowledged) {
+                if (canApproveFinal && !request.progressUpdateRequest?.isAcknowledged) {
                     return <ActionButton onClick={() => onRequestProgressUpdate(request.id)} disabled={isLoading} text="Minta Update Progres" color="info" icon={InfoIcon} />;
                 }
                 return null;
@@ -426,6 +447,419 @@ const StatusAndActionSidebar: React.FC<RequestDetailPageProps & {
         </div>
     );
 };
+
+const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?: React.ReactNode; fullWidth?: boolean; }> = ({ label, value, children, fullWidth = false }) => (
+    <div className={fullWidth ? 'sm:col-span-full' : ''}><dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</dt><dd className="mt-1 text-gray-800">{value || children || '-'}</dd></div>
+);
+
+interface ItemPurchaseDetailsFormProps {
+    item: RequestItem;
+    approvedQuantity: number;
+    onChange: (details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => void;
+    isDisabled?: boolean;
+}
+
+const ItemPurchaseDetailsForm: React.FC<ItemPurchaseDetailsFormProps> = ({ item, approvedQuantity, onChange, isDisabled = false }) => {
+    const [purchasePrice, setPurchasePrice] = useState<number | ''>('');
+    const [vendor, setVendor] = useState('');
+    const [poNumber, setPoNumber] = useState('');
+    const [invoiceNumber, setInvoiceNumber] = useState('');
+    const [purchaseDate, setPurchaseDate] = useState<Date | null>(new Date());
+    const [warrantyEndDate, setWarrantyEndDate] = useState<Date | null>(null);
+    const [warrantyPeriod, setWarrantyPeriod] = useState<number | ''>('');
+    const [isExpanded, setIsExpanded] = useState(!isDisabled);
+
+    useEffect(() => {
+        if (purchaseDate && warrantyPeriod && warrantyPeriod > 0) {
+            const d = new Date(purchaseDate);
+            const expectedMonth = (Number(d.getMonth()) + Number(warrantyPeriod)) % 12;
+            d.setMonth(Number(d.getMonth()) + Number(warrantyPeriod));
+            if (d.getMonth() !== expectedMonth) {
+                d.setDate(0);
+            }
+            setWarrantyEndDate(d);
+        }
+    }, [purchaseDate, warrantyPeriod]);
+    
+    const handleWarrantyEndDateChange = (date: Date | null) => {
+        setWarrantyEndDate(date);
+
+        if (purchaseDate && date && date > purchaseDate) {
+            const pDate = new Date(purchaseDate);
+            let months = (date.getFullYear() - pDate.getFullYear()) * 12 + (Number(date.getMonth()) - Number(pDate.getMonth()));
+            
+            if (date.getDate() < pDate.getDate()) {
+                months--;
+            }
+    
+            setWarrantyPeriod(months <= 0 ? '' : months);
+        } else {
+            setWarrantyPeriod('');
+        }
+    };
+
+    useEffect(() => {
+        onChange({
+            purchasePrice: Number(purchasePrice),
+            vendor,
+            poNumber,
+            invoiceNumber,
+            purchaseDate: purchaseDate!.toISOString().split('T')[0],
+            warrantyEndDate: warrantyEndDate ? warrantyEndDate.toISOString().split('T')[0] : null,
+        });
+    }, [purchasePrice, vendor, poNumber, invoiceNumber, purchaseDate, warrantyEndDate, onChange]);
+
+    return (
+        <div className={`border border-gray-200 rounded-lg shadow-sm transition-colors ${isDisabled ? 'bg-gray-100/70' : 'bg-white'}`}>
+            <button
+                type="button"
+                onClick={() => !isDisabled && setIsExpanded(p => !p)}
+                disabled={isDisabled}
+                className={`flex items-center justify-between w-full p-3 font-semibold text-left text-gray-700 ${isDisabled ? 'cursor-not-allowed' : 'hover:bg-gray-100'} ${isExpanded && !isDisabled ? 'bg-gray-50/70' : ''}`}
+            >
+                <span className={`${isDisabled ? 'line-through text-gray-500' : ''}`}>
+                    {item.itemName} ({item.itemTypeBrand}) - {approvedQuantity} unit
+                </span>
+                <div className="flex items-center gap-2">
+                    {isDisabled && <span className="px-2 py-0.5 text-xs font-bold text-white bg-danger rounded-full">DITOLAK</span>}
+                    {!isDisabled && <ChevronDownIcon className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
+                </div>
+            </button>
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded && !isDisabled ? 'max-h-[1000px]' : 'max-h-0'}`}>
+                <fieldset disabled={isDisabled}>
+                    <div className="p-4 space-y-4 text-sm border-t">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label className="font-medium text-gray-700">Harga Beli Total (Rp) <span className="text-danger">*</span></label>
+                                <div className="relative mt-1">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <span className="text-gray-500 sm:text-sm">Rp</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={purchasePrice === '' ? '' : purchasePrice.toLocaleString('id-ID')}
+                                        onChange={e => {
+                                            const numericValue = e.target.value.replace(/\D/g, '');
+                                            setPurchasePrice(numericValue === '' ? '' : Number(numericValue));
+                                        }}
+                                        required
+                                        className="block w-full py-2 pl-8 pr-3 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="font-medium text-gray-700">Vendor <span className="text-danger">*</span></label>
+                                <input type="text" value={vendor} onChange={e => setVendor(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="font-medium text-gray-700">No. Purchase Order <span className="text-danger">*</span></label>
+                                <input type="text" value={poNumber} onChange={e => setPoNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="font-medium text-gray-700">No. Faktur <span className="text-danger">*</span></label>
+                                <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
+
+                        <div>
+                                <label className="font-medium text-gray-700">Masa Garansi (bulan)</label>
+                                <input
+                                    type="number"
+                                    value={warrantyPeriod}
+                                    onChange={e => setWarrantyPeriod(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                                    min="0"
+                                    className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
+                                />
+                            </div>
+
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
+                            <div className="sm:col-span-3">
+                                <label className="block font-medium text-gray-700">Tanggal Beli <span className="text-danger">*</span></label>
+                                <DatePicker id={`pd-${item.id}`} selectedDate={purchaseDate} onDateChange={setPurchaseDate} disableFutureDates />
+                            </div>
+        
+                            <div className="sm:col-span-3">
+                                <label className="block font-medium text-gray-700">Akhir Garansi</label>
+                                <DatePicker id={`we-${item.id}`} selectedDate={warrantyEndDate} onDateChange={handleWarrantyEndDateChange} />
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+    );
+};
+
+const PurchaseDetailsView: React.FC<{ request: Request, details: Record<number, PurchaseDetails>, currentUser: User }> = ({ request, details, currentUser }) => (
+    <section>
+        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">Detail Pembelian</h4>
+        <div className="overflow-x-auto -mx-2">
+            <table className="min-w-full text-left text-sm">
+                <thead className="bg-gray-100 text-xs uppercase text-gray-700">
+                    <tr>
+                        <th className="p-3">Nama Barang</th>
+                        {/* Conditionally render Price header */}
+                        {canViewPrice(currentUser) && <th className="p-3 text-right">Harga</th>}
+                        <th className="p-3">Vendor</th>
+                        <th className="p-3">Tgl Beli</th>
+                        <th className="p-3">Akhir Garansi</th>
+                        <th className="p-3">No. PO / Faktur</th>
+                        <th className="p-3">Diisi Oleh</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {request.items.map(item => {
+                        const isRejected = request.itemStatuses?.[item.id]?.approvedQuantity === 0;
+                        const itemDetails = details[item.id];
+
+                        if (isRejected) {
+                            return (
+                                <tr key={item.id} className="bg-red-50/60 text-gray-500">
+                                    <td className="p-3 font-semibold">
+                                        <div className="flex items-center gap-2">
+                                            <span className="line-through">{item.itemName}</span>
+                                            <span className="px-2 py-0.5 text-xs font-bold text-white bg-danger rounded-full no-underline">DITOLAK</span>
+                                        </div>
+                                    </td>
+                                    <td colSpan={6} className="p-3 italic">
+                                        {request.itemStatuses?.[item.id]?.reason || 'Item ditolak saat proses review.'}
+                                    </td>
+                                </tr>
+                            );
+                        }
+                        
+                        if (itemDetails) {
+                             return (
+                                <tr key={item.id} className="bg-white">
+                                    <td className="p-3 font-semibold text-gray-800">{item.itemName || 'N/A'}</td>
+                                    {/* Conditionally render Price cell */}
+                                    {canViewPrice(currentUser) && (
+                                        <td className="p-3 text-right font-mono text-gray-800">Rp {(itemDetails.purchasePrice as unknown as number).toLocaleString('id-ID')}</td>
+                                    )}
+                                    <td className="p-3 text-gray-600">{itemDetails.vendor}</td>
+                                    <td className="p-3 text-gray-600 whitespace-nowrap">{new Date(itemDetails.purchaseDate).toLocaleDateString('id-ID')}</td>
+                                    <td className="p-3 text-gray-600 whitespace-nowrap">{itemDetails.warrantyEndDate ? new Date(itemDetails.warrantyEndDate).toLocaleDateString('id-ID') : '-'}</td>
+                                    <td className="p-3 text-gray-600">
+                                        <div className="font-mono">{itemDetails.poNumber}</div>
+                                        <div className="text-xs text-gray-500">{itemDetails.invoiceNumber}</div>
+                                    </td>
+                                    <td className="p-3 text-gray-600">
+                                        <div>{itemDetails.filledBy}</div>
+                                        <div className="text-xs text-gray-500">{new Date(itemDetails.fillDate).toLocaleDateString('id-ID')}</div>
+                                    </td>
+                                </tr>
+                            );
+                        }
+
+                        return null;
+                    })}
+                </tbody>
+            </table>
+        </div>
+    </section>
+);
+
+const CommentThread: React.FC<{
+    activities: Activity[];
+    allActivities: Activity[];
+    level: number;
+    onStartReply: (activity: Activity) => void;
+    onStartEdit: (activity: Activity) => void;
+    onDelete: (activity: Activity) => void;
+    currentUser: User;
+    editingActivityId: number | null;
+    editText: string;
+    onSaveEdit: () => void;
+    onCancelEdit: () => void;
+    onSetEditText: (text: string) => void;
+}> = ({ activities, allActivities, level, onStartReply, onStartEdit, onDelete, currentUser, editingActivityId, editText, onSaveEdit, onCancelEdit, onSetEditText }) => {
+    const editInputRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        const textarea = editInputRef.current;
+        if (textarea) {
+            textarea.focus();
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
+            textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+        }
+    }, [editingActivityId]);
+
+    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onSaveEdit();
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancelEdit();
+        }
+    };
+    
+    const formatRelativeTime = (isoDate: string) => {
+        const date = new Date(isoDate);
+        const now = new Date();
+        const diffSeconds = Math.round((now.getTime() - date.getTime()) / 1000);
+        if (diffSeconds < 60) return `${diffSeconds}d lalu`;
+        const diffMinutes = Math.round(diffSeconds / 60);
+        if (diffMinutes < 60) return `${diffMinutes}m lalu`;
+        const diffHours = Math.round(diffMinutes / 60);
+        if (diffHours < 24) return `${diffHours}j lalu`;
+        return `${Math.round(diffHours / 24)}h lalu`;
+    };
+
+    return (
+        <div className="space-y-4">
+            {activities.map(activity => {
+                const replies = allActivities.filter(reply => reply.parentId === activity.id).sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                const isEditingThis = editingActivityId === activity.id;
+
+                if (activity.type === 'status_change') {
+                    return (
+                        <div key={activity.id} className="relative text-center my-6">
+                            <hr />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="bg-white px-3 text-xs text-gray-500 font-medium">{formatRelativeTime(activity.timestamp)}</span>
+                            </div>
+                        </div>
+                    );
+                }
+
+                if (activity.type === 'revision') {
+                    return (
+                        <div key={activity.id} className={`flex items-start space-x-3 ${level > 0 ? 'ml-10' : ''}`}>
+                            <Avatar name={activity.author} className="w-10 h-10 flex-shrink-0" />
+                            <div className="flex-1">
+                                <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-lg shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <PencilIcon className="w-4 h-4 text-amber-700" />
+                                            <p className="text-sm font-semibold text-gray-800">{activity.author} memberikan revisi</p>
+                                        </div>
+                                        <p className="text-xs text-gray-400" title={new Date(activity.timestamp).toLocaleString('id-ID')}>{formatRelativeTime(activity.timestamp)}</p>
+                                    </div>
+                                    <div className="mt-2 space-y-2">
+                                        {activity.payload.revisions?.map((rev, index) => {
+                                            const rejectedQuantity = rev.originalQuantity - rev.approvedQuantity;
+                                            const isFullyRejected = rev.approvedQuantity === 0;
+
+                                            return (
+                                                <div key={index} className="text-sm border-t border-amber-200/80 pt-2 first:border-t-0 first:pt-0">
+                                                    <p className="font-semibold text-gray-700">{rev.itemName}</p>
+                                                    
+                                                    {isFullyRejected ? (
+                                                        <div className="flex items-center gap-2 text-xs">
+                                                            <span className="font-semibold text-danger-text">Ditolak:</span>
+                                                            <span className="text-gray-600">{rev.originalQuantity} diajukan,</span>
+                                                            <span className="font-bold text-danger-text">{rejectedQuantity} ditolak</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                                                            <span className="font-semibold text-amber-800">Revisi:</span>
+                                                            <span className="text-gray-600">{rev.originalQuantity} diajukan,</span>
+                                                            <span className="font-bold text-success-text">{rev.approvedQuantity} disetujui,</span>
+                                                            <span className="font-bold text-danger-text">{rejectedQuantity} ditolak</span>
+                                                        </div>
+                                                    )}
+
+                                                    <p className="text-xs text-gray-600 italic mt-1">Alasan: "{rev.reason}"</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                return (
+                    <div key={activity.id} className="relative">
+                        {level > 0 && <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200"></div>}
+                        <div className={`flex items-start space-x-3 ${level > 0 ? 'ml-10' : ''}`}>
+                            <Avatar name={activity.author} className="w-10 h-10 flex-shrink-0" />
+                            <div className="flex-1">
+                                {isEditingThis ? (
+                                     <div>
+                                        <textarea
+                                            ref={editInputRef}
+                                            value={editText}
+                                            onChange={e => {
+                                                onSetEditText(e.target.value);
+                                                if (editInputRef.current) {
+                                                    editInputRef.current.style.height = 'auto';
+                                                    editInputRef.current.style.height = `${editInputRef.current.scrollHeight}px`;
+                                                }
+                                            }}
+                                            onKeyDown={handleEditKeyDown}
+                                            rows={1}
+                                            style={{ overflow: 'hidden' }}
+                                            className="block w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm resize-none focus:ring-2 focus:ring-tm-accent focus:border-tm-accent"
+                                        />
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <button onClick={onSaveEdit} className="px-3 py-1 text-xs font-semibold text-white bg-tm-primary rounded-md">Simpan</button>
+                                            <button onClick={onCancelEdit} className="px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-200 rounded-md">Batal</button>
+                                            <span className="text-xs text-gray-500">
+                                                <kbd className="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-200 rounded-sm">Enter</kbd> untuk simpan, <kbd className="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-200 rounded-sm">Esc</kbd> untuk batal.
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="relative p-3 bg-gray-50 border border-gray-200/80 rounded-lg shadow-sm group">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-semibold text-gray-800">{activity.author}</p>
+                                                <p className="text-xs text-gray-400" title={new Date(activity.timestamp).toLocaleString('id-ID')}>{formatRelativeTime(activity.timestamp)}</p>
+                                            </div>
+                                            <div className="absolute top-2 right-2 flex items-center gap-1 p-1 bg-white/50 border border-gray-200/0 rounded-full opacity-0 group-hover:opacity-100 group-hover:border-gray-200/100 transition-all duration-200">
+                                                
+                                                    <button onClick={() => onStartReply(activity)} className="p-1.5 text-gray-500 rounded-full hover:bg-gray-200"><ReplyIcon className="w-4 h-4"/></button>
+                                               
+                                                {currentUser.name === activity.author && (
+                                                    <>
+                                                        
+                                                            <button onClick={() => onStartEdit(activity)} className="p-1.5 text-gray-500 rounded-full hover:bg-gray-200"><PencilIcon className="w-4 h-4"/></button>
+                                                        
+                                                        
+                                                            <button onClick={() => onDelete(activity)} className="p-1.5 text-red-500 rounded-full hover:bg-red-100"><TrashIcon className="w-4 h-4"/></button>
+                                                        
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{activity.payload.text}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        {replies.length > 0 && (
+                            <div className="mt-4">
+                                <CommentThread
+                                    activities={replies}
+                                    allActivities={allActivities}
+                                    level={level + 1}
+                                    onStartReply={onStartReply}
+                                    onStartEdit={onStartEdit}
+                                    onDelete={onDelete}
+                                    currentUser={currentUser}
+                                    editingActivityId={editingActivityId}
+                                    editText={editText}
+                                    onSaveEdit={onSaveEdit}
+                                    onCancelEdit={onCancelEdit}
+                                    onSetEditText={onSetEditText}
+                                />
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 
 const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
     const { request, currentUser, assets, onBackToList, onShowPreview, users, onSubmitForCeoApproval, assetCategories, onUpdateRequest } = props;
@@ -634,33 +1068,6 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
         });
     };
 
-     const handlePurchaseDetailFieldChange = (
-        itemId: number,
-        field: keyof Omit<PurchaseDetails, 'filledBy' | 'fillDate'>,
-        value: string | number | Date | null
-    ) => {
-        setItemPurchaseDetails(prev => {
-            const currentDetails = prev[itemId] || {
-                purchasePrice: 0,
-                vendor: '',
-                poNumber: '',
-                invoiceNumber: '',
-                purchaseDate: new Date().toISOString().split('T')[0],
-                warrantyEndDate: null,
-            };
-            
-            const finalValue = value instanceof Date ? value.toISOString().split('T')[0] : value;
-            
-            return {
-                ...prev,
-                [itemId]: {
-                    ...currentDetails,
-                    [field]: finalValue
-                }
-            };
-        });
-    };
-
     const isPurchaseFormValid = useMemo(() => {
         if (request.status !== ItemStatus.LOGISTIC_APPROVED || currentUser.role !== 'Admin Purchase') {
             return true;
@@ -687,16 +1094,15 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
     }, [itemPurchaseDetails, request.items, request.itemStatuses, request.status, currentUser.role]);
 
     const calculatedTotalValue = useMemo(() => {
-        // Updated check: use permissions instead of role check for viewing/calculating price
         if (request.status === ItemStatus.LOGISTIC_APPROVED && hasPermission(currentUser, 'requests:approve:purchase')) {
-            return Object.values(itemPurchaseDetails).reduce((sum, details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => {
+            return Object.values(itemPurchaseDetails).reduce((sum: number, details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => {
                 const price = Number(details.purchasePrice) || 0;
                 return sum + price;
             }, 0);
         }
         
         if (request.purchaseDetails) {
-            return Object.values(request.purchaseDetails).reduce((sum, details: PurchaseDetails) => {
+            return Object.values(request.purchaseDetails).reduce((sum: number, details: PurchaseDetails) => {
                 const price = Number(details.purchasePrice) || 0;
                 return sum + price;
             }, 0);
@@ -886,7 +1292,6 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                                         );
                                     })}
                                 </tbody>
-                                {/* Updated check for visibility */}
                                 {canViewPrice(currentUser) && (
                                      <tfoot className="bg-gray-100">
                                         <tr>
@@ -922,7 +1327,6 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
                         </section>
                     )}
 
-                    {/* Updated condition to use permission check */}
                     {request.purchaseDetails && canViewPrice(currentUser) && (
                         <PurchaseDetailsView request={request} details={request.purchaseDetails} currentUser={currentUser} />
                     )}
@@ -1023,441 +1427,5 @@ const NewRequestDetailPage: React.FC<RequestDetailPageProps> = (props) => {
         </DetailPageLayout>
     );
 };
-
-const CommentThread: React.FC<{
-    activities: Activity[];
-    allActivities: Activity[];
-    level: number;
-    onStartReply: (activity: Activity) => void;
-    onStartEdit: (activity: Activity) => void;
-    onDelete: (activity: Activity) => void;
-    currentUser: User;
-    editingActivityId: number | null;
-    editText: string;
-    onSaveEdit: () => void;
-    onCancelEdit: () => void;
-    onSetEditText: (text: string) => void;
-}> = ({ activities, allActivities, level, onStartReply, onStartEdit, onDelete, currentUser, editingActivityId, editText, onSaveEdit, onCancelEdit, onSetEditText }) => {
-    const editInputRef = useRef<HTMLTextAreaElement>(null);
-
-    useEffect(() => {
-        const textarea = editInputRef.current;
-        if (textarea) {
-            textarea.focus();
-            textarea.style.height = 'auto';
-            textarea.style.height = `${textarea.scrollHeight}px`;
-            textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
-        }
-    }, [editingActivityId]);
-
-    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            onSaveEdit();
-        }
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            onCancelEdit();
-        }
-    };
-    
-    const formatRelativeTime = (isoDate: string) => {
-        const date = new Date(isoDate);
-        const now = new Date();
-        const diffSeconds = Math.round((now.getTime() - date.getTime()) / 1000);
-        if (diffSeconds < 60) return `${diffSeconds}d lalu`;
-        const diffMinutes = Math.round(diffSeconds / 60);
-        if (diffMinutes < 60) return `${diffMinutes}m lalu`;
-        const diffHours = Math.round(diffMinutes / 60);
-        if (diffHours < 24) return `${diffHours}j lalu`;
-        return `${Math.round(diffHours / 24)}h lalu`;
-    };
-
-    return (
-        <div className="space-y-4">
-            {activities.map(activity => {
-                const replies = allActivities.filter(reply => reply.parentId === activity.id).sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-                const isEditingThis = editingActivityId === activity.id;
-
-                if (activity.type === 'status_change') {
-                    return (
-                        <div key={activity.id} className="relative text-center my-6">
-                            <hr />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="bg-white px-3 text-xs text-gray-500 font-medium">{formatRelativeTime(activity.timestamp)}</span>
-                            </div>
-                        </div>
-                    );
-                }
-
-                if (activity.type === 'revision') {
-                    return (
-                        <div key={activity.id} className={`flex items-start space-x-3 ${level > 0 ? 'ml-10' : ''}`}>
-                            <Avatar name={activity.author} className="w-10 h-10 flex-shrink-0" />
-                            <div className="flex-1">
-                                <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-lg shadow-sm">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <PencilIcon className="w-4 h-4 text-amber-700" />
-                                            <p className="text-sm font-semibold text-gray-800">{activity.author} memberikan revisi</p>
-                                        </div>
-                                        <p className="text-xs text-gray-400" title={new Date(activity.timestamp).toLocaleString('id-ID')}>{formatRelativeTime(activity.timestamp)}</p>
-                                    </div>
-                                    <div className="mt-2 space-y-2">
-                                        {activity.payload.revisions?.map((rev, index) => {
-                                            const rejectedQuantity = rev.originalQuantity - rev.approvedQuantity;
-                                            const isFullyRejected = rev.approvedQuantity === 0;
-
-                                            return (
-                                                <div key={index} className="text-sm border-t border-amber-200/80 pt-2 first:border-t-0 first:pt-0">
-                                                    <p className="font-semibold text-gray-700">{rev.itemName}</p>
-                                                    
-                                                    {isFullyRejected ? (
-                                                        <div className="flex items-center gap-2 text-xs">
-                                                            <span className="font-semibold text-danger-text">Ditolak:</span>
-                                                            <span className="text-gray-600">{rev.originalQuantity} diajukan,</span>
-                                                            <span className="font-bold text-danger-text">{rejectedQuantity} ditolak</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                                                            <span className="font-semibold text-amber-800">Revisi:</span>
-                                                            <span className="text-gray-600">{rev.originalQuantity} diajukan,</span>
-                                                            <span className="font-bold text-success-text">{rev.approvedQuantity} disetujui,</span>
-                                                            <span className="font-bold text-danger-text">{rejectedQuantity} ditolak</span>
-                                                        </div>
-                                                    )}
-
-                                                    <p className="text-xs text-gray-600 italic mt-1">Alasan: "{rev.reason}"</p>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )
-                }
-
-                return (
-                    <div key={activity.id} className="relative">
-                        {level > 0 && <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200"></div>}
-                        <div className={`flex items-start space-x-3 ${level > 0 ? 'ml-10' : ''}`}>
-                            <Avatar name={activity.author} className="w-10 h-10 flex-shrink-0" />
-                            <div className="flex-1">
-                                {isEditingThis ? (
-                                     <div>
-                                        <textarea
-                                            ref={editInputRef}
-                                            value={editText}
-                                            onChange={e => {
-                                                onSetEditText(e.target.value);
-                                                if (editInputRef.current) {
-                                                    editInputRef.current.style.height = 'auto';
-                                                    editInputRef.current.style.height = `${editInputRef.current.scrollHeight}px`;
-                                                }
-                                            }}
-                                            onKeyDown={handleEditKeyDown}
-                                            rows={1}
-                                            style={{ overflow: 'hidden' }}
-                                            className="block w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm resize-none focus:ring-2 focus:ring-tm-accent focus:border-tm-accent"
-                                        />
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <button onClick={onSaveEdit} className="px-3 py-1 text-xs font-semibold text-white bg-tm-primary rounded-md">Simpan</button>
-                                            <button onClick={onCancelEdit} className="px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-200 rounded-md">Batal</button>
-                                            <span className="text-xs text-gray-500">
-                                                <kbd className="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-200 rounded-sm">Enter</kbd> untuk simpan, <kbd className="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-200 rounded-sm">Esc</kbd> untuk batal.
-                                            </span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="relative p-3 bg-gray-50 border border-gray-200/80 rounded-lg shadow-sm group">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-sm font-semibold text-gray-800">{activity.author}</p>
-                                                <p className="text-xs text-gray-400" title={new Date(activity.timestamp).toLocaleString('id-ID')}>{formatRelativeTime(activity.timestamp)}</p>
-                                            </div>
-                                            <div className="absolute top-2 right-2 flex items-center gap-1 p-1 bg-white/50 border border-gray-200/0 rounded-full opacity-0 group-hover:opacity-100 group-hover:border-gray-200/100 transition-all duration-200">
-                                                
-                                                    <button onClick={() => onStartReply(activity)} className="p-1.5 text-gray-500 rounded-full hover:bg-gray-200"><ReplyIcon className="w-4 h-4"/></button>
-                                               
-                                                {currentUser.name === activity.author && (
-                                                    <>
-                                                        
-                                                            <button onClick={() => onStartEdit(activity)} className="p-1.5 text-gray-500 rounded-full hover:bg-gray-200"><PencilIcon className="w-4 h-4"/></button>
-                                                        
-                                                        
-                                                            <button onClick={() => onDelete(activity)} className="p-1.5 text-red-500 rounded-full hover:bg-red-100"><TrashIcon className="w-4 h-4"/></button>
-                                                        
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{activity.payload.text}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        {replies.length > 0 && (
-                            <div className="mt-4">
-                                <CommentThread
-                                    activities={replies}
-                                    allActivities={allActivities}
-                                    level={level + 1}
-                                    onStartReply={onStartReply}
-                                    onStartEdit={onStartEdit}
-                                    onDelete={onDelete}
-                                    currentUser={currentUser}
-                                    editingActivityId={editingActivityId}
-                                    editText={editText}
-                                    onSaveEdit={onSaveEdit}
-                                    onCancelEdit={onCancelEdit}
-                                    onSetEditText={onSetEditText}
-                                />
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
-
-const ActionButton: React.FC<{ onClick?: () => void, text: string, icon?: React.FC<{className?:string}>, color: 'primary'|'success'|'danger'|'info'|'secondary'|'special', disabled?: boolean, isFormTrigger?: boolean }> = ({ onClick, text, icon: Icon, color, disabled, isFormTrigger }) => {
-    const colors = {
-        primary: "bg-tm-primary hover:bg-tm-primary-hover text-white",
-        success: "bg-success hover:bg-green-700 text-white",
-        danger: "bg-danger hover:bg-red-700 text-white",
-        info: "bg-info hover:bg-blue-700 text-white",
-        secondary: "bg-gray-200 hover:bg-gray-300 text-gray-800",
-        special: "bg-purple-600 hover:bg-purple-700 text-white",
-    };
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg shadow-sm transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${colors[color]}`}
-        >
-            {disabled && <SpinnerIcon className="w-4 h-4" />}
-            {Icon && <Icon className="w-4 h-4" />}
-            {text}
-        </button>
-    );
-};
-
-const PreviewItem: React.FC<{ label: string; value?: React.ReactNode; children?: React.ReactNode; fullWidth?: boolean; }> = ({ label, value, children, fullWidth = false }) => (
-    <div className={fullWidth ? 'sm:col-span-full' : ''}><dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</dt><dd className="mt-1 text-gray-800">{value || children || '-'}</dd></div>
-);
-
-interface ItemPurchaseDetailsFormProps {
-    item: RequestItem;
-    approvedQuantity: number;
-    onChange: (details: Omit<PurchaseDetails, 'filledBy' | 'fillDate'>) => void;
-    isDisabled?: boolean;
-}
-
-const ItemPurchaseDetailsForm: React.FC<ItemPurchaseDetailsFormProps> = ({ item, approvedQuantity, onChange, isDisabled = false }) => {
-    const [purchasePrice, setPurchasePrice] = useState<number | ''>('');
-    const [vendor, setVendor] = useState('');
-    const [poNumber, setPoNumber] = useState('');
-    const [invoiceNumber, setInvoiceNumber] = useState('');
-    const [purchaseDate, setPurchaseDate] = useState<Date | null>(new Date());
-    const [warrantyEndDate, setWarrantyEndDate] = useState<Date | null>(null);
-    const [warrantyPeriod, setWarrantyPeriod] = useState<number | ''>('');
-    const [isExpanded, setIsExpanded] = useState(!isDisabled);
-
-    useEffect(() => {
-        if (purchaseDate && warrantyPeriod && warrantyPeriod > 0) {
-            const d = new Date(purchaseDate);
-            const expectedMonth = (Number(d.getMonth()) + Number(warrantyPeriod)) % 12;
-            d.setMonth(Number(d.getMonth()) + Number(warrantyPeriod));
-            if (d.getMonth() !== expectedMonth) {
-                d.setDate(0);
-            }
-            setWarrantyEndDate(d);
-        }
-    }, [purchaseDate, warrantyPeriod]);
-    
-    const handleWarrantyEndDateChange = (date: Date | null) => {
-        setWarrantyEndDate(date);
-
-        if (purchaseDate && date && date > purchaseDate) {
-            const pDate = new Date(purchaseDate);
-            let months = (date.getFullYear() - pDate.getFullYear()) * 12 + (Number(date.getMonth()) - Number(pDate.getMonth()));
-            
-            if (date.getDate() < pDate.getDate()) {
-                months--;
-            }
-    
-            setWarrantyPeriod(months <= 0 ? '' : months);
-        } else {
-            setWarrantyPeriod('');
-        }
-    };
-
-    useEffect(() => {
-        onChange({
-            purchasePrice: Number(purchasePrice),
-            vendor,
-            poNumber,
-            invoiceNumber,
-            purchaseDate: purchaseDate!.toISOString().split('T')[0],
-            warrantyEndDate: warrantyEndDate ? warrantyEndDate.toISOString().split('T')[0] : null,
-        });
-    }, [purchasePrice, vendor, poNumber, invoiceNumber, purchaseDate, warrantyEndDate, onChange]);
-
-    return (
-        <div className={`border border-gray-200 rounded-lg shadow-sm transition-colors ${isDisabled ? 'bg-gray-100/70' : 'bg-white'}`}>
-            <button
-                type="button"
-                onClick={() => !isDisabled && setIsExpanded(p => !p)}
-                disabled={isDisabled}
-                className={`flex items-center justify-between w-full p-3 font-semibold text-left text-gray-700 ${isDisabled ? 'cursor-not-allowed' : 'hover:bg-gray-100'} ${isExpanded && !isDisabled ? 'bg-gray-50/70' : ''}`}
-            >
-                <span className={`${isDisabled ? 'line-through text-gray-500' : ''}`}>
-                    {item.itemName} ({item.itemTypeBrand}) - {approvedQuantity} unit
-                </span>
-                <div className="flex items-center gap-2">
-                    {isDisabled && <span className="px-2 py-0.5 text-xs font-bold text-white bg-danger rounded-full">DITOLAK</span>}
-                    {!isDisabled && <ChevronDownIcon className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
-                </div>
-            </button>
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded && !isDisabled ? 'max-h-[1000px]' : 'max-h-0'}`}>
-                <fieldset disabled={isDisabled}>
-                    <div className="p-4 space-y-4 text-sm border-t">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <label className="font-medium text-gray-700">Harga Beli Total (Rp) <span className="text-danger">*</span></label>
-                                <div className="relative mt-1">
-                                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                        <span className="text-gray-500 sm:text-sm">Rp</span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={purchasePrice === '' ? '' : purchasePrice.toLocaleString('id-ID')}
-                                        onChange={e => {
-                                            const numericValue = e.target.value.replace(/\D/g, '');
-                                            setPurchasePrice(numericValue === '' ? '' : Number(numericValue));
-                                        }}
-                                        required
-                                        className="block w-full py-2 pl-8 pr-3 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="font-medium text-gray-700">Vendor <span className="text-danger">*</span></label>
-                                <input type="text" value={vendor} onChange={e => setVendor(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
-                            </div>
-                            <div>
-                                <label className="font-medium text-gray-700">No. Purchase Order <span className="text-danger">*</span></label>
-                                <input type="text" value={poNumber} onChange={e => setPoNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
-                            </div>
-                            <div>
-                                <label className="font-medium text-gray-700">No. Faktur <span className="text-danger">*</span></label>
-                                <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} required className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm" />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
-
-                        <div>
-                                <label className="font-medium text-gray-700">Masa Garansi (bulan)</label>
-                                <input
-                                    type="number"
-                                    value={warrantyPeriod}
-                                    onChange={e => setWarrantyPeriod(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                                    min="0"
-                                    className="block w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg shadow-sm"
-                                />
-                            </div>
-
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
-                            <div className="sm:col-span-3">
-                                <label className="block font-medium text-gray-700">Tanggal Beli <span className="text-danger">*</span></label>
-                                <DatePicker id={`pd-${item.id}`} selectedDate={purchaseDate} onDateChange={setPurchaseDate} disableFutureDates />
-                            </div>
-        
-                            <div className="sm:col-span-3">
-                                <label className="block font-medium text-gray-700">Akhir Garansi</label>
-                                <DatePicker id={`we-${item.id}`} selectedDate={warrantyEndDate} onDateChange={handleWarrantyEndDateChange} />
-                            </div>
-                        </div>
-                    </div>
-                </fieldset>
-            </div>
-        </div>
-    );
-};
-
-// Updated PurchaseDetailsView to use permission check
-const PurchaseDetailsView: React.FC<{ request: Request, details: Record<number, PurchaseDetails>, currentUser: User }> = ({ request, details, currentUser }) => (
-    <section>
-        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-2">Detail Pembelian</h4>
-        <div className="overflow-x-auto -mx-2">
-            <table className="min-w-full text-left text-sm">
-                <thead className="bg-gray-100 text-xs uppercase text-gray-700">
-                    <tr>
-                        <th className="p-3">Nama Barang</th>
-                        {/* Conditionally render Price header */}
-                        {canViewPrice(currentUser) && <th className="p-3 text-right">Harga</th>}
-                        <th className="p-3">Vendor</th>
-                        <th className="p-3">Tgl Beli</th>
-                        <th className="p-3">Akhir Garansi</th>
-                        <th className="p-3">No. PO / Faktur</th>
-                        <th className="p-3">Diisi Oleh</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                    {request.items.map(item => {
-                        const isRejected = request.itemStatuses?.[item.id]?.approvedQuantity === 0;
-                        const itemDetails = details[item.id];
-
-                        if (isRejected) {
-                            return (
-                                <tr key={item.id} className="bg-red-50/60 text-gray-500">
-                                    <td className="p-3 font-semibold">
-                                        <div className="flex items-center gap-2">
-                                            <span className="line-through">{item.itemName}</span>
-                                            <span className="px-2 py-0.5 text-xs font-bold text-white bg-danger rounded-full no-underline">DITOLAK</span>
-                                        </div>
-                                    </td>
-                                    <td colSpan={6} className="p-3 italic">
-                                        {request.itemStatuses?.[item.id]?.reason || 'Item ditolak saat proses review.'}
-                                    </td>
-                                </tr>
-                            );
-                        }
-                        
-                        if (itemDetails) {
-                             return (
-                                <tr key={item.id} className="bg-white">
-                                    <td className="p-3 font-semibold text-gray-800">{item.itemName || 'N/A'}</td>
-                                    {/* Conditionally render Price cell */}
-                                    {canViewPrice(currentUser) && (
-                                        <td className="p-3 text-right font-mono text-gray-800">Rp {(itemDetails.purchasePrice as unknown as number).toLocaleString('id-ID')}</td>
-                                    )}
-                                    <td className="p-3 text-gray-600">{itemDetails.vendor}</td>
-                                    <td className="p-3 text-gray-600 whitespace-nowrap">{new Date(itemDetails.purchaseDate).toLocaleDateString('id-ID')}</td>
-                                    <td className="p-3 text-gray-600 whitespace-nowrap">{itemDetails.warrantyEndDate ? new Date(itemDetails.warrantyEndDate).toLocaleDateString('id-ID') : '-'}</td>
-                                    <td className="p-3 text-gray-600">
-                                        <div className="font-mono">{itemDetails.poNumber}</div>
-                                        <div className="text-xs text-gray-500">{itemDetails.invoiceNumber}</div>
-                                    </td>
-                                    <td className="p-3 text-gray-600">
-                                        <div>{itemDetails.filledBy}</div>
-                                        <div className="text-xs text-gray-500">{new Date(itemDetails.fillDate).toLocaleDateString('id-ID')}</div>
-                                    </td>
-                                </tr>
-                            );
-                        }
-
-                        return null;
-                    })}
-                </tbody>
-            </table>
-        </div>
-    </section>
-);
 
 export default NewRequestDetailPage;

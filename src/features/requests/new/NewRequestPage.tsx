@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Request, ItemStatus, RequestItem, User, AssetStatus, Asset, PreviewData, AssetCategory, AssetType, StandardItem, Division, Page, OrderDetails, OrderType, Notification, UserRole, PurchaseDetails, Activity } from '../../../types';
 import Modal from '../../../components/ui/Modal';
@@ -35,7 +36,7 @@ import { SignatureStamp } from '../../../components/ui/SignatureStamp';
 import { PencilIcon } from '../../../components/icons/PencilIcon';
 import { Letterhead } from '../../../components/ui/Letterhead';
 import { toYYYYMMDD } from '../../../utils/dateFormatter';
-
+import { AssetIcon } from '../../../components/icons/AssetIcon';
 
 const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].includes(role);
 
@@ -700,7 +701,7 @@ const RequestForm: React.FC<{
     </>
 )};
 
-// FIX: Define missing FollowUpConfirmationModal component.
+// Modal Components
 const FollowUpConfirmationModal: React.FC<{
     request: Request | null;
     onClose: () => void;
@@ -746,7 +747,6 @@ const FollowUpConfirmationModal: React.FC<{
     );
 };
 
-// FIX: Define missing RequestReviewModal component.
 const RequestReviewModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -964,7 +964,6 @@ const RequestReviewModal: React.FC<{
     );
 };
 
-// FIX: Define missing RegistrationStagingModal component.
 const RegistrationStagingModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;

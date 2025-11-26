@@ -355,8 +355,10 @@ export interface LoanRequest {
   approvalDate?: string;
   rejectionReason?: string;
   assignedAssetIds?: Record<number, string[]>; // loan item id -> array of asset ids
+  itemStatuses?: Record<number, { status: 'approved' | 'rejected' | 'partial'; reason?: string; approvedQuantity: number }>; // Per-item status for loans
   handoverId?: string;
   actualReturnDate?: string;
+  returnedAssetIds?: string[]; // To track which specific asset IDs have been returned
 }
 
 

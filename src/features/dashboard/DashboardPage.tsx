@@ -40,6 +40,7 @@ import { TruckIcon } from '../../components/icons/TruckIcon';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { MegaphoneIcon } from '../../components/icons/MegaphoneIcon';
 import { BellIcon } from '../../components/icons/BellIcon';
+import { PlusIcon } from '../../components/icons/PlusIcon';
 
 const formatCurrencyShort = (value: number): string => {
     if (value >= 1_000_000_000) {
@@ -96,6 +97,112 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ children, columnKey, so
         </th>
     );
 };
+
+// --- Critical Stock Widget Component ---
+interface CriticalStockWidgetProps {
+    assets: Asset[];
+    onRestock: (itemName: string, brand: string) => void;
+}
+
+const CriticalStockWidget: React.FC<CriticalStockWidgetProps> = ({ assets, onRestock }) => {
+    // Aggregate assets to find stock levels per item type
+    const stockStatus = useMemo(() => {
+        const map = new Map<string, { name: string; brand: string; inStorage: number; category: string }>();
+
+        assets.forEach(asset => {
+            // Exclude decommissioned assets
+            if (asset.status === AssetStatus.DECOMMISSIONED) return;
+
+            const key = `${asset.name}|${asset.brand}`;
+            if (!map.has(key)) {
+                map.set(key, { name: asset.name, brand: asset.brand, inStorage: 0, category: asset.category });
+            }
+            
+            if (asset.status === AssetStatus.IN_STORAGE) {
+                map.get(key)!.inStorage++;
+            }
+        });
+
+        const items = Array.from(map.values());
+        // Filter only critical items (0 or <= 2)
+        const outOfStock = items.filter(i => i.inStorage === 0);
+        const lowStock = items.filter(i => i.inStorage > 0 && i.inStorage <= 3); // Threshold 3 for widget
+
+        return { outOfStock, lowStock };
+    }, [assets]);
+
+    if (stockStatus.outOfStock.length === 0 && stockStatus.lowStock.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mb-8 animate-fade-in-down">
+            <div className="bg-white border-l-4 border-red-500 rounded-xl shadow-md overflow-hidden">
+                <div className="p-4 sm:p-6 bg-red-50/30">
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-red-100 rounded-lg text-red-600">
+                                <FireIcon className="w-6 h-6 animate-pulse-slow" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800">Peringatan Stok Kritis</h3>
+                                <p className="text-sm text-gray-600">
+                                    Terdapat <strong className="text-red-600">{stockStatus.outOfStock.length} item habis</strong> dan <strong className="text-amber-600">{stockStatus.lowStock.length} item menipis</strong>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {stockStatus.outOfStock.slice(0, 3).map((item, idx) => (
+                            <div key={`oos-${idx}`} className="flex items-center justify-between p-3 bg-white border border-red-200 rounded-lg shadow-sm">
+                                <div className="flex-1 min-w-0 mr-3">
+                                    <p className="text-sm font-bold text-gray-800 truncate" title={item.name}>{item.name}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="px-2 py-0.5 text-[10px] font-bold text-red-700 bg-red-100 rounded-full">STOK HABIS</span>
+                                        <span className="text-xs text-gray-500 truncate">{item.brand}</span>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => onRestock(item.name, item.brand)}
+                                    className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 shadow-sm transition-colors"
+                                >
+                                    <PlusIcon className="w-3 h-3" /> Restock
+                                </button>
+                            </div>
+                        ))}
+                         {stockStatus.lowStock.slice(0, 2).map((item, idx) => (
+                            <div key={`low-${idx}`} className="flex items-center justify-between p-3 bg-white border border-amber-200 rounded-lg shadow-sm">
+                                <div className="flex-1 min-w-0 mr-3">
+                                    <p className="text-sm font-bold text-gray-800 truncate" title={item.name}>{item.name}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 rounded-full">SISA {item.inStorage}</span>
+                                        <span className="text-xs text-gray-500 truncate">{item.brand}</span>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => onRestock(item.name, item.brand)}
+                                    className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-amber-100 border border-amber-200 rounded-md hover:bg-amber-200 shadow-sm transition-colors"
+                                >
+                                    <PlusIcon className="w-3 h-3" /> Restock
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {(stockStatus.outOfStock.length > 3 || stockStatus.lowStock.length > 2) && (
+                        <div className="mt-3 text-center">
+                            <span className="text-xs font-medium text-gray-500">...dan {stockStatus.outOfStock.length + stockStatus.lowStock.length - 5} item lainnya. Periksa menu Stok Aset.</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- End Critical Stock Widget ---
+
 
 interface UrgentReportModalProps {
     isOpen: boolean;
@@ -594,6 +701,8 @@ const StaffDashboard: React.FC<DashboardProps> = ({ currentUser, assets, request
 
 export default function DashboardPage(props: DashboardProps): React.ReactElement {
     const { currentUser, assets, requests, handovers, dismantles, customers, assetCategories, divisions, setActivePage, onShowPreview } = props;
+    
+    const addNotification = useNotification();
 
     // Staff view is completely different, handle it first.
     if (currentUser.role === 'Staff' || currentUser.role === 'Leader') {
@@ -633,12 +742,13 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
         
         const stockItems = Array.from(stockMap.values());
         const LOW_STOCK_THRESHOLD = 5;
+        const outOfStockItemsCount = stockItems.filter(item => item.inStorage === 0).length;
 
         return {
             totalAssetTypes: stockMap.size,
             totalValueInStorage: stockItems.reduce((sum, item) => sum + item.valueInStorage, 0),
             lowStockItems: stockItems.filter(item => item.inStorage > 0 && item.inStorage <= LOW_STOCK_THRESHOLD).length,
-            outOfStockItems: stockItems.filter(item => item.inStorage === 0).length,
+            outOfStockItems: outOfStockItemsCount,
             totalIndividualAssets: assets.length,
         };
     }, [assets]);
@@ -651,6 +761,21 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
             totalCustomers: customers.length,
         };
     }, [assets, customers]);
+    
+    // Notification Effect for Critical Stock
+    useEffect(() => {
+        if (!isComputing && (inventorySummary.outOfStockItems > 0)) {
+            addNotification(
+                `Perhatian: Terdapat ${inventorySummary.outOfStockItems} tipe aset yang stoknya habis (0). Segera lakukan restock.`,
+                'error',
+                { duration: 8000 }
+            );
+        }
+    }, [inventorySummary.outOfStockItems, isComputing, addNotification]);
+
+    const handleRestock = (itemName: string, brand: string) => {
+        setActivePage('request', { prefillItem: { name: itemName, brand: brand } });
+    };
 
     const allActivities = useMemo(() => {
         const activities: { 
@@ -711,6 +836,9 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
 
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-8">
+            {/* Critical Stock Alert Banner (New Feature) */}
+            <CriticalStockWidget assets={assets} onRestock={handleRestock} />
+
             {/* 8 Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {isComputing ? (
@@ -730,13 +858,14 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
                     <>
                         <DashboardCard title="Total Tipe Aset" value={inventorySummary.totalAssetTypes} secondaryMetric={`${inventorySummary.totalIndividualAssets} unit`} icon={AssetIcon} color="blue" onClick={() => setActivePage('stock')} />
                         {canViewPrice(currentUser.role) && <DashboardCard title="Total Nilai Stok" value={`Rp ${formatCurrencyShort(inventorySummary.totalValueInStorage)}`} secondaryMetric="Hanya di gudang" icon={DollarIcon} color="green" onClick={() => setActivePage('stock')} tooltipText={`Rp ${inventorySummary.totalValueInStorage.toLocaleString('id-ID')}`}/>}
-                        <DashboardCard title="Stok Menipis" value={inventorySummary.lowStockItems} secondaryMetric="Stok ≤ 5 unit" icon={ExclamationTriangleIcon} color="amber" onClick={() => setActivePage('stock', { lowStockOnly: true })} />
+                        
+                        <DashboardCard title="Stok Menipis" value={inventorySummary.lowStockItems} secondaryMetric="Stok ≤ 3 unit" icon={ExclamationTriangleIcon} color="amber" onClick={() => setActivePage('stock', { lowStockOnly: true })} />
                         <DashboardCard title="Stok Habis" value={inventorySummary.outOfStockItems} secondaryMetric="Stok = 0 unit" icon={InboxIcon} color="red" onClick={() => setActivePage('stock', { outOfStockOnly: true })} />
                         
-                        <DashboardCard title="Aset Digunakan" value={operationalSummary.inUse} secondaryMetric={`${operationalSummary.totalCustomers} Pelanggan`} icon={UsersIcon} color="green" onClick={() => setActivePage('registration', { status: AssetStatus.IN_USE })} />
+                        <DashboardCard title="Aset Digunakan" value={operationalSummary.inUse} secondaryMetric={`${operationalSummary.totalCustomers} Pelanggan`} icon={UsersIcon} color="teal" onClick={() => setActivePage('registration', { status: AssetStatus.IN_USE })} />
                         <DashboardCard title="Dalam Perbaikan" value={operationalSummary.underRepair} secondaryMetric="Internal & Eksternal" icon={SpinnerIcon} color="purple" onClick={() => setActivePage('repair')} />
-                        <DashboardCard title="Aset Rusak" value={operationalSummary.damaged} secondaryMetric="Menunggu perbaikan" icon={WrenchIcon} color="amber" onClick={() => setActivePage('repair')} />
-                        <DashboardCard title="Total Pelanggan" value={operationalSummary.totalCustomers} secondaryMetric="Semua status" icon={UsersIcon} color="blue" onClick={() => setActivePage('customers')} />
+                        <DashboardCard title="Aset Rusak" value={operationalSummary.damaged} secondaryMetric="Menunggu perbaikan" icon={WrenchIcon} color="rose" onClick={() => setActivePage('repair')} />
+                        <DashboardCard title="Total Pelanggan" value={operationalSummary.totalCustomers} secondaryMetric="Semua status" icon={UsersIcon} color="indigo" onClick={() => setActivePage('customers')} />
                     </>
                 )}
             </div>
