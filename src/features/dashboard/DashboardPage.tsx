@@ -274,11 +274,11 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
             {/* HEADER */}
             <div className="flex flex-col md:flex-row justify-between items-end gap-4 pb-2">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Command Center</h1>
+                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Pusat Analitik Terpadu</h1>
                     <p className="text-sm text-gray-500 mt-1">Tinjauan menyeluruh inventori aset dan operasional.</p>
                 </div>
                 <div className="text-right hidden md:block">
-                    <p className="text-sm font-bold text-tm-primary">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <p className="text-sm font-bold text-gray-800">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 </div>
             </div>
 
@@ -412,7 +412,7 @@ export default function DashboardPage(props: DashboardProps): React.ReactElement
                      <div className="flex-1">
                         <AssetMatrix assets={assets} categories={assetCategories} onCellClick={(cat, status) => setActivePage('registration', { category: cat, status: status })} />
                     </div>
-                    
+
                 </div>
                 {/* NEW: Swapped Bar Chart with Detailed Category Summary */}
                 <div className="lg:col-span-3">
