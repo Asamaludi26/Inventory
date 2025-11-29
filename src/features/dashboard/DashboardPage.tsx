@@ -1,61 +1,35 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Asset, Request, Handover, Dismantle, Customer, AssetStatus, ItemStatus, Page, PreviewData, AssetCategory, Division, OrderType, User, UserRole } from '../../types';
-import { WrenchIcon } from '../../components/icons/WrenchIcon';
+import { Asset, Request, Handover, Dismantle, Customer, AssetStatus, ItemStatus, Page, PreviewData, AssetCategory, Division, User, UserRole, LoanRequest, LoanRequestStatus, AssetCondition, Maintenance, Installation } from '../../types';
+import { useNotification } from '../../providers/NotificationProvider';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { ActionableItemsList } from './components/ActionableItemsList';
+import { AssetMatrix } from './components/AssetMatrix';
+import { AssetStatusDonutChart, CategoryBarChart, SpendingTrendChart, TechnicianLeaderboard } from './components/DashboardCharts';
+import { StockAlertWidget } from './components/StockAlertWidget';
+import { WarrantyAlertWidget } from './components/WarrantyAlertWidget';
+import { CategorySummaryWidget } from './components/CategorySummaryWidget';
 import { RequestIcon } from '../../components/icons/RequestIcon';
-import { HandoverIcon } from '../../components/icons/HandoverIcon';
-import { DismantleIcon } from '../../components/icons/DismantleIcon';
+import { WrenchIcon } from '../../components/icons/WrenchIcon';
+import { InfoIcon } from '../../components/icons/InfoIcon';
+import { ArchiveBoxIcon } from '../../components/icons/ArchiveBoxIcon';
 import { RegisterIcon } from '../../components/icons/RegisterIcon';
 import { CheckIcon } from '../../components/icons/CheckIcon';
-import { CloseIcon } from '../../components/icons/CloseIcon';
-import { PencilIcon } from '../../components/icons/PencilIcon';
+import { BsClockHistory, BsLayers, BsCurrencyDollar, BsBoxSeam, BsTools, BsTruck, BsArrowLeftRight, BsArrowReturnLeft, BsLightningCharge, BsJournalCheck, BsGraphUp } from 'react-icons/bs';
 import Modal from '../../components/ui/Modal';
-import { ArchiveBoxIcon } from '../../components/icons/ArchiveBoxIcon';
 import { ExclamationTriangleIcon } from '../../components/icons/ExclamationTriangleIcon';
-import { ShoppingCartIcon } from '../../components/icons/ShoppingCartIcon';
-import { AssetIcon } from '../../components/icons/AssetIcon';
-import { DollarIcon } from '../../components/icons/DollarIcon';
 import { UsersIcon } from '../../components/icons/UsersIcon';
-import { Tooltip } from '../../components/ui/Tooltip';
-import { useNotification } from '../../providers/NotificationProvider';
-import { FireIcon } from '../../components/icons/FireIcon';
-import { ProjectIcon } from '../../components/icons/ProjectIcon';
-import { CustomSelect } from '../../components/ui/CustomSelect';
-import { PercentIcon } from '../../components/icons/PercentIcon';
-import { HistoryIcon } from '../../components/icons/HistoryIcon';
-import { RequestStatusIndicator } from '../requests/new/components/RequestStatus';
-import { InboxIcon } from '../../components/icons/InboxIcon';
-import { getStatusClass as getAssetStatusClass } from '../assetRegistration/RegistrationPage';
-import { useSortableData, SortConfig } from '../../hooks/useSortableData';
-import { PaginationControls } from '../../components/ui/PaginationControls';
-import { SortIcon } from '../../components/icons/SortIcon';
-import { SortAscIcon } from '../../components/icons/SortAscIcon';
-import { SortDescIcon } from '../../components/icons/SortDescIcon';
-import { SearchIcon } from '../../components/icons/SearchIcon';
-import { EyeIcon } from '../../components/icons/EyeIcon';
-import { ActionableItemsList } from './components/ActionableItemsList';
-import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
-import { DashboardCard } from './components/DashboardCard';
-import { TruckIcon } from '../../components/icons/TruckIcon';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { MegaphoneIcon } from '../../components/icons/MegaphoneIcon';
-import { BellIcon } from '../../components/icons/BellIcon';
-import { PlusIcon } from '../../components/icons/PlusIcon';
 
+// Helpers
 const formatCurrencyShort = (value: number): string => {
-    if (value >= 1_000_000_000) {
-        return `${(value / 1_000_000_000).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Miliar`;
-    }
-    if (value >= 1_000_000) {
-        return `${(value / 1_000_000).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Juta`;
-    }
-    if (value >= 1000) {
-        return `${(value / 1000).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Ribu`;
-    }
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} M`;
+    if (value >= 1_000_000) return `${(value / 1_000_000).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Jt`;
     return value.toLocaleString('id-ID');
 };
 
-const canViewPrice = (role: UserRole) => ['Admin Purchase', 'Super Admin'].includes(role);
+const formatCurrencyFull = (value: number): string => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
+};
 
 interface DashboardProps {
     currentUser: User;
@@ -68,927 +42,446 @@ interface DashboardProps {
     divisions: Division[];
     setActivePage: (page: Page, filters?: any) => void;
     onShowPreview: (data: PreviewData) => void;
+    loanRequests?: LoanRequest[];
+    maintenances?: Maintenance[]; // Added
+    installations?: Installation[]; // Added
 }
 
-interface SortableHeaderProps {
-    children: React.ReactNode;
-    columnKey: keyof Asset;
-    sortConfig: SortConfig<Asset> | null;
-    requestSort: (key: keyof Asset) => void;
-    className?: string;
-}
-
-const SortableHeader: React.FC<SortableHeaderProps> = ({ children, columnKey, sortConfig, requestSort, className }) => {
-    const isSorted = sortConfig?.key === columnKey;
-    const direction = isSorted ? sortConfig.direction : undefined;
-
-    const getSortIcon = () => {
-        if (!isSorted) return <SortIcon className="w-4 h-4 text-gray-400" />;
-        if (direction === 'ascending') return <SortAscIcon className="w-4 h-4 text-tm-accent" />;
-        return <SortDescIcon className="w-4 h-4 text-tm-accent" />;
-    };
-
+// --- COMPONENT: MINI STAT (URGENCY) ---
+const UrgencyCard: React.FC<{ label: string; value: string; icon: any; color: string; subtext?: string; onClick?: () => void }> = ({ label, value, icon: Icon, color, subtext, onClick }) => {
     return (
-        <th scope="col" className={`px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500 ${className}`}>
-            <button onClick={() => requestSort(columnKey)} className="flex items-center space-x-1 group">
-                <span>{children}</span>
-                <span className="opacity-50 group-hover:opacity-100">{getSortIcon()}</span>
-            </button>
-        </th>
-    );
-};
-
-// --- Critical Stock Widget Component ---
-interface CriticalStockWidgetProps {
-    assets: Asset[];
-    onRestock: (itemName: string, brand: string) => void;
-}
-
-const CriticalStockWidget: React.FC<CriticalStockWidgetProps> = ({ assets, onRestock }) => {
-    // Aggregate assets to find stock levels per item type
-    const stockStatus = useMemo(() => {
-        const map = new Map<string, { name: string; brand: string; inStorage: number; category: string }>();
-
-        assets.forEach(asset => {
-            // Exclude decommissioned assets
-            if (asset.status === AssetStatus.DECOMMISSIONED) return;
-
-            const key = `${asset.name}|${asset.brand}`;
-            if (!map.has(key)) {
-                map.set(key, { name: asset.name, brand: asset.brand, inStorage: 0, category: asset.category });
-            }
-            
-            if (asset.status === AssetStatus.IN_STORAGE) {
-                map.get(key)!.inStorage++;
-            }
-        });
-
-        const items = Array.from(map.values());
-        // Filter only critical items (0 or <= 2)
-        const outOfStock = items.filter(i => i.inStorage === 0);
-        const lowStock = items.filter(i => i.inStorage > 0 && i.inStorage <= 3); // Threshold 3 for widget
-
-        return { outOfStock, lowStock };
-    }, [assets]);
-
-    if (stockStatus.outOfStock.length === 0 && stockStatus.lowStock.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="mb-8 animate-fade-in-down">
-            <div className="bg-white border-l-4 border-red-500 rounded-xl shadow-md overflow-hidden">
-                <div className="p-4 sm:p-6 bg-red-50/30">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-red-100 rounded-lg text-red-600">
-                                <FireIcon className="w-6 h-6 animate-pulse-slow" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800">Peringatan Stok Kritis</h3>
-                                <p className="text-sm text-gray-600">
-                                    Terdapat <strong className="text-red-600">{stockStatus.outOfStock.length} item habis</strong> dan <strong className="text-amber-600">{stockStatus.lowStock.length} item menipis</strong>.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {stockStatus.outOfStock.slice(0, 3).map((item, idx) => (
-                            <div key={`oos-${idx}`} className="flex items-center justify-between p-3 bg-white border border-red-200 rounded-lg shadow-sm">
-                                <div className="flex-1 min-w-0 mr-3">
-                                    <p className="text-sm font-bold text-gray-800 truncate" title={item.name}>{item.name}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="px-2 py-0.5 text-[10px] font-bold text-red-700 bg-red-100 rounded-full">STOK HABIS</span>
-                                        <span className="text-xs text-gray-500 truncate">{item.brand}</span>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={() => onRestock(item.name, item.brand)}
-                                    className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 shadow-sm transition-colors"
-                                >
-                                    <PlusIcon className="w-3 h-3" /> Restock
-                                </button>
-                            </div>
-                        ))}
-                         {stockStatus.lowStock.slice(0, 2).map((item, idx) => (
-                            <div key={`low-${idx}`} className="flex items-center justify-between p-3 bg-white border border-amber-200 rounded-lg shadow-sm">
-                                <div className="flex-1 min-w-0 mr-3">
-                                    <p className="text-sm font-bold text-gray-800 truncate" title={item.name}>{item.name}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 rounded-full">SISA {item.inStorage}</span>
-                                        <span className="text-xs text-gray-500 truncate">{item.brand}</span>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={() => onRestock(item.name, item.brand)}
-                                    className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-amber-100 border border-amber-200 rounded-md hover:bg-amber-200 shadow-sm transition-colors"
-                                >
-                                    <PlusIcon className="w-3 h-3" /> Restock
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                    
-                    {(stockStatus.outOfStock.length > 3 || stockStatus.lowStock.length > 2) && (
-                        <div className="mt-3 text-center">
-                            <span className="text-xs font-medium text-gray-500">...dan {stockStatus.outOfStock.length + stockStatus.lowStock.length - 5} item lainnya. Periksa menu Stok Aset.</span>
-                        </div>
-                    )}
+        <div 
+            onClick={onClick}
+            className={`relative overflow-hidden bg-white p-5 rounded-xl shadow-sm border-l-4 ${color.replace('bg-', 'border-')} border-y border-r border-gray-100 group hover:-translate-y-1 transition-all duration-200 ${onClick ? 'cursor-pointer' : ''}`}
+        >
+            <div className="flex justify-between items-start z-10 relative">
+                <div>
+                    <p className="text-xs font-bold text-gray-500 tracking-wider uppercase">{label}</p>
+                    <h3 className={`text-2xl font-extrabold mt-1 ${color.replace('bg-', 'text-')}`}>{value}</h3>
+                    {subtext && <p className="text-xs text-gray-400 mt-1 font-medium">{subtext}</p>}
+                </div>
+                <div className={`p-2 rounded-lg ${color} bg-opacity-10 text-current`}>
+                    <Icon className={`w-5 h-5 ${color.replace('bg-', 'text-')}`} />
                 </div>
             </div>
         </div>
     );
 };
 
-// --- End Critical Stock Widget ---
-
-
-interface UrgentReportModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    requests: Request[];
-}
-
-const UrgentReportModal: React.FC<UrgentReportModalProps> = ({ isOpen, onClose, requests }) => {
-    const urgentRequests = useMemo(() => {
-        return requests.filter(r => r.order.type === 'Urgent').sort((a,b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
-    }, [requests]);
-
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Laporan Justifikasi Urgent (${urgentRequests.length})`} size="2xl">
-            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar -mx-6 -my-4">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50 sticky top-0 z-10">
-                        <tr>
-                            <th className="px-4 py-2 text-left font-medium text-gray-500">ID / Tanggal</th>
-                            <th className="px-4 py-2 text-left font-medium text-gray-500">Pemohon</th>
-                            <th className="px-4 py-2 text-left font-medium text-gray-500">Justifikasi</th>
-                             <th className="px-4 py-2 text-left font-medium text-gray-500">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {urgentRequests.map(req => (
-                            <tr key={req.id}>
-                                <td className="px-4 py-3 whitespace-nowrap align-top">
-                                    <p className="font-semibold text-gray-800">{req.id}</p>
-                                    <p className="text-xs text-gray-500">{new Date(req.requestDate).toLocaleDateString('id-ID')}</p>
-                                </td>
-                                <td className="px-4 py-3 align-top">
-                                    <p className="font-medium text-gray-800">{req.requester}</p>
-                                    <p className="text-xs text-gray-500">{req.division}</p>
-                                </td>
-                                <td className="px-4 py-3 align-top">
-                                    <p className="text-gray-700 italic">"{req.order.justification}"</p>
-                                </td>
-                                <td className="px-4 py-3 align-top">
-                                    <RequestStatusIndicator status={req.status} />
-                                </td>
-                            </tr>
-                        ))}
-                         {urgentRequests.length === 0 && (
-                            <tr>
-                                <td colSpan={4} className="p-8 text-center text-gray-500">
-                                    <div className="flex flex-col items-center">
-                                        <InboxIcon className="w-10 h-10 text-gray-400 mb-2"/>
-                                        <p className="font-semibold">Tidak ada permintaan urgent.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </Modal>
-    );
-}
-
-interface KpiCardProps {
-    icon: React.FC<{className?: string; style?: React.CSSProperties;}>;
-    title: string;
-    value: string | number;
-    color: string;
-    onClick?: () => void;
-    tooltip?: string;
-}
-
-const KpiCard: React.FC<KpiCardProps> = ({ icon: Icon, title, value, color, onClick, tooltip }) => (
-    <div 
-        onClick={onClick}
-        title={tooltip}
-        className={`p-4 rounded-xl border-l-4 transition-all duration-200 ${onClick ? 'cursor-pointer hover:bg-gray-50 hover:shadow-md' : ''}`}
-        style={{ borderLeftColor: color }}
-    >
-        <div className="flex items-center gap-4">
-            <Icon className="w-6 h-6" style={{ color: color }} />
-            <div className="flex-1 min-w-0">
-                <p className="text-xl font-bold text-tm-dark truncate">{value}</p>
-                <p className="text-xs text-gray-500 font-medium">{title}</p>
-            </div>
+// --- COMPONENT: MACRO STAT (EXECUTIVE) ---
+const MacroStat: React.FC<{ label: string; value: string; icon: any; subValue?: string; tooltip?: string }> = ({ label, value, icon: Icon, subValue, tooltip }) => (
+    <div className="flex items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm" title={tooltip}>
+        <div className="flex-shrink-0 p-3 bg-blue-50 text-tm-primary rounded-xl">
+            <Icon className="w-6 h-6" />
+        </div>
+        <div className="ml-4">
+            <p className="text-sm font-medium text-gray-500">{label}</p>
+            <p className="text-xl font-bold text-gray-900">{value}</p>
+            {subValue && <p className="text-xs text-gray-400 mt-0.5">{subValue}</p>}
         </div>
     </div>
 );
 
-interface OrderAnalyticsCardProps {
-    currentUser: User;
-    requests: Request[];
-    divisions: Division[];
-    onOpenUrgentReport: () => void;
-    setActivePage: (page: Page, filters?: any) => void;
-    isLoading?: boolean;
-}
-
-const OrderAnalyticsCard: React.FC<OrderAnalyticsCardProps> = ({ currentUser, requests, divisions, onOpenUrgentReport, setActivePage, isLoading }) => {
-    const [timeFilter, setTimeFilter] = useState('all');
-
-    const analytics = useMemo(() => {
-        const now = new Date();
-        const filteredRequests = requests.filter(req => {
-            if (timeFilter === 'all') return true;
-            const reqDate = new Date(req.requestDate);
-            const daysAgo = (now.getTime() - reqDate.getTime()) / (1000 * 3600 * 24);
-            if (timeFilter === '7d') return daysAgo <= 7;
-            if (timeFilter === '30d') return daysAgo <= 30;
-            return true;
-        });
-
-        const typeCounts: Record<OrderType, number> = { 'Urgent': 0, 'Project Based': 0, 'Regular Stock': 0 };
-        const divisionData: Record<string, { total: number; urgent: number; project: number; regular: number; }> = {};
-        divisions.forEach(d => { divisionData[d.name] = { total: 0, urgent: 0, project: 0, regular: 0 }; });
-
-        const projectCounts: Record<string, number> = {};
-        
-        let totalApprovalMillis = 0;
-        let approvedRequestCount = 0;
-        let totalUrgentApprovalMillis = 0;
-        let approvedUrgentRequestCount = 0;
-        let totalValue = 0;
-        
-        filteredRequests.forEach(req => {
-            typeCounts[req.order.type]++;
-            if(req.totalValue) totalValue += req.totalValue;
-
-            if (divisionData[req.division]) {
-                const data = divisionData[req.division];
-                data.total++;
-                if (req.order.type === 'Urgent') data.urgent++;
-                else if (req.order.type === 'Project Based') {
-                    data.project++;
-                    if(req.order.project) projectCounts[req.order.project] = (projectCounts[req.order.project] || 0) + 1;
-                } else data.regular++;
-            }
-
-            if(req.finalApprovalDate) {
-                const approvalMillis = new Date(req.finalApprovalDate).getTime() - new Date(req.requestDate).getTime();
-                totalApprovalMillis += approvalMillis;
-                approvedRequestCount++;
-                if (req.order.type === 'Urgent') {
-                    totalUrgentApprovalMillis += approvalMillis;
-                    approvedUrgentRequestCount++;
-                }
-            }
-        });
-
-        const topDivisions = Object.entries(divisionData)
-            .filter(([, counts]) => counts.total > 0)
-            .sort(([,a], [,b]) => b.total - a.total)
-            .slice(0, 5)
-            .map(([name, counts]) => ({ name, ...counts }));
-        
-        const topProjects = Object.entries(projectCounts)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 3)
-            .map(([name, count]) => ({ name, count }));
-
-        const totalRequests = filteredRequests.length;
-        const urgentRatio = totalRequests > 0 ? (typeCounts['Urgent'] / totalRequests) * 100 : 0;
-        const avgApprovalMillis = approvedRequestCount > 0 ? totalApprovalMillis / approvedRequestCount : 0;
-        const avgUrgentApprovalMillis = approvedUrgentRequestCount > 0 ? totalUrgentApprovalMillis / approvedUrgentRequestCount : 0;
-        
-        const formatDuration = (ms: number) => {
-            if (ms <= 0) return 'N/A';
-            const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-            if (days > 0) return `${days}h ${hours}j`;
-            if (hours > 0) return `${hours}j ${minutes}m`;
-            return `${minutes}m`;
-        };
-
-        const donutData = [
-            { label: 'Urgent', value: typeCounts['Urgent'], color: '#DC2626', filter: { orderType: 'Urgent' } }, // danger
-            { label: 'Project', value: typeCounts['Project Based'], color: '#2563EB', filter: { orderType: 'Project Based' } }, // info
-            { label: 'Regular', value: typeCounts['Regular Stock'], color: '#6B7280', filter: { orderType: 'Regular Stock' } } // tm-secondary
-        ].filter(d => d.value > 0);
-
-        const conicGradient = donutData.length > 0 ? 'conic-gradient(' + donutData.map((d, i, arr) => {
-            const startAngle = arr.slice(0, i).reduce((acc, curr) => acc + curr.value, 0) / totalRequests * 360;
-            const endAngle = startAngle + (d.value / totalRequests * 360);
-            return `${d.color} ${startAngle}deg ${endAngle}deg`;
-        }).join(', ') + ')' : '#F3F4F6';
-
-
-        return {
-            totalRequests,
-            totalValue,
-            urgentRatio,
-            avgApprovalTime: formatDuration(avgApprovalMillis),
-            avgUrgentApprovalTime: formatDuration(avgUrgentApprovalMillis),
-            donutData,
-            conicGradient,
-            topDivisions,
-            topProjects,
-            maxDivisionCount: Math.max(...topDivisions.map(d => d.total), 1)
-        };
-    }, [requests, divisions, timeFilter]);
-
-    if (isLoading) {
-        return (
-            <div className="bg-white border border-gray-200/80 rounded-xl shadow-md p-6 space-y-6">
-                <div className="flex justify-between">
-                    <Skeleton height={24} width={200} />
-                    <Skeleton height={32} width={150} />
+// --- COMPONENT: FEATURE STAT (MICRO) ---
+const FeatureStat: React.FC<{ title: string; items: { label: string; value: number; color: string }[]; onClick?: () => void }> = ({ title, items, onClick }) => (
+    <div onClick={onClick} className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center ${onClick ? 'cursor-pointer hover:border-tm-primary/30 transition-colors' : ''}`}>
+        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{title}</h4>
+        <div className="space-y-3">
+            {items.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600">{item.label}</span>
+                    <span className={`text-sm font-bold px-2 py-0.5 rounded ${item.color}`}>{item.value}</span>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    <div className="lg:col-span-2 flex flex-col items-center">
-                        <Skeleton variant="circular" width={192} height={192} />
-                        <Skeleton height={20} width="80%" className="mt-4" />
-                    </div>
-                    <div className="lg:col-span-3 space-y-6">
-                         <div className="grid grid-cols-2 gap-4">
-                            <Skeleton height={80} />
-                            <Skeleton height={80} />
-                            <Skeleton height={80} />
-                            <Skeleton height={80} />
-                         </div>
-                         <div className="grid grid-cols-2 gap-4">
-                            <Skeleton height={150} />
-                            <Skeleton height={150} />
-                         </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="bg-white border border-gray-200/80 rounded-xl shadow-md">
-            <div className="flex flex-col md:flex-row justify-between md:items-center p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-tm-dark">Analitik Permintaan Aset</h2>
-                <div className="mt-2 md:mt-0 w-full md:w-48">
-                    <CustomSelect
-                        options={[{value: 'all', label: 'Semua Waktu'}, {value: '30d', label: '30 Hari Terakhir'}, {value: '7d', label: '7 Hari Terakhir'}]}
-                        value={timeFilter}
-                        onChange={setTimeFilter}
-                    />
-                </div>
-            </div>
-             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 p-6">
-                <div className="lg:col-span-2 flex flex-col items-center justify-center">
-                    <h3 className="text-base font-semibold text-gray-800 mb-4">Distribusi Tipe Order</h3>
-                    <div className="relative flex items-center justify-center">
-                        <div
-                            className="w-48 h-48 rounded-full transition-all"
-                            style={{ background: analytics.conicGradient }}
-                        >
-                             <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center text-center">
-                                <div>
-                                    <p className="text-3xl font-bold text-tm-dark">{analytics.totalRequests}</p>
-                                    <p className="text-xs text-gray-500">Total Permintaan</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-4 text-sm">
-                        {analytics.donutData.map(item => (
-                            <div key={item.label} onClick={() => setActivePage('request', item.filter)} className="flex items-center gap-2 cursor-pointer group">
-                                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
-                                <span className="text-gray-600 group-hover:text-tm-primary">{item.label} <span className="font-semibold">({item.value})</span></span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                <div className="lg:col-span-3">
-                     <h3 className="text-base font-semibold text-gray-800 mb-6">Performa & Prioritas</h3>
-                     <div className="grid grid-cols-2 gap-4 mb-8 bg-gray-50/70 p-4 rounded-xl border">
-                        {canViewPrice(currentUser.role) && (
-                            <KpiCard icon={DollarIcon} title="Total Nilai Permintaan" value={`Rp ${formatCurrencyShort(analytics.totalValue)}`} color="#16A34A" onClick={() => setActivePage('request')} tooltip={`Rp ${analytics.totalValue.toLocaleString('id-ID')}`}/>
-                        )}
-                        <KpiCard icon={PercentIcon} title="Rasio Urgent" value={`${analytics.urgentRatio.toFixed(1)}%`} color="#DC2626" onClick={() => setActivePage('request', { orderType: 'Urgent' })} />
-                        <KpiCard icon={HistoryIcon} title="Avg. Waktu Persetujuan" value={analytics.avgApprovalTime} color="#6B7280" />
-                        <KpiCard icon={FireIcon} title="Avg. Persetujuan Urgent" value={analytics.avgUrgentApprovalTime} color="#F59E0B" onClick={() => setActivePage('request', { orderType: 'Urgent' })} />
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                         <div>
-                            <h4 className="font-semibold text-gray-700 text-sm mb-3">Top Divisi Pemohon</h4>
-                            <div className="space-y-4">
-                                {analytics.topDivisions.map(div => (
-                                    <div key={div.name}>
-                                        <div className="flex justify-between items-center text-xs mb-1.5">
-                                            <span onClick={() => setActivePage('request', { division: div.name })} className="font-semibold text-gray-700 hover:text-tm-primary cursor-pointer truncate pr-2">{div.name}</span>
-                                            <span className="font-bold text-gray-800">{div.total}</span>
-                                        </div>
-                                        <div className="flex w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                                            <Tooltip text={`Urgent: ${div.urgent}`}>
-                                                <div onClick={() => setActivePage('request', { division: div.name, orderType: 'Urgent' })} className="bg-danger h-full hover:opacity-80 cursor-pointer" style={{ width: `${(div.urgent / div.total) * 100}%`}}></div>
-                                            </Tooltip>
-                                            <Tooltip text={`Project: ${div.project}`}>
-                                                <div onClick={() => setActivePage('request', { division: div.name, orderType: 'Project Based' })} className="bg-info h-full hover:opacity-80 cursor-pointer" style={{ width: `${(div.project / div.total) * 100}%`}}></div>
-                                            </Tooltip>
-                                            <Tooltip text={`Regular: ${div.regular}`}>
-                                                <div onClick={() => setActivePage('request', { division: div.name, orderType: 'Regular Stock' })} className="bg-tm-secondary h-full hover:opacity-80 cursor-pointer" style={{ width: `${(div.regular / div.total) * 100}%`}}></div>
-                                            </Tooltip>
-                                        </div>
-                                    </div>
-                                ))}
-                                {analytics.topDivisions.length === 0 && <p className="text-xs text-center text-gray-500 py-4">Tidak ada data divisi pada periode ini.</p>}
-                            </div>
-                        </div>
-                         <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <h4 className="font-semibold text-gray-700 text-sm">Top Proyek Aktif</h4>
-                                <button onClick={onOpenUrgentReport} className="text-xs font-semibold text-danger hover:underline">Laporan Urgent</button>
-                            </div>
-                            {analytics.topProjects.length > 0 ? (
-                                <ul className="space-y-3">
-                                    {analytics.topProjects.map(proj => (
-                                        <li key={proj.name} onClick={() => setActivePage('request', { project: proj.name })} className="flex items-center gap-3 text-sm cursor-pointer group p-2 rounded-lg hover:bg-gray-50">
-                                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-info-light text-info-text">
-                                                <ProjectIcon className="w-4 h-4" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-gray-800 truncate group-hover:text-tm-primary">{proj.name}</p>
-                                                <p className="text-xs text-gray-500">{proj.count} Permintaan</p>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 p-4 bg-gray-50 rounded-lg">
-                                    <ProjectIcon className="w-8 h-8 mb-2"/>
-                                    <p className="text-xs">Belum ada request berbasis proyek pada periode ini.</p>
-                                </div>
-                            )}
-                        </div>
-                     </div>
-                </div>
-             </div>
+            ))}
         </div>
-    );
-};
-
-interface StatCardProps {
-    title: string;
-    value: number;
-    icon: React.FC<{className?:string}>;
-    color: 'blue' | 'amber' | 'green';
-}
-
-const StaffDashboard: React.FC<DashboardProps> = ({ currentUser, assets, requests, setActivePage, onShowPreview }) => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(5);
-
-    const myAssets = useMemo(() => 
-        assets.filter(a => a.currentUser === currentUser.name), 
-    [assets, currentUser.name]);
-
-    const myRequests = useMemo(() => 
-        requests.filter(r => r.requester === currentUser.name), 
-    [requests, currentUser.name]);
-
-    const staffSummary = useMemo(() => ({
-        totalAssets: myAssets.length,
-        pendingRequests: myRequests.filter(r => ![ItemStatus.COMPLETED, ItemStatus.REJECTED, ItemStatus.CANCELLED].includes(r.status)).length,
-        completedRequests: myRequests.filter(r => r.status === ItemStatus.COMPLETED).length,
-    }), [myAssets, myRequests]);
-    
-    const recentRequests = useMemo(() => 
-        myRequests.sort((a,b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime()).slice(0, 5),
-    [myRequests]);
-    
-    const filteredMyAssets = useMemo(() => 
-        myAssets.filter(asset => {
-            const searchLower = searchQuery.toLowerCase();
-            return (
-                asset.name.toLowerCase().includes(searchLower) ||
-                asset.id.toLowerCase().includes(searchLower) ||
-                asset.brand.toLowerCase().includes(searchLower) ||
-                (asset.serialNumber && asset.serialNumber.toLowerCase().includes(searchLower))
-            );
-        }),
-    [myAssets, searchQuery]);
-
-    const { items: sortedMyAssets, requestSort, sortConfig } = useSortableData(filteredMyAssets, { key: 'name', direction: 'ascending' });
-    
-    const totalItems = sortedMyAssets.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedMyAssets = sortedMyAssets.slice(startIndex, startIndex + itemsPerPage);
-
-    useEffect(() => { setCurrentPage(1); }, [searchQuery, itemsPerPage]);
-
-    const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color }) => {
-        const colors = {
-            blue: 'bg-blue-100 text-blue-700',
-            amber: 'bg-amber-100 text-amber-700',
-            green: 'bg-green-100 text-green-700',
-        };
-        return (
-            <div className="p-5 bg-white border border-gray-200/80 rounded-xl shadow-sm">
-                <div className="flex items-center gap-4">
-                    <div className={`flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-lg ${colors[color]}`}>
-                        <Icon className="w-6 h-6"/>
-                    </div>
-                    <div>
-                        <p className="text-3xl font-bold text-tm-dark">{value}</p>
-                        <p className="text-sm font-medium text-gray-500">{title}</p>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    return (
-        <div className="p-4 sm:p-6 md:p-8 space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-tm-dark">Selamat Datang, {currentUser.name.split(' ')[0]}!</h1>
-                <p className="mt-1 text-gray-600">Ini adalah ringkasan aset dan permintaan Anda.</p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <StatCard title="Total Aset Saya" value={staffSummary.totalAssets} icon={AssetIcon} color="blue" />
-                <StatCard title="Request Diproses" value={staffSummary.pendingRequests} icon={RequestIcon} color="amber" />
-                <StatCard title="Request Selesai" value={staffSummary.completedRequests} icon={CheckIcon} color="green" />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white border border-gray-200/80 rounded-xl shadow-sm">
-                    <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-lg font-semibold text-tm-dark">Aset yang Sedang Anda Gunakan</h2>
-                    </div>
-                     <div className="p-4">
-                        <div className="relative">
-                            <SearchIcon className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 top-1/2 left-3" />
-                            <input type="text" placeholder="Cari nama, ID, brand, atau SN aset..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 py-2 pl-10 pr-4 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent" />
-                        </div>
-                    </div>
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50/70">
-                                <tr>
-                                    <SortableHeader columnKey="name" sortConfig={sortConfig} requestSort={requestSort}>Nama Aset</SortableHeader>
-                                    <SortableHeader columnKey="category" sortConfig={sortConfig} requestSort={requestSort}>Kategori</SortableHeader>
-                                    <SortableHeader columnKey="condition" sortConfig={sortConfig} requestSort={requestSort}>Kondisi</SortableHeader>
-                                    <SortableHeader columnKey="status" sortConfig={sortConfig} requestSort={requestSort}>Status</SortableHeader>
-                                    <th className="relative px-6 py-3"><span className="sr-only">Aksi</span></th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {paginatedMyAssets.length > 0 ? paginatedMyAssets.map(asset => (
-                                    <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <p className="text-sm font-semibold text-gray-900">{asset.name}</p>
-                                            <p className="text-xs text-gray-500 font-mono">{asset.id}</p>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{asset.category}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{asset.condition}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${getAssetStatusClass(asset.status)}`}>{asset.status}</span></td>
-                                        <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
-                                            <button onClick={() => onShowPreview({ type: 'asset', id: asset.id })} className="p-2 text-gray-500 rounded-full hover:bg-info-light hover:text-info-text"><EyeIcon className="w-5 h-5"/></button>
-                                        </td>
-                                    </tr>
-                                )) : (
-                                    <tr><td colSpan={5} className="py-12 text-center text-gray-500">Tidak ada aset yang cocok dengan pencarian Anda.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    {totalItems > 0 && <PaginationControls currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} startIndex={startIndex} endIndex={startIndex + paginatedMyAssets.length} />}
-                </div>
-
-                <div className="bg-white border border-gray-200/80 rounded-xl shadow-sm">
-                    <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                        <h2 className="text-lg font-semibold text-tm-dark">Request Terbaru Saya</h2>
-                        <button onClick={() => setActivePage('request')} className="text-sm font-semibold text-tm-primary hover:underline">Lihat Semua</button>
-                    </div>
-                    <ul className="divide-y divide-gray-200">
-                        {recentRequests.length > 0 ? recentRequests.map(req => (
-                            <li key={req.id} onClick={() => onShowPreview({type: 'request', id: req.id})} className="p-4 cursor-pointer hover:bg-gray-50">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-800">{req.id}</p>
-                                        <p className="text-xs text-gray-500">{new Date(req.requestDate).toLocaleDateString('id-ID')}</p>
-                                    </div>
-                                    <RequestStatusIndicator status={req.status} />
-                                </div>
-                                <p className="mt-2 text-xs text-gray-600">
-                                    {req.items.map(item => `${item.quantity}x ${item.itemName}`).join(', ')}
-                                </p>
-                            </li>
-                        )) : (
-                            <li className="p-8 text-center text-gray-500">
-                                <InboxIcon className="w-10 h-10 mx-auto text-gray-300"/>
-                                <p className="mt-2 text-sm">Anda belum membuat request.</p>
-                            </li>
-                        )}
-                    </ul>
-                </div>
-            </div>
-        </div>
-    );
-};
+    </div>
+);
 
 export default function DashboardPage(props: DashboardProps): React.ReactElement {
-    const { currentUser, assets, requests, handovers, dismantles, customers, assetCategories, divisions, setActivePage, onShowPreview } = props;
+    const { currentUser, assets, requests, handovers, dismantles, customers, assetCategories, divisions, setActivePage, onShowPreview, loanRequests = [], maintenances = [], installations = [] } = props;
     
-    const addNotification = useNotification();
-
-    // Staff view is completely different, handle it first.
-    if (currentUser.role === 'Staff' || currentUser.role === 'Leader') {
-        return <StaffDashboard {...props} />;
-    }
-    
-    // --- Admin, Manager, Super Admin View ---
+    const [isComputing, setIsComputing] = useState(true);
     const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
-    const [isUrgentReportModalOpen, setIsUrgentReportModalOpen] = useState(false);
-    const [isComputing, setIsComputing] = useState(true); // Simulating heavy calculation delay
+
+    // --- 1. CALCULATE MACRO METRICS (EXECUTIVE) ---
+    const macroMetrics = useMemo(() => {
+        const totalValue = assets.reduce((sum, a) => sum + (a.purchasePrice || 0), 0);
+        const totalStockItems = assets.filter(a => a.status === AssetStatus.IN_STORAGE).length;
+        const totalActiveItems = assets.filter(a => a.status === AssetStatus.IN_USE).length;
+        
+        // Count distinct models
+        let totalModels = 0;
+        assetCategories.forEach(c => c.types.forEach(t => totalModels += (t.standardItems?.length || 0)));
+
+        return {
+            totalValue,
+            totalAssets: assets.length,
+            totalStockItems,
+            totalActiveItems,
+            totalCategories: assetCategories.length,
+            totalModels
+        };
+    }, [assets, assetCategories]);
+
+    // --- 2. CALCULATE URGENCY METRICS (RISK) ---
+    const urgencyMetrics = useMemo(() => {
+        const pendingRequests = requests.filter(r => {
+            if (currentUser.role === 'Staff') return false;
+            if (currentUser.role === 'Admin Logistik' && r.status === ItemStatus.PENDING) return true;
+            if (currentUser.role === 'Admin Purchase' && r.status === ItemStatus.LOGISTIC_APPROVED) return true;
+            if (currentUser.role === 'Super Admin' && [ItemStatus.PENDING, ItemStatus.LOGISTIC_APPROVED, ItemStatus.AWAITING_CEO_APPROVAL].includes(r.status)) return true;
+            return false;
+        }).length;
+
+        const overdueLoans = loanRequests.filter(lr => lr.status === LoanRequestStatus.OVERDUE).length;
+        const unprocessedDamage = assets.filter(a => a.status === AssetStatus.DAMAGED).length;
+        
+        // Critical Stock (Simplified)
+        const stockMap = new Map<string, number>();
+        assets.filter(a => a.status === AssetStatus.IN_STORAGE).forEach(a => {
+             const key = `${a.name}|${a.brand}`;
+             stockMap.set(key, (stockMap.get(key) || 0) + 1);
+        });
+        let criticalStockCount = 0;
+        assetCategories.forEach(cat => cat.types.forEach(t => t.standardItems?.forEach(item => {
+             const key = `${item.name}|${item.brand}`;
+             if (!stockMap.has(key) || stockMap.get(key) === 0) criticalStockCount++;
+        })));
+
+        return { pendingRequests, overdueLoans, unprocessedDamage, criticalStockCount };
+    }, [assets, requests, loanRequests, currentUser, assetCategories]);
+
+    // --- 3. CALCULATE FEATURE DEEP-DIVE METRICS ---
+    const featureMetrics = useMemo(() => {
+        // Repairs
+        const internalRepairs = assets.filter(a => a.status === AssetStatus.UNDER_REPAIR).length;
+        const vendorRepairs = assets.filter(a => a.status === AssetStatus.OUT_FOR_REPAIR).length;
+        
+        // Requests Breakdown
+        const urgentRequests = requests.filter(r => r.order.type === 'Urgent' && r.status !== ItemStatus.COMPLETED && r.status !== ItemStatus.REJECTED).length;
+        const projectRequests = requests.filter(r => r.order.type === 'Project Based' && r.status !== ItemStatus.COMPLETED && r.status !== ItemStatus.REJECTED).length;
+        
+        // Movements (Last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const recentHandovers = handovers.filter(h => new Date(h.handoverDate) >= thirtyDaysAgo).length;
+        const recentDismantles = dismantles.filter(d => new Date(d.dismantleDate) >= thirtyDaysAgo).length;
+
+        return {
+            repairs: { internal: internalRepairs, vendor: vendorRepairs },
+            requests: { urgent: urgentRequests, project: projectRequests },
+            movements: { handovers: recentHandovers, dismantles: recentDismantles }
+        };
+    }, [assets, requests, handovers, dismantles]);
     
+    // --- 4. NEW ANALYTICS (SPENDING & PERFORMANCE) ---
+    const analyticsData = useMemo(() => {
+        // Spending Trend (Last 6 months)
+        const spendingMap = new Map<string, number>();
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            const key = d.toLocaleString('id-ID', { month: 'short' });
+            months.push(key);
+            spendingMap.set(key, 0);
+        }
+        
+        assets.forEach(a => {
+             if (a.purchaseDate) {
+                 const pDate = new Date(a.purchaseDate);
+                 const pMonth = pDate.toLocaleString('id-ID', { month: 'short' });
+                 if (spendingMap.has(pMonth)) {
+                     spendingMap.set(pMonth, spendingMap.get(pMonth)! + (a.purchasePrice || 0));
+                 }
+             }
+        });
+        
+        const spendingTrend = months.map(m => ({ month: m, value: spendingMap.get(m) || 0 }));
+
+        // Technician Performance
+        const techCount = new Map<string, number>();
+        maintenances.forEach(m => {
+            if (m.technician) techCount.set(m.technician, (techCount.get(m.technician) || 0) + 1);
+        });
+        installations.forEach(i => {
+             if (i.technician) techCount.set(i.technician, (techCount.get(i.technician) || 0) + 1);
+        });
+        
+        const topTechnicians = Array.from(techCount.entries())
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+        return { spendingTrend, topTechnicians };
+
+    }, [assets, maintenances, installations]);
+
+
+    // Activity Feed
+    const allActivities = useMemo(() => {
+         const activities: { id: string; user: string; action: React.ReactNode; timestamp: string; date: Date; icon: any; previewData: PreviewData }[] = [];
+        requests.slice(0, 10).forEach(req => {
+             activities.push({ id: `req-${req.id}`, user: req.requester, action: <>Request <strong>#{req.id}</strong></>, date: new Date(req.requestDate), timestamp: req.requestDate, icon: RequestIcon, previewData: { type: 'request', id: req.id } });
+        });
+        assets.slice(0, 10).forEach(asset => {
+            activities.push({ id: `ast-${asset.id}`, user: asset.recordedBy, action: <>Aset <strong>{asset.name}</strong></>, date: new Date(asset.registrationDate), timestamp: asset.registrationDate, icon: RegisterIcon, previewData: { type: 'asset', id: asset.id } });
+        });
+        return activities.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
+    }, [requests, assets]);
+
     useEffect(() => {
-        // Simulate loading of heavy analytics
-        const timer = setTimeout(() => {
-            setIsComputing(false);
-        }, 800);
+        const timer = setTimeout(() => setIsComputing(false), 600);
         return () => clearTimeout(timer);
     }, []);
 
-    const inventorySummary = useMemo(() => {
-        const stockMap = new Map<string, { inStorage: number, valueInStorage: number }>();
+    if (isComputing) {
+        return (
+            <div className="p-8 space-y-8">
+                <div className="grid grid-cols-4 gap-6">
+                    <Skeleton height={80} className="rounded-xl" /><Skeleton height={80} className="rounded-xl" /><Skeleton height={80} className="rounded-xl" /><Skeleton height={80} className="rounded-xl" />
+                </div>
+                <div className="grid grid-cols-4 gap-6">
+                     <Skeleton height={120} className="rounded-xl" /><Skeleton height={120} className="rounded-xl" /><Skeleton height={120} className="rounded-xl" /><Skeleton height={120} className="rounded-xl" />
+                </div>
+                 <Skeleton height={200} className="rounded-2xl" />
+            </div>
+        );
+    }
 
-        assets.forEach(asset => {
-            const key = `${asset.name}|${asset.brand}`;
-            if (!stockMap.has(key)) {
-                stockMap.set(key, { inStorage: 0, valueInStorage: 0 });
-            }
+    // --- STAFF VIEW ---
+    if (currentUser.role === 'Staff' || currentUser.role === 'Leader') {
+         const myAssets = assets.filter(a => a.currentUser === currentUser.name);
+         const myRequests = requests.filter(r => r.requester === currentUser.name);
+         return (
+             <div className="p-6 md:p-8 space-y-8 bg-gray-50/50 min-h-screen">
+                 <header className="flex flex-col md:flex-row justify-between items-end gap-4">
+                     <div><h1 className="text-3xl font-bold text-tm-dark">Halo, {currentUser.name}!</h1><p className="text-gray-500 mt-2 text-lg">Panel aset pribadi Anda.</p></div>
+                 </header>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     <div onClick={() => setActivePage('stock')} className="bg-blue-600 text-white p-8 rounded-3xl cursor-pointer hover:shadow-xl transition-all"><h3 className="text-5xl font-bold">{myAssets.length}</h3><p className="text-blue-100 mt-2">Aset Saya</p></div>
+                     <div onClick={() => setActivePage('request')} className="bg-white p-8 rounded-3xl border cursor-pointer hover:shadow-lg transition-all"><h3 className="text-5xl font-bold text-gray-800">{myRequests.filter(r => r.status !== ItemStatus.COMPLETED).length}</h3><p className="text-gray-500 mt-2">Request Aktif</p></div>
+                 </div>
+             </div>
+         );
+    }
 
-            if (asset.status === AssetStatus.IN_STORAGE) {
-                const current = stockMap.get(key)!;
-                current.inStorage++;
-                if (asset.purchasePrice) {
-                    current.valueInStorage += asset.purchasePrice;
-                }
-            }
-        });
-        
-        const stockItems = Array.from(stockMap.values());
-        const LOW_STOCK_THRESHOLD = 5;
-        const outOfStockItemsCount = stockItems.filter(item => item.inStorage === 0).length;
-
-        return {
-            totalAssetTypes: stockMap.size,
-            totalValueInStorage: stockItems.reduce((sum, item) => sum + item.valueInStorage, 0),
-            lowStockItems: stockItems.filter(item => item.inStorage > 0 && item.inStorage <= LOW_STOCK_THRESHOLD).length,
-            outOfStockItems: outOfStockItemsCount,
-            totalIndividualAssets: assets.length,
-        };
-    }, [assets]);
-
-    const operationalSummary = useMemo(() => {
-        return {
-            inUse: assets.filter(a => a.status === AssetStatus.IN_USE).length,
-            underRepair: assets.filter(a => [AssetStatus.UNDER_REPAIR, AssetStatus.OUT_FOR_REPAIR].includes(a.status)).length,
-            damaged: assets.filter(a => a.status === AssetStatus.DAMAGED).length,
-            totalCustomers: customers.length,
-        };
-    }, [assets, customers]);
-    
-    // Notification Effect for Critical Stock
-    useEffect(() => {
-        if (!isComputing && (inventorySummary.outOfStockItems > 0)) {
-            addNotification(
-                `Perhatian: Terdapat ${inventorySummary.outOfStockItems} tipe aset yang stoknya habis (0). Segera lakukan restock.`,
-                'error',
-                { duration: 8000 }
-            );
-        }
-    }, [inventorySummary.outOfStockItems, isComputing, addNotification]);
-
-    const handleRestock = (itemName: string, brand: string) => {
-        setActivePage('request', { prefillItem: { name: itemName, brand: brand } });
-    };
-
-    const allActivities = useMemo(() => {
-        const activities: { 
-            id: string; 
-            user: string; 
-            action: React.ReactNode; 
-            timestamp: string; 
-            date: Date; 
-            icon: React.ReactNode;
-            previewData: PreviewData;
-        }[] = [];
-
-        requests.forEach(req => {
-            activities.push({ id: `req-create-${req.id}`, user: req.requester, action: <>Membuat request baru <strong className="text-gray-900">#{req.id}</strong></>, date: new Date(req.requestDate), timestamp: req.requestDate, icon: <RequestIcon className="w-4 h-4 text-amber-600" />, previewData: { type: 'request', id: req.id } });
-            if (req.finalApprovalDate && req.finalApprover) {
-                activities.push({ id: `req-approve-${req.id}`, user: req.finalApprover, action: <>Menyetujui request <strong className="text-gray-900">#{req.id}</strong></>, date: new Date(req.finalApprovalDate), timestamp: req.finalApprovalDate, icon: <CheckIcon className="w-4 h-4 text-green-600" />, previewData: { type: 'request', id: req.id } });
-            } else if (req.logisticApprovalDate && req.logisticApprover) {
-                activities.push({ id: `req-log-approve-${req.id}`, user: req.logisticApprover, action: <>Menyetujui (Logistik) request <strong className="text-gray-900">#{req.id}</strong></>, date: new Date(req.logisticApprovalDate), timestamp: req.logisticApprovalDate, icon: <CheckIcon className="w-4 h-4 text-green-600" />, previewData: { type: 'request', id: req.id } });
-            }
-            if (req.rejectionDate && req.rejectedBy) {
-                activities.push({ id: `req-reject-${req.id}`, user: req.rejectedBy, action: <>Menolak request <strong className="text-gray-900">#{req.id}</strong></>, date: new Date(req.rejectionDate), timestamp: req.rejectionDate, icon: <CloseIcon className="w-4 h-4 text-red-600" />, previewData: { type: 'request', id: req.id } });
-            }
-        });
-
-        assets.forEach(asset => {
-            activities.push({ id: `asset-create-${asset.id}`, user: asset.recordedBy, action: <>Mencatat aset baru <strong className="text-gray-900">{asset.name}</strong></>, date: new Date(asset.registrationDate), timestamp: asset.registrationDate, icon: <RegisterIcon className="w-4 h-4 text-blue-600" />, previewData: { type: 'asset', id: asset.id } });
-            if (asset.lastModifiedDate && asset.lastModifiedBy) {
-                activities.push({ id: `asset-edit-${asset.id}`, user: asset.lastModifiedBy, action: <>Memperbarui data aset <strong className="text-gray-900">{asset.name}</strong></>, date: new Date(asset.lastModifiedDate), timestamp: asset.lastModifiedDate, icon: <PencilIcon className="w-4 h-4 text-gray-500" />, previewData: { type: 'asset', id: asset.id } });
-            }
-        });
-
-        handovers.forEach(ho => {
-            activities.push({ id: `ho-create-${ho.id}`, user: ho.menyerahkan, action: <>Handover <strong className="text-gray-900">#{ho.id}</strong> kepada {ho.penerima}</>, date: new Date(ho.handoverDate), timestamp: ho.handoverDate, icon: <HandoverIcon className="w-4 h-4 text-purple-600" />, previewData: { type: 'handover', id: ho.id } });
-        });
-        
-        dismantles.forEach(d => {
-            activities.push({ id: `dsm-create-${d.id}`, user: d.technician, action: <>Dismantle <strong className="text-gray-900">#{d.id}</strong> dari {d.customerName}</>, date: new Date(d.dismantleDate), timestamp: d.dismantleDate, icon: <DismantleIcon className="w-4 h-4 text-gray-500" />, previewData: { type: 'dismantle', id: d.id } });
-        });
-
-        const formatRelativeTime = (date: Date) => {
-            const now = new Date();
-            const diffSeconds = Math.round((now.getTime() - date.getTime()) / 1000);
-            if (diffSeconds < 60) return `${diffSeconds} detik lalu`;
-            const diffMinutes = Math.round(diffSeconds / 60);
-            if (diffMinutes < 60) return `${diffMinutes}m lalu`;
-            const diffHours = Math.round(diffMinutes / 60);
-            if (diffHours < 24) return `${diffHours}j lalu`;
-            return `${Math.round(diffHours / 24)}h lalu`;
-        };
-
-        return activities
-            .sort((a, b) => b.date.getTime() - a.date.getTime())
-            .map(act => ({ ...act, timestamp: formatRelativeTime(act.date) }));
-    }, [assets, requests, handovers, dismantles]);
-
-    const recentActivities = useMemo(() => allActivities.slice(0, 5), [allActivities]);
-
+    // --- ADMIN / SUPER ADMIN DASHBOARD ---
 
     return (
-        <div className="p-4 sm:p-6 md:p-8 space-y-8">
-            {/* Critical Stock Alert Banner (New Feature) */}
-            <CriticalStockWidget assets={assets} onRestock={handleRestock} />
-
-            {/* 8 Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {isComputing ? (
-                    Array.from({ length: 8 }).map((_, i) => (
-                        <div key={i} className="p-6 bg-white border rounded-xl shadow-md border-gray-200/80 h-32">
-                            <div className="flex justify-between items-start">
-                                <div className="space-y-3 w-full">
-                                    <Skeleton height={16} width="60%" />
-                                    <Skeleton height={32} width="40%" />
-                                    <Skeleton height={12} width="50%" />
-                                </div>
-                                <Skeleton variant="circular" width={48} height={48} />
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    <>
-                        <DashboardCard title="Total Tipe Aset" value={inventorySummary.totalAssetTypes} secondaryMetric={`${inventorySummary.totalIndividualAssets} unit`} icon={AssetIcon} color="blue" onClick={() => setActivePage('stock')} />
-                        {canViewPrice(currentUser.role) && <DashboardCard title="Total Nilai Stok" value={`Rp ${formatCurrencyShort(inventorySummary.totalValueInStorage)}`} secondaryMetric="Hanya di gudang" icon={DollarIcon} color="green" onClick={() => setActivePage('stock')} tooltipText={`Rp ${inventorySummary.totalValueInStorage.toLocaleString('id-ID')}`}/>}
-                        
-                        <DashboardCard title="Stok Menipis" value={inventorySummary.lowStockItems} secondaryMetric="Stok ≤ 3 unit" icon={ExclamationTriangleIcon} color="amber" onClick={() => setActivePage('stock', { lowStockOnly: true })} />
-                        <DashboardCard title="Stok Habis" value={inventorySummary.outOfStockItems} secondaryMetric="Stok = 0 unit" icon={InboxIcon} color="red" onClick={() => setActivePage('stock', { outOfStockOnly: true })} />
-                        
-                        <DashboardCard title="Aset Digunakan" value={operationalSummary.inUse} secondaryMetric={`${operationalSummary.totalCustomers} Pelanggan`} icon={UsersIcon} color="teal" onClick={() => setActivePage('registration', { status: AssetStatus.IN_USE })} />
-                        <DashboardCard title="Dalam Perbaikan" value={operationalSummary.underRepair} secondaryMetric="Internal & Eksternal" icon={SpinnerIcon} color="purple" onClick={() => setActivePage('repair')} />
-                        <DashboardCard title="Aset Rusak" value={operationalSummary.damaged} secondaryMetric="Menunggu perbaikan" icon={WrenchIcon} color="rose" onClick={() => setActivePage('repair')} />
-                        <DashboardCard title="Total Pelanggan" value={operationalSummary.totalCustomers} secondaryMetric="Semua status" icon={UsersIcon} color="indigo" onClick={() => setActivePage('customers')} />
-                    </>
-                )}
+        <div className="p-4 sm:p-6 md:p-8 space-y-8 bg-gray-50/30 min-h-screen font-sans">
+            {/* HEADER */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-4 pb-2">
+                <div>
+                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Command Center</h1>
+                    <p className="text-sm text-gray-500 mt-1">Tinjauan menyeluruh inventori aset dan operasional.</p>
+                </div>
+                <div className="text-right hidden md:block">
+                    <p className="text-sm font-bold text-tm-primary">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
             </div>
 
-            {/* Actionable Items */}
-            <ActionableItemsList 
-                currentUser={currentUser}
-                requests={requests}
-                assets={assets}
-                setActivePage={setActivePage}
-                onShowPreview={onShowPreview}
-            />
+             {/* STOCK ALERT WIDGET - MOVED HERE */}
+            <StockAlertWidget assets={assets} setActivePage={setActivePage} />
 
-            {/* Order Analytics and Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-8">
-                    <OrderAnalyticsCard currentUser={currentUser} requests={requests} divisions={divisions} onOpenUrgentReport={() => setIsUrgentReportModalOpen(true)} setActivePage={setActivePage} isLoading={isComputing} />
+            {/* LAYER 1: EXECUTIVE SUMMARY (MACRO) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <MacroStat 
+                    label="Total Nilai Aset" 
+                    value={formatCurrencyShort(macroMetrics.totalValue)} 
+                    subValue={formatCurrencyFull(macroMetrics.totalValue)}
+                    tooltip="Total harga pembelian seluruh aset aktif"
+                    icon={BsCurrencyDollar} 
+                />
+                <MacroStat 
+                    label="Total Aset Fisik" 
+                    value={macroMetrics.totalAssets.toLocaleString('id-ID')} 
+                    subValue={`${macroMetrics.totalActiveItems} Digunakan / ${macroMetrics.totalStockItems} Stok`}
+                    icon={BsBoxSeam} 
+                />
+                <MacroStat 
+                    label="Variasi Model" 
+                    value={macroMetrics.totalModels.toLocaleString('id-ID')} 
+                    subValue={`Dari ${macroMetrics.totalCategories} Kategori Utama`}
+                    icon={BsLayers} 
+                />
+                <MacroStat 
+                    label="Cakupan Operasional" 
+                    value={`${customers.length} Klien`}
+                    subValue={`${divisions.length} Divisi Internal`}
+                    icon={ArchiveBoxIcon} 
+                />
+            </div>
+
+            {/* LAYER 2: URGENCY MATRIX (RISK) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <UrgencyCard 
+                    label="Persetujuan Tertunda" 
+                    value={urgencyMetrics.pendingRequests.toString()} 
+                    icon={CheckIcon} 
+                    color="bg-amber-500" 
+                    subtext="Menghambat Proses"
+                    onClick={() => setActivePage('request', { status: 'awaiting-approval' })}
+                />
+                <UrgencyCard 
+                    label="Peminjaman Terlambat" 
+                    value={urgencyMetrics.overdueLoans.toString()} 
+                    icon={BsClockHistory} 
+                    color="bg-rose-500" 
+                    subtext="Risiko Kehilangan"
+                    onClick={() => setActivePage('request-pinjam', { status: 'Terlambat' })}
+                />
+                <UrgencyCard 
+                    label="Laporan Kerusakan Baru" 
+                    value={urgencyMetrics.unprocessedDamage.toString()} 
+                    icon={ExclamationTriangleIcon} 
+                    color="bg-orange-500" 
+                    subtext="Perlu Tindakan"
+                    onClick={() => setActivePage('repair')}
+                />
+                <UrgencyCard 
+                    label="Stok Item Habis" 
+                    value={urgencyMetrics.criticalStockCount.toString()} 
+                    icon={ArchiveBoxIcon} 
+                    color="bg-red-600" 
+                    subtext="Segera Restock"
+                    onClick={() => setActivePage('stock', { outOfStockOnly: true })}
+                />
+            </div>
+
+            {/* LAYER 3: FEATURE DEEP-DIVE STATS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <FeatureStat 
+                    title="Status Perbaikan Aset"
+                    items={[
+                        { label: 'Internal (Teknisi)', value: featureMetrics.repairs.internal, color: 'bg-blue-100 text-blue-700' },
+                        { label: 'Vendor (Eksternal)', value: featureMetrics.repairs.vendor, color: 'bg-purple-100 text-purple-700' }
+                    ]}
+                    onClick={() => setActivePage('repair')}
+                />
+                <FeatureStat 
+                    title="Kategori Request Aktif"
+                    items={[
+                        { label: 'Urgent / Darurat', value: featureMetrics.requests.urgent, color: 'bg-red-100 text-red-700' },
+                        { label: 'Project Based', value: featureMetrics.requests.project, color: 'bg-indigo-100 text-indigo-700' }
+                    ]}
+                    onClick={() => setActivePage('request')}
+                />
+                <FeatureStat 
+                    title="Mutasi Aset (30 Hari)"
+                    items={[
+                        { label: 'Handover Internal', value: featureMetrics.movements.handovers, color: 'bg-green-100 text-green-700' },
+                        { label: 'Dismantle Pelanggan', value: featureMetrics.movements.dismantles, color: 'bg-orange-100 text-orange-700' }
+                    ]}
+                />
+            </div>
+
+            {/* LAYER 4: ANALYTICS & TRENDS (NEW) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto">
+                 <div className="lg:col-span-2 bg-white p-6 border border-gray-100 rounded-2xl shadow-sm flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-base font-bold text-gray-800">Tren Pembelian Aset (6 Bulan)</h3>
+                        <BsGraphUp className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-h-0">
+                        <SpendingTrendChart data={analyticsData.spendingTrend} />
+                    </div>
                 </div>
-                <div className="lg:col-span-4">
-                     <div className="bg-white border border-gray-200/80 rounded-xl shadow-md flex flex-col h-full">
-                        <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
-                            <h2 className="text-base font-semibold text-tm-dark">Riwayat Aktivitas Terbaru</h2>
-                            {allActivities.length > 5 && (
-                                <button 
-                                    onClick={() => setIsActivityModalOpen(true)}
-                                    className="px-3 py-1 text-xs font-semibold text-center text-tm-primary transition-colors rounded-lg hover:bg-tm-light"
-                                >
-                                    Lihat Semua
-                                </button>
-                            )}
+                <div className="lg:col-span-1 bg-white p-6 border border-gray-100 rounded-2xl shadow-sm flex flex-col">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-base font-bold text-gray-800">Komposisi Status</h3>
+                        <InfoIcon className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-h-0 flex items-center justify-center">
+                        <AssetStatusDonutChart assets={assets} />
+                    </div>
+                </div>         
+            </div>
+
+            {/* LAYER 5: VISUALIZATION & DETAILED MATRICES */}
+            
+            {/* Charts */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 h-auto">
+                <div className="lg:col-span-3 bg-white p-6 border border-gray-100 rounded-2xl shadow-sm flex flex-col">
+
+                 {/* Warranty (Full Detail) */}
+                    <WarrantyAlertWidget assets={assets} />
+                    
+                    {/* Asset Distribution Matrix */}
+                     <div className="flex-1">
+                        <AssetMatrix assets={assets} categories={assetCategories} onCellClick={(cat, status) => setActivePage('registration', { category: cat, status: status })} />
+                    </div>
+                    
+                </div>
+                {/* NEW: Swapped Bar Chart with Detailed Category Summary */}
+                <div className="lg:col-span-3">
+                     <CategorySummaryWidget assets={assets} categories={assetCategories} />
+                </div>
+            </div>
+
+            {/* Data Matrices */}
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                <div className="xl:col-span-2 flex flex-col gap-6 h-full">
+                    <div className="flex-1 bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                         <ActionableItemsList currentUser={currentUser} requests={requests} assets={assets} setActivePage={setActivePage} onShowPreview={onShowPreview} />
+                    </div>
+                </div>
+
+                {/* Action Hub / Activity Feed */}
+                <div className="xl:col-span-2 flex flex-col gap-6 h-full">
+                    <div className="h-auto bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                        <div className="p-5 border-b border-gray-50 flex justify-between items-center bg-white">
+                            <h3 className="font-bold text-gray-800 text-sm">Jejak Audit Terkini</h3>
+                            <button onClick={() => setIsActivityModalOpen(true)} className="text-xs text-tm-primary font-semibold hover:underline">Lihat Semua</button>
                         </div>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-                            {isComputing ? (
-                                <div className="space-y-4">
-                                    {[1,2,3,4,5].map(i => (
-                                        <div key={i} className="flex gap-3">
-                                            <Skeleton variant="circular" width={32} height={32} />
-                                            <div className="flex-1 space-y-2">
-                                                <Skeleton height={14} width="90%" />
-                                                <Skeleton height={10} width="60%" />
+                        <div className="overflow-y-auto custom-scrollbar p-2">
+                            <div className="space-y-1">
+                                {allActivities.map((act) => (
+                                    <div key={act.id} onClick={() => onShowPreview(act.previewData)} className="flex gap-4 items-center p-3 hover:bg-gray-50 cursor-pointer group transition-all rounded-xl">
+                                        <div className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 text-gray-400 border border-gray-100 group-hover:text-tm-primary group-hover:border-blue-100 group-hover:bg-blue-50">
+                                            <act.icon className="w-4 h-4" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-gray-700 leading-tight group-hover:text-tm-primary transition-colors line-clamp-1">{act.action}</p>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">{act.user}</span>
+                                                <span className="text-[10px] text-gray-400">{new Date(act.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : recentActivities.length > 0 ? (
-                                <ol className="relative ml-3">
-                                    <div className="absolute left-3.5 top-5 h-full -translate-x-1/2 w-0.5 bg-gray-200"></div>
-                                    {recentActivities.map((log, index) => (
-                                        <li key={log.id} className="relative pl-8 pb-6">
-                                            <div className="absolute -left-1 top-1 flex items-center justify-center w-8 h-8 bg-white rounded-full">
-                                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 ring-4 ring-white">
-                                                    {log.icon}
-                                                </span>
-                                            </div>
-                                            <div 
-                                                onClick={() => onShowPreview(log.previewData)}
-                                                className="p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:shadow-sm hover:border-gray-300 transition-all duration-200"
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <p className="text-sm text-gray-800 flex-1 min-w-0">{log.action}</p>
-                                                    <time className="flex-shrink-0 ml-4 text-xs text-gray-400">{log.timestamp}</time>
-                                                </div>
-                                                <p className="text-xs text-gray-500 mt-1">oleh {log.user}</p>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ol>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-                                    <InboxIcon className="w-12 h-12 text-gray-300"/>
-                                    <p className="mt-2 text-sm font-semibold">Belum ada aktivitas.</p>
-                                </div>
-                            )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <Modal
+
+             <Modal
                 isOpen={isActivityModalOpen}
                 onClose={() => setIsActivityModalOpen(false)}
-                title={`Semua Aktivitas (${allActivities.length})`}
-                size="2xl"
-            >
-                <div className="max-h-[70vh] overflow-y-auto custom-scrollbar -m-6 p-6">
-                    {allActivities.length > 0 ? (
-                         <ol className="relative ml-3">
-                            <div className="absolute left-3.5 top-5 h-full -translate-x-1/2 w-0.5 bg-gray-200"></div>
-                            {allActivities.map((log) => (
-                                <li key={log.id} className="relative pl-8 pb-6">
-                                    <div className="absolute -left-1 top-1 flex items-center justify-center w-8 h-8 bg-white rounded-full">
-                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 ring-4 ring-white">
-                                            {log.icon}
-                                        </span>
-                                    </div>
-                                    <div 
-                                        onClick={() => onShowPreview(log.previewData)}
-                                        className="p-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:shadow-sm hover:border-gray-300 transition-all duration-200"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-sm text-gray-800 flex-1 min-w-0">{log.action}</p>
-                                            <time className="flex-shrink-0 ml-4 text-xs text-gray-400">{log.timestamp}</time>
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1">oleh {log.user}</p>
-                                    </div>
-                                </li>
-                            ))}
-                        </ol>
-                    ) : (
-                        <div className="py-12 text-center text-gray-500">
-                            <InboxIcon className="w-12 h-12 text-gray-300"/>
-                            <p className="mt-2 font-semibold">Belum ada aktivitas.</p>
-                        </div>
-                    )}
-                </div>
-            </Modal>
-            
-            <UrgentReportModal
-                isOpen={isUrgentReportModalOpen}
-                onClose={() => setIsUrgentReportModalOpen(false)}
-                requests={requests}
-            />
+                title="Semua Aktivitas"
+                size="lg"
+                hideDefaultCloseButton >
 
+                 <div className="max-h-[70vh] overflow-y-auto p-4 space-y-2">
+                    {allActivities.map((act) => (
+                         <div key={act.id} onClick={() => {onShowPreview(act.previewData); setIsActivityModalOpen(false)}} className="flex gap-4 items-center p-4 hover:bg-gray-50 rounded-xl cursor-pointer border border-gray-100 hover:border-gray-300 transition-all">
+                            <div className="w-10 h-10 rounded-full bg-blue-50 text-tm-primary flex items-center justify-center border border-blue-100">
+                                <act.icon className="w-5 h-5" />
+                            </div>
+                            
+                            <div>
+                                <p className="text-sm font-medium text-gray-900">{act.action}</p>
+                                <p className="text-xs text-gray-500 mt-1">{act.user} • {new Date(act.timestamp).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    ))}
+                 </div>
+                 <div className="p-4 border-t flex justify-end bg-gray-50 rounded-b-xl">
+                     <button onClick={() => setIsActivityModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm">Tutup</button>
+                 </div>
+            </Modal>
         </div>
     );
 }

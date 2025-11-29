@@ -144,6 +144,12 @@ const AssignmentPanel: React.FC<{
     const handleAssetSelect = (itemId: number, index: number, assetId: string) => {
          setItemsState(prev => {
             const current = prev[itemId];
+            // FIX: Add a guard to ensure 'current' is not undefined before accessing its properties.
+            // This prevents a potential runtime error if the state for the item isn't initialized yet.
+            if (!current) {
+                console.error(`State for loan item #${itemId} not found during asset selection.`);
+                return prev;
+            }
             const newAssets = [...current.assignedAssets];
             newAssets[index] = assetId;
             return { ...prev, [itemId]: { ...current, assignedAssets: newAssets } };
@@ -179,6 +185,14 @@ const AssignmentPanel: React.FC<{
 
         for (const item of request.items) {
             const state = itemsState[item.id];
+            // FIX: Add a guard to ensure 'state' is not undefined. Although unlikely due to useEffect initialization,
+            // this makes the code more robust against race conditions.
+            if (!state) {
+                addNotification(`Data internal untuk item ${item.itemName} tidak ditemukan. Silakan coba lagi.`, 'error');
+                isValid = false;
+                break;
+            }
+
             const isReduced = state.approvedQty < item.quantity;
             
             if (isReduced && !state.reason.trim()) {

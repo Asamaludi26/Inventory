@@ -449,6 +449,12 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                 setBulkItems(Array.from({ length: quantityToRegister }, (_, i) => ({ id: Date.now() + i, serialNumber: '', macAddress: '' })));
                 setQuantity(quantityToRegister);
             }
+        } else if (prefillData) {
+            // For specific item prefill from stock or other places
+            // This is mostly for when we click "Edit" on an existing asset via "prefillData" prop abuse in original code,
+            // but typically "editingAsset" prop handles edits. 
+            // However, if "prefillItem" (name/brand) is passed via navigation state to create new similar asset:
+             // Handled in parent component useEffect
         }
     }, [prefillData, setBulkItems, assetCategories, currentUser.role]);
     
@@ -976,7 +982,7 @@ const RegistrationForm: React.FC<RegistrationFormProps> = ({ onBack, onSave, pre
                 </FormSection>
 
                 <div ref={footerRef} className="flex justify-end pt-5 mt-4 space-x-3 border-t border-gray-200">
-                    <ActionButtons />
+                    <ActionButtons formId={formId} />
                 </div>
             </form>
             <FloatingActionBar isVisible={!isFooterVisible}>
@@ -1024,6 +1030,8 @@ const ItemRegistration: React.FC<ItemRegistrationProps> = (props) => {
     useEffect(() => {
         if (initialFilters) {
             if (initialFilters.status) setFilterStatus(initialFilters.status);
+            // ADDED: Handle category filter
+            if (initialFilters.category) setFilterCategory(initialFilters.category);
             onClearInitialFilters();
         }
     }, [initialFilters]);
