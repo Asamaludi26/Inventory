@@ -320,7 +320,7 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
         // 2. Loaned assets (Exclude returned ones)
         const myActiveLoans = loanRequests.filter(
             lr => lr.requester === currentUser.name && 
-                  (lr.status === LoanRequestStatus.ON_LOAN || lr.status === LoanRequestStatus.OVERDUE)
+                  (lr.status === LoanRequestStatus.ON_LOAN || lr.status === LoanRequestStatus.OVERDUE || lr.status === LoanRequestStatus.AWAITING_RETURN)
         );
 
         const loanedAssetIds = myActiveLoans.flatMap(lr => {

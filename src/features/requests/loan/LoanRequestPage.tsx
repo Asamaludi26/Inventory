@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Page, User, Asset, Division, LoanRequest, LoanRequestStatus, ItemStatus, AssetStatus, Handover, AssetCategory, Notification, LoanItem, ParsedScanResult, AssetReturn, AssetReturnStatus } from '../../../types';
 import { useSortableData, SortConfig } from '../../../hooks/useSortableData';
@@ -157,56 +156,6 @@ const ReturnRequestTable: React.FC<{
     </table>
 );
 
-
-// --- Specific Return Modal ---
-const SpecificReturnModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    request: LoanRequest | null;
-    assetId: string | null;
-    assets: Asset[];
-    onConfirm: (request: LoanRequest, assetId: string) => void;
-    isLoading: boolean;
-}> = ({ isOpen, onClose, request, assetId, assets, onConfirm, isLoading }) => {
-    if (!request || !assetId) return null;
-    
-    const asset = assets.find(a => a.id === assetId);
-
-    return (
-        <Modal
-            isOpen={isOpen}
-            onClose={onClose}
-            title="Konfirmasi Pengembalian Aset"
-            size="md"
-            hideDefaultCloseButton
-            footerContent={
-                <>
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button>
-                    <button onClick={() => onConfirm(request, assetId)} disabled={isLoading} className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-tm-primary rounded-lg shadow-sm hover:bg-tm-primary-hover disabled:bg-tm-primary/70">
-                        {isLoading && <SpinnerIcon className="w-4 h-4 mr-2" />}
-                        Konfirmasi Pengembalian
-                    </button>
-                </>
-            }
-        >
-            <div className="space-y-4">
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                    <h4 className="font-semibold text-blue-900 mb-1">{asset?.name}</h4>
-                    <p className="text-sm text-blue-700 font-mono mb-2">{asset?.id}</p>
-                    <div className="text-xs text-blue-600">
-                        SN: {asset?.serialNumber || 'N/A'}
-                    </div>
-                </div>
-                <p className="text-sm text-gray-600">
-                    Anda akan mengembalikan aset ini dari peminjaman <span className="font-semibold text-gray-900">#{request.id}</span>. 
-                    Status aset akan kembali menjadi <strong>"Di Gudang"</strong>.
-                </p>
-            </div>
-        </Modal>
-    );
-};
-
-
 const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
     const { currentUser, loanRequests, setLoanRequests, returns, assets, setAssets, users, divisions, handovers, setHandovers, onShowPreview, onInitiateHandoverFromLoan, assetCategories, addNotification, setIsGlobalScannerOpen, setScanContext, setFormScanCallback, initialFilters, setActivePage } = props;
     const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
@@ -219,33 +168,25 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-    
-    // State for Specific Return Modal
-    const [specificReturnData, setSpecificReturnData] = useState<{ request: LoanRequest, assetId: string } | null>(null);
 
     const addNotificationUI = useNotification();
 
-    // Effect to handle deep linking and actions from other pages
     useEffect(() => {
         if (initialFilters?.openDetailForId) {
             const request = loanRequests.find(req => req.id === initialFilters.openDetailForId);
             if (request) {
-                // If a specific asset ID is provided for return, open the SpecificReturnModal directly
-                // instead of navigating to the full detail page.
                 if (initialFilters.preselectReturnAssetId) {
-                    setSpecificReturnData({
-                        request,
+                    setActivePage('return-form', {
+                        loanId: request.id,
                         assetId: initialFilters.preselectReturnAssetId
                     });
-                    // Don't change view to 'detail' here
                 } else {
-                    // Otherwise, open the detail view as usual
                     setSelectedRequest(request);
                     setView('detail');
                 }
             }
         }
-    }, [initialFilters, loanRequests]);
+    }, [initialFilters, loanRequests, setActivePage]);
 
     const filteredRequests = useMemo(() => {
         let tempRequests = [...loanRequests];
@@ -266,7 +207,7 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedRequests = sortedRequests.slice(startIndex, startIndex + itemsPerPage);
-    const paginatedReturns = returns.slice(startIndex, startIndex + itemsPerPage); // Simple pagination for now
+    const paginatedReturns = returns.slice(startIndex, startIndex + itemsPerPage);
 
     useEffect(() => { setCurrentPage(1); }, [searchQuery, filters, itemsPerPage, activeTab]);
 
@@ -384,14 +325,11 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
             
             addNotificationUI(isFullyReturned ? `Semua aset untuk ${request.id} telah dikembalikan. Handover #${newHandover.docNumber} dibuat.` : `Aset telah dikembalikan. Handover #${newHandover.docNumber} dibuat.`, 'success');
             
-            // Update selected request if open
             if (selectedRequest && selectedRequest.id === request.id) {
                 const updatedReq = { ...request, status: isFullyReturned ? LoanRequestStatus.RETURNED : LoanRequestStatus.ON_LOAN, returnedAssetIds: newReturnedIds };
                 setSelectedRequest(updatedReq);
             }
             
-            // Close specific modal if open
-            setSpecificReturnData(null);
             setIsLoading(false);
         }, 1000);
     };
@@ -478,17 +416,6 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
                 <div className="space-y-4"><p className="text-sm text-gray-600">Alasan penolakan untuk <strong className="font-semibold">{selectedRequest?.id}</strong>.</p><textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} rows={3} className="w-full text-sm border-gray-300 rounded-md focus:ring-tm-accent focus:border-tm-accent " placeholder="Contoh: Aset tidak tersedia..."></textarea></div>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t"><button onClick={() => setIsRejectModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">Batal</button><button onClick={handleRejection} disabled={isLoading || !rejectionReason.trim()} className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-danger rounded-lg shadow-sm hover:bg-red-700">Konfirmasi Tolak</button></div>
             </Modal>
-
-            {/* Specific Return Modal */}
-            <SpecificReturnModal 
-                isOpen={!!specificReturnData}
-                onClose={() => setSpecificReturnData(null)}
-                request={specificReturnData?.request || null}
-                assetId={specificReturnData?.assetId || null}
-                assets={assets}
-                isLoading={isLoading}
-                onConfirm={(req, assetId) => handleConfirmReturn(req, [assetId])}
-            />
         </>
     );
 };

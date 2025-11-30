@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { LoanRequest, User, Asset, Division, PreviewData, LoanRequestStatus, AssetStatus, AssetCategory, ParsedScanResult } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
@@ -698,8 +694,7 @@ const LoanRequestDetailPage: React.FC<LoanRequestDetailPageProps> = (props) => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {/* FIX: Corrected property name from 'assignedAssets' to 'assignedAssetIds' and typed assetId */}
-                                        {Object.values(loanRequest.assignedAssetIds || {}).flat().map((assetId: string, index) => {
+                                        {Object.values(loanRequest.assignedAssetIds).flat().map((assetId: string, index) => {
                                             const asset = assets.find(a => a.id === assetId);
                                             if (!asset) return null;
                                             const isReturned = loanRequest.returnedAssetIds?.includes(assetId);
