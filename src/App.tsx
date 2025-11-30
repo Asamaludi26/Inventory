@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 // Types and Enums
@@ -7,7 +9,8 @@ import {
     AssetStatus, 
     CustomerStatus, 
     AssetCondition,
-    LoanRequestStatus
+    LoanRequestStatus,
+    AssetReturnStatus
 } from './types';
 import type { 
     Page, 
@@ -30,7 +33,8 @@ import type {
     LoanRequest,
     Maintenance,
     Installation,
-    InstalledMaterial
+    InstalledMaterial,
+    AssetReturn
 } from './types';
 
 // Services
@@ -89,6 +93,7 @@ import DivisionDetailPage from './features/users/DivisionDetailPage';
 import StockOverviewPage from './features/stock/StockOverviewPage';
 import PermissionDeniedPage from './features/auth/PermissionDeniedPage';
 import RequestHubPage from './features/requests/RequestHubPage';
+import ReturnAssetFormPage from './features/requests/loan/ReturnAssetFormPage';
 
 // Feature Sub-components
 import ReportDamageModal from './features/stock/components/ReportDamageModal';
@@ -468,6 +473,7 @@ const AppContent: React.FC<{
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [assetCategories, setAssetCategories] = useState<AssetCategory[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [returns, setReturns] = useState<AssetReturn[]>([]);
   
   // --- UI/App Status States ---
   const [isLoading, setIsLoading] = useState(true);
@@ -522,6 +528,7 @@ const AppContent: React.FC<{
                 setLoanRequests(data.loanRequests);
                 setMaintenances(data.maintenances);
                 setInstallations(data.installations);
+                setReturns(data.returns);
 
             } catch (err: any) {
                 setError(err.message || 'Gagal memuat data aplikasi. Silakan coba muat ulang halaman.');
@@ -1182,6 +1189,130 @@ const AppContent: React.FC<{
             handleSetActivePage(targetPage);
         }
   };
+
+  const handleSaveReturn = (data: Omit<AssetReturn, 'id' | 'docNumber' | 'status'>) => {
+    const newDocNumber = generateDocumentNumber('RET', returns, new Date(data.returnDate));
+    const newReturn: AssetReturn = {
+        ...data,
+        id: `RET-${Date.now()}`,
+        docNumber: newDocNumber,
+        status: AssetReturnStatus.PENDING_APPROVAL,
+    };
+    setAndPersist(setReturns, prev => [newReturn, ...prev], 'app_returns');
+
+    handleUpdateAsset(data.assetId, {
+        status: AssetStatus.AWAITING_RETURN,
+    }, {
+        user: data.returnedBy,
+        action: 'Pengembalian Diajukan',
+        details: `Menunggu konfirmasi penerimaan dari Logistik. Ref: ${newReturn.id}`,
+        referenceId: newReturn.id,
+    });
+    
+    users.filter(u => u.role === 'Admin Logistik').forEach(admin => {
+        addAppNotification({
+            recipientId: admin.id,
+            actorName: currentUser.name,
+            type: 'STATUS_CHANGE', 
+            referenceId: newReturn.id,
+            message: `mengajukan pengembalian untuk aset ${data.assetName} (${data.assetId})`
+        });
+    });
+    
+    addNotification(`Request pengembalian ${newDocNumber} telah diajukan & menunggu persetujuan Logistik.`, 'success');
+    handleSetActivePage('stock');
+};
+
+const handleApproveReturn = (returnId: string) => {
+    const returnDoc = returns.find(r => r.id === returnId);
+    if (!returnDoc) return;
+
+    setAndPersist(setReturns, prev => prev.map(r => r.id === returnId ? {
+        ...r,
+        status: AssetReturnStatus.APPROVED,
+        approvedBy: currentUser.name,
+        approvalDate: new Date().toISOString(),
+    } : r), 'app_returns');
+
+    handleUpdateAsset(returnDoc.assetId, {
+        status: AssetStatus.IN_STORAGE,
+        condition: returnDoc.returnedCondition,
+        currentUser: null,
+        location: 'Gudang Inventori',
+    }, {
+        user: currentUser.name,
+        action: 'Pengembalian Disetujui',
+        details: `Pengembalian aset disetujui. Aset kembali ke stok gudang.`,
+        referenceId: returnId,
+    });
+
+     setAndPersist(setLoanRequests, (prev: LoanRequest[]) => 
+        prev.map(lr => {
+            if (lr.id === returnDoc.loanRequestId) {
+                const updatedReturnedIds = [...(lr.returnedAssetIds || []), returnDoc.assetId];
+                const allAssignedIds = Object.values(lr.assignedAssetIds || {}).flat();
+                const allReturned = allAssignedIds.every(id => updatedReturnedIds.includes(id));
+
+                return {
+                    ...lr,
+                    returnedAssetIds: updatedReturnedIds,
+                    status: allReturned ? LoanRequestStatus.RETURNED : LoanRequestStatus.AWAITING_RETURN,
+                    actualReturnDate: allReturned ? new Date().toISOString() : lr.actualReturnDate,
+                };
+            }
+            return lr;
+        }), 'app_loanRequests');
+    
+    const requester = users.find(u => u.name === returnDoc.returnedBy);
+    if (requester) {
+         addAppNotification({
+            recipientId: requester.id,
+            actorName: currentUser.name,
+            type: 'REQUEST_APPROVED',
+            referenceId: returnDoc.id,
+            message: `menyetujui pengembalian aset ${returnDoc.assetName} Anda.`
+        });
+    }
+
+    addNotification(`Pengembalian ${returnDoc.docNumber} telah disetujui.`, 'success');
+    handleSetActivePage('request-pinjam');
+  };
+
+  const handleRejectReturn = (returnId: string, reason: string) => {
+    const returnDoc = returns.find(r => r.id === returnId);
+    if (!returnDoc) return;
+
+    setAndPersist(setReturns, prev => prev.map(r => r.id === returnId ? {
+        ...r,
+        status: AssetReturnStatus.REJECTED,
+        rejectedBy: currentUser.name,
+        rejectionDate: new Date().toISOString(),
+        rejectionReason: reason,
+    } : r), 'app_returns');
+
+    handleUpdateAsset(returnDoc.assetId, {
+        status: AssetStatus.IN_USE,
+    }, {
+        user: currentUser.name,
+        action: 'Pengembalian Ditolak',
+        details: `Pengembalian aset ditolak dengan alasan: "${reason}". Aset kembali ke pengguna.`,
+        referenceId: returnId,
+    });
+    
+    const requester = users.find(u => u.name === returnDoc.returnedBy);
+    if (requester) {
+         addAppNotification({
+            recipientId: requester.id,
+            actorName: currentUser.name,
+            type: 'REQUEST_REJECTED',
+            referenceId: returnDoc.id,
+            message: `menolak pengembalian aset ${returnDoc.assetName} Anda dengan alasan: "${reason}"`
+        });
+    }
+
+    addNotification(`Pengembalian ${returnDoc.docNumber} telah ditolak.`, 'warning');
+    handleSetActivePage('request-pinjam');
+  };
   
     const findReporter = (asset: Asset): User | undefined => {
         const reportLog = [...(asset.activityLog || [])].reverse().find(log => log.action === 'Kerusakan Dilaporkan');
@@ -1446,7 +1577,7 @@ const AppContent: React.FC<{
 
     switch (activePage) {
       case 'dashboard':
-        return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
+        return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} maintenances={maintenances} installations={installations} loanRequests={loanRequests} />;
       case 'request':
       case 'request-pinjam':
         return <RequestHubPage 
@@ -1456,6 +1587,7 @@ const AppContent: React.FC<{
                   setRequests={(valueOrFn) => setAndPersist(setRequests, valueOrFn, 'app_requests')} 
                   loanRequests={loanRequests}
                   setLoanRequests={(valueOrFn) => setAndPersist(setLoanRequests, valueOrFn, 'app_loanRequests')}
+                  returns={returns}
                   assets={assets}
                   setAssets={(valueOrFn) => setAndPersist(setAssets, valueOrFn, 'app_assets')}
                   handovers={handovers}
@@ -1487,6 +1619,41 @@ const AppContent: React.FC<{
         return <StockOverviewPage currentUser={currentUser} assets={assets} assetCategories={assetCategories} users={users} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} initialFilters={pageInitialState} onClearInitialFilters={clearPageInitialState} handovers={handovers} requests={requests} onReportDamage={setAssetToReport} loanRequests={loanRequests} />;
       case 'repair':
         return <RepairManagementPage currentUser={currentUser} assets={assets} users={users} onShowPreview={handleShowPreview} onStartRepair={setAssetToStartRepair} onAddProgressUpdate={setAssetToUpdateProgress} onReceiveFromRepair={handleReceiveFromRepair} onCompleteRepair={setAssetToCompleteRepair} onDecommission={setAssetToDecommission} />;
+      case 'return-form': {
+          const loan = loanRequests.find(lr => lr.id === pageInitialState?.loanId);
+          const asset = assets.find(a => a.id === pageInitialState?.assetId);
+          return <ReturnAssetFormPage
+                      currentUser={currentUser}
+                      loanRequest={loan}
+                      assetToReturn={asset}
+                      onSave={handleSaveReturn}
+                      onCancel={() => handleSetActivePage('stock')}
+                      users={users}
+                      returns={returns}
+                      divisions={divisions}
+                      onApproveReturn={handleApproveReturn}
+                      onRejectReturn={handleRejectReturn}
+                  />;
+      }
+      case 'return-detail': {
+        const returnDoc = returns.find(r => r.id === pageInitialState?.returnId);
+        const loanReqForReturn = loanRequests.find(lr => lr.id === returnDoc?.loanRequestId);
+        const assetForReturn = assets.find(a => a.id === returnDoc?.assetId);
+        return <ReturnAssetFormPage
+                    currentUser={currentUser}
+                    loanRequest={loanReqForReturn}
+                    assetToReturn={assetForReturn}
+                    onSave={() => {}}
+                    onCancel={() => handleSetActivePage('request-pinjam')}
+                    users={users}
+                    returns={returns}
+                    isReadOnly={true}
+                    returnDocument={returnDoc}
+                    divisions={divisions}
+                    onApproveReturn={handleApproveReturn}
+                    onRejectReturn={handleRejectReturn}
+                />;
+      }
       case 'pengaturan-pengguna':
         return <AccountsPage 
                   currentUser={currentUser} 
@@ -1498,7 +1665,6 @@ const AppContent: React.FC<{
                   onShowPreview={handleShowPreview}
                 />;
       case 'user-form':
-// FIX: Pass currentUser to UserFormPage to satisfy its props requirements.
         return <UserFormPage
                     currentUser={currentUser}
                     editingUser={pageInitialState?.editingUser || null}
@@ -1569,7 +1735,7 @@ const AppContent: React.FC<{
                   onUpdateAsset={handleUpdateAsset}
                   onInitiateDismantle={handleInitiateDismantle}
                   onShowPreview={handleShowPreview}
-                  setActivePage={handleSetActivePage}
+                  setActivePage={setActivePage}
                   pageInitialState={pageInitialState}
                   dismantles={dismantles}
                   setDismantles={(valueOrFn) => setAndPersist(setDismantles, valueOrFn, 'app_dismantles')}
@@ -1586,7 +1752,7 @@ const AppContent: React.FC<{
                   onClearPrefill={() => setPrefillDmData(null)}
               />;
       default:
-        return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} />;
+        return <DashboardPage currentUser={currentUser} assets={assets} requests={requests} handovers={handovers} dismantles={dismantles} customers={customers} assetCategories={assetCategories} divisions={divisions} setActivePage={handleSetActivePage} onShowPreview={handleShowPreview} maintenances={maintenances} installations={installations} loanRequests={loanRequests} />;
     }
   };
 

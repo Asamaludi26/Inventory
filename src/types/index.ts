@@ -1,5 +1,4 @@
 
-
 // --- CORE TYPES & ENUMS ---
 
 export type Page =
@@ -23,7 +22,9 @@ export type Page =
   | 'user-detail'
   | 'division-detail'
   | 'pengaturan-akun'
-  | 'kategori';
+  | 'kategori'
+  | 'return-form'
+  | 'return-detail';
 
 export type UserRole = 'Super Admin' | 'Admin Logistik' | 'Admin Purchase' | 'Leader' | 'Staff';
 
@@ -93,6 +94,7 @@ export enum AssetStatus {
   OUT_FOR_REPAIR = 'Perbaikan Eksternal',
   DAMAGED = 'Rusak',
   DECOMMISSIONED = 'Diberhentikan',
+  AWAITING_RETURN = 'Menunggu Pengembalian',
 }
 
 export enum AssetCondition {
@@ -127,6 +129,12 @@ export enum LoanRequestStatus {
     RETURNED = 'Dikembalikan',
     OVERDUE = 'Terlambat',
     AWAITING_RETURN = 'Menunggu Pengembalian',
+}
+
+export enum AssetReturnStatus {
+    PENDING_APPROVAL = 'Menunggu Persetujuan',
+    APPROVED = 'Disetujui',
+    REJECTED = 'Ditolak',
 }
 
 export type TrackingMethod = 'individual' | 'bulk';
@@ -470,6 +478,27 @@ export interface Installation {
   notes?: string;
   acknowledger?: string;
   createdBy?: string;
+}
+
+export interface AssetReturn {
+  id: string;
+  docNumber: string;
+  returnDate: string;
+  loanRequestId: string;
+  loanDocNumber?: string;
+  assetId: string;
+  assetName: string;
+  returnedBy: string; 
+  receivedBy: string; 
+  acknowledgedBy: string; 
+  returnedCondition: AssetCondition;
+  notes: string | null;
+  status: AssetReturnStatus;
+  approvedBy?: string;
+  approvalDate?: string;
+  rejectedBy?: string;
+  rejectionDate?: string;
+  rejectionReason?: string;
 }
 
 

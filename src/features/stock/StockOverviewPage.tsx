@@ -1,4 +1,5 @@
 
+
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Asset, AssetStatus, Page, PreviewData, AssetCategory, Handover, User, AssetCondition, Division, LoanRequest, LoanRequestStatus, Request } from '../../types';
 import { useSortableData, SortConfig } from '../../hooks/useSortableData';
@@ -31,6 +32,7 @@ import { Checkbox } from '../../components/ui/Checkbox';
 import { JournalCheckIcon } from '../../components/icons/JournalCheckIcon';
 import { SummaryCard } from '../dashboard/components/SummaryCard';
 import { DismantleIcon } from '../../components/icons/DismantleIcon';
+import { SpinnerIcon } from '../../components/icons/SpinnerIcon';
 
 
 interface StockOverviewPageProps {
@@ -220,14 +222,24 @@ const AssetCard: React.FC<{
                     Detail
                 </button>
                 
-                {isLoaned && onReturn ? (
-                    <button
-                        onClick={onReturn}
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-white transition-colors bg-purple-600 border border-purple-600 rounded-lg shadow-sm hover:bg-purple-700"
-                    >
-                        <DismantleIcon className="w-4 h-4"/>
-                        Kembalikan
-                    </button>
+                {isLoaned ? (
+                    asset.status === AssetStatus.AWAITING_RETURN ? (
+                        <button
+                            disabled
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-blue-800 transition-colors bg-blue-100 border border-blue-100 rounded-lg shadow-sm cursor-not-allowed"
+                        >
+                            <SpinnerIcon className="w-4 h-4 animate-spin"/>
+                            Proses Pengembalian
+                        </button>
+                    ) : (
+                        <button
+                            onClick={onReturn}
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-white transition-colors bg-purple-600 border border-purple-600 rounded-lg shadow-sm hover:bg-purple-700"
+                        >
+                            <DismantleIcon className="w-4 h-4"/>
+                            Kembalikan
+                        </button>
+                    )
                 ) : (
                     <button
                         onClick={() => onReportDamage(asset)}
@@ -602,9 +614,9 @@ const StockOverviewPage: React.FC<StockOverviewPageProps> = ({ currentUser, asse
                                         onReportDamage={onReportDamage}
                                         isLoaned={isLoaned}
                                         returnDate={loanDetails?.returnDate || null}
-                                        onReturn={isLoaned && loanDetails ? () => setActivePage('request-pinjam', {
-                                            openDetailForId: loanDetails.loanId,
-                                            preselectReturnAssetId: asset.id
+                                        onReturn={isLoaned && loanDetails ? () => setActivePage('return-form', {
+                                            loanId: loanDetails.loanId,
+                                            assetId: asset.id
                                         }) : undefined}
                                     />
                                 );

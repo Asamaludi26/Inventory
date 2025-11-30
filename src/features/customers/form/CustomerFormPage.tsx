@@ -1,6 +1,9 @@
 
 
 
+
+
+
 import React, { useMemo } from 'react';
 import { Customer, Page, User, Asset, ActivityLogEntry, AssetStatus, AssetCategory } from '../../../types';
 import FormPageLayout from '../../../components/layout/FormPageLayout';
@@ -41,7 +44,6 @@ const CustomerFormPage: React.FC<CustomerFormPageProps> = (props) => {
             onUpdateAsset(assetId, {
                 currentUser: null,
                 location: 'Gudang Inventori',
-                // FIX: Use AssetStatus enum member instead of string literal.
                 status: AssetStatus.IN_STORAGE,
             }, {
                 user: currentUser.name,
@@ -54,7 +56,6 @@ const CustomerFormPage: React.FC<CustomerFormPageProps> = (props) => {
             onUpdateAsset(assetId, {
                 currentUser: customerToEdit?.id || `TMI-NEW-${Date.now()}`, // Placeholder for new customer
                 location: `Terpasang di: ${formData.address}`,
-                // FIX: Use AssetStatus enum member instead of string literal.
                 status: AssetStatus.IN_USE,
             }, {
                 user: currentUser.name,

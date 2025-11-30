@@ -1,4 +1,5 @@
 
+
 import { 
     Division, 
     User, 
@@ -32,6 +33,7 @@ import {
     LoanItem, 
     MaintenanceMaterial, 
     MaintenanceReplacement, 
+    AssetReturn
 } from '../types'; 
 import { generateDocumentNumber } from '../utils/documentNumberGenerator'; 
 import { 
@@ -197,6 +199,7 @@ export let mockMaintenances: Maintenance[] = [];
 export let mockInstallations: Installation[] = []; 
 export let mockNotifications: Notification[] = []; 
 export let mockLoanRequests: LoanRequest[] = []; 
+export let mockReturns: AssetReturn[] = [];
 
 const assetTemplates: { category: string; type: string; name: string; brand: string; price: number }[] = []; 
 initialAssetCategories.forEach(cat => cat.types.forEach(type => type.standardItems?.forEach(item => { 
@@ -717,7 +720,97 @@ const generateNotifications = () => {
     mockNotifications = []; 
 }; 
 
+const setupTestReturnData = () => {
+    const citra = initialMockUsers.find(u => u.email === 'citra.lestari0@triniti.com');
+    if (!citra) return;
+
+    // --- Scenario 1: Active Loan (Fusion Splicer) ---
+    const splicerAsset = mockAssets.find(a => a.name.includes('Fusion Splicer') && a.status === AssetStatus.IN_STORAGE);
+    if (splicerAsset) {
+        const requestDate = new Date();
+        requestDate.setDate(requestDate.getDate() - 10);
+        const returnDate = new Date();
+        returnDate.setDate(returnDate.getDate() + 10);
+
+        const activeLoan: LoanRequest = {
+            id: 'LREQ-CITRA-001',
+            requester: citra.name,
+            division: 'Teknisi',
+            requestDate: requestDate.toISOString(),
+            status: LoanRequestStatus.ON_LOAN,
+            items: [{ id: 1, itemName: splicerAsset.name, brand: splicerAsset.brand, quantity: 1, returnDate: returnDate.toISOString().split('T')[0] }],
+            notes: 'Peminjaman untuk perbaikan darurat.',
+            approver: 'Alice Johnson',
+            approvalDate: new Date(requestDate.getTime() + 3600000).toISOString(),
+            assignedAssetIds: { 1: [splicerAsset.id] },
+        };
+
+        const handoverId = `HO-CITRA-001`;
+        activeLoan.handoverId = handoverId;
+        const newHandover: Handover = {
+            id: handoverId,
+            docNumber: generateDocumentNumber('HO-LN', mockHandovers, requestDate),
+            handoverDate: activeLoan.approvalDate!,
+            menyerahkan: 'Alice Johnson',
+            penerima: citra.name,
+            mengetahui: 'John Doe',
+            woRoIntNumber: activeLoan.id,
+            items: [{ id: 1, assetId: splicerAsset.id, itemName: splicerAsset.name, itemTypeBrand: splicerAsset.brand, conditionNotes: 'Baik', quantity: 1, checked: true }],
+            status: ItemStatus.COMPLETED
+        };
+        mockHandovers.push(newHandover);
+
+        const splicerIndex = mockAssets.findIndex(a => a.id === splicerAsset.id);
+        mockAssets[splicerIndex] = { ...splicerAsset, status: AssetStatus.IN_USE, currentUser: citra.name, location: `Dipinjam oleh: ${citra.name}` };
+        
+        mockLoanRequests.unshift(activeLoan);
+    }
+
+    // --- Scenario 2: Overdue Loan (OTDR) ---
+    const otdrAsset = mockAssets.find(a => a.name.includes('OTDR') && a.status === AssetStatus.IN_STORAGE);
+    if (otdrAsset) {
+        const requestDate = new Date();
+        requestDate.setDate(requestDate.getDate() - 20);
+        const returnDate = new Date();
+        returnDate.setDate(returnDate.getDate() - 5); // Overdue by 5 days
+
+        const overdueLoan: LoanRequest = {
+            id: 'LREQ-CITRA-002',
+            requester: citra.name,
+            division: 'Teknisi',
+            requestDate: requestDate.toISOString(),
+            status: LoanRequestStatus.OVERDUE,
+            items: [{ id: 1, itemName: otdrAsset.name, brand: otdrAsset.brand, quantity: 1, returnDate: returnDate.toISOString().split('T')[0] }],
+            notes: 'Peminjaman untuk audit jaringan.',
+            approver: 'Alice Johnson',
+            approvalDate: new Date(requestDate.getTime() + 3600000).toISOString(),
+            assignedAssetIds: { 1: [otdrAsset.id] },
+        };
+        
+        const handoverId = `HO-CITRA-002`;
+        overdueLoan.handoverId = handoverId;
+        const newHandover: Handover = {
+            id: handoverId,
+            docNumber: generateDocumentNumber('HO-LN', mockHandovers, requestDate),
+            handoverDate: overdueLoan.approvalDate!,
+            menyerahkan: 'Alice Johnson',
+            penerima: citra.name,
+            mengetahui: 'John Doe',
+            woRoIntNumber: overdueLoan.id,
+            items: [{ id: 1, assetId: otdrAsset.id, itemName: otdrAsset.name, itemTypeBrand: otdrAsset.brand, conditionNotes: 'Baik', quantity: 1, checked: true }],
+            status: ItemStatus.COMPLETED
+        };
+        mockHandovers.push(newHandover);
+
+        const otdrIndex = mockAssets.findIndex(a => a.id === otdrAsset.id);
+        mockAssets[otdrIndex] = { ...otdrAsset, status: AssetStatus.IN_USE, currentUser: citra.name, location: `Dipinjam oleh: ${citra.name}` };
+        
+        mockLoanRequests.unshift(overdueLoan);
+    }
+};
+
 generateAssetsHandoversDismantles(); 
 generateCustomerOperations(); 
 generateLoanRequests(); 
 generateNotifications();
+setupTestReturnData(); // Add specific test data for Citra

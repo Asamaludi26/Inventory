@@ -1,5 +1,5 @@
 import React from 'react';
-import { Page, User, Request, Asset, AssetCategory, Division, StandardItem, AssetType, Notification, LoanRequest, Handover, ParsedScanResult } from '../../types';
+import { Page, User, Request, Asset, AssetCategory, Division, StandardItem, AssetType, Notification, LoanRequest, Handover, ParsedScanResult, AssetReturn } from '../../types';
 
 import NewRequestPage from './new/NewRequestPage';
 import LoanRequestPage from './loan/LoanRequestPage';
@@ -12,6 +12,7 @@ interface RequestHubPageProps {
     setRequests: React.Dispatch<React.SetStateAction<Request[]>>;
     loanRequests: LoanRequest[];
     setLoanRequests: React.Dispatch<React.SetStateAction<LoanRequest[]>>;
+    returns: AssetReturn[];
     assets: Asset[];
     setAssets: React.Dispatch<React.SetStateAction<Asset[]>>;
     handovers: Handover[];

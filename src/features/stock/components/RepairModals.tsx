@@ -5,8 +5,8 @@ import { SpinnerIcon } from '../../../components/icons/SpinnerIcon';
 import { CustomSelect } from '../../../components/ui/CustomSelect';
 import { ExclamationTriangleIcon } from '../../../components/icons/ExclamationTriangleIcon';
 import DatePicker from '../../../components/ui/DatePicker';
+import { InfoIcon } from '../../../components/icons/InfoIcon';
 
-// FIX: Update StartRepairModal props and implementation to handle internal/external repair types.
 interface StartRepairModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -290,7 +290,7 @@ export const DecommissionConfirmationModal: React.FC<DecommissionConfirmationMod
         </Modal>
     );
 };
-// FIX: Add missing AddProgressUpdateModal component.
+
 interface AddProgressUpdateModalProps {
     isOpen: boolean;
     onClose: () => void;

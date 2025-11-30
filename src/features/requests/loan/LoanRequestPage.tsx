@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Page, User, Asset, Division, LoanRequest, LoanRequestStatus, ItemStatus, AssetStatus, Handover, AssetCategory, Notification, LoanItem, ParsedScanResult } from '../../../types';
+import { Page, User, Asset, Division, LoanRequest, LoanRequestStatus, ItemStatus, AssetStatus, Handover, AssetCategory, Notification, LoanItem, ParsedScanResult, AssetReturn, AssetReturnStatus } from '../../../types';
 import { useSortableData, SortConfig } from '../../../hooks/useSortableData';
 import { useNotification } from '../../../providers/NotificationProvider';
 import { PaginationControls } from '../../../components/ui/PaginationControls';
@@ -21,6 +21,7 @@ interface LoanRequestPageProps {
     currentUser: User;
     loanRequests: LoanRequest[];
     setLoanRequests: React.Dispatch<React.SetStateAction<LoanRequest[]>>;
+    returns: AssetReturn[];
     assets: Asset[];
     setAssets: React.Dispatch<React.SetStateAction<Asset[]>>;
     users: User[];
@@ -47,6 +48,15 @@ const getStatusClass = (status: LoanRequestStatus) => {
         case LoanRequestStatus.REJECTED: return 'bg-danger-light text-danger-text';
         case LoanRequestStatus.OVERDUE: return 'bg-red-200 text-red-800 font-bold';
         case LoanRequestStatus.AWAITING_RETURN: return 'bg-blue-100 text-blue-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+};
+
+const getReturnStatusClass = (status: AssetReturnStatus) => {
+    switch (status) {
+        case AssetReturnStatus.PENDING_APPROVAL: return 'bg-warning-light text-warning-text';
+        case AssetReturnStatus.APPROVED: return 'bg-success-light text-success-text';
+        case AssetReturnStatus.REJECTED: return 'bg-danger-light text-danger-text';
         default: return 'bg-gray-100 text-gray-800';
     }
 };
@@ -111,6 +121,43 @@ const LoanRequestTable: React.FC<{
     </table>
 );
 
+const ReturnRequestTable: React.FC<{ 
+    returns: AssetReturn[], 
+    onDetailClick: (ret: AssetReturn) => void,
+}> = ({ returns, onDetailClick }) => (
+    <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+            <tr>
+                <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">No. Dokumen / Tgl Kembali</th>
+                <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Aset yang Dikembalikan</th>
+                <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Pihak Terlibat</th>
+                <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Kondisi</th>
+                <th scope="col" className="px-6 py-3 text-sm font-semibold tracking-wider text-left text-gray-500">Status</th>
+                <th className="relative px-6 py-3"><span className="sr-only">Aksi</span></th>
+            </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+            {returns.length > 0 ? returns.map(ret => (
+                <tr key={ret.id} onClick={() => onDetailClick(ret)} className="cursor-pointer hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-semibold text-gray-900">{ret.docNumber}</div><div className="text-xs text-gray-500">{new Date(ret.returnDate).toLocaleDateString('id-ID')}</div></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{ret.assetName}</div><div className="text-xs text-gray-500 font-mono">{ret.assetId}</div></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><div className="text-sm font-medium text-gray-900">{ret.returnedBy}</div><div className="text-xs text-gray-500">ke {ret.receivedBy}</div></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{ret.returnedCondition}</span></td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getReturnStatusClass(ret.status)}`}>
+                            {ret.status}
+                        </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-right"><button className="p-2 text-gray-500 rounded-full hover:bg-info-light hover:text-info-text"><EyeIcon className="w-5 h-5"/></button></td>
+                </tr>
+            )) : (
+                <tr><td colSpan={6} className="py-12 text-center text-gray-500"><InboxIcon className="w-12 h-12 mx-auto text-gray-300" /><p className="mt-2 font-semibold">Tidak ada data pengembalian.</p></td></tr>
+            )}
+        </tbody>
+    </table>
+);
+
+
 // --- Specific Return Modal ---
 const SpecificReturnModal: React.FC<{
     isOpen: boolean;
@@ -161,8 +208,9 @@ const SpecificReturnModal: React.FC<{
 
 
 const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
-    const { currentUser, loanRequests, setLoanRequests, assets, setAssets, users, divisions, handovers, setHandovers, onShowPreview, onInitiateHandoverFromLoan, assetCategories, addNotification, setIsGlobalScannerOpen, setScanContext, setFormScanCallback, initialFilters } = props;
+    const { currentUser, loanRequests, setLoanRequests, returns, assets, setAssets, users, divisions, handovers, setHandovers, onShowPreview, onInitiateHandoverFromLoan, assetCategories, addNotification, setIsGlobalScannerOpen, setScanContext, setFormScanCallback, initialFilters, setActivePage } = props;
     const [view, setView] = useState<'list' | 'form' | 'detail'>('list');
+    const [activeTab, setActiveTab] = useState<'loans' | 'returns'>('loans');
     const [selectedRequest, setSelectedRequest] = useState<LoanRequest | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState({ status: '' });
@@ -214,12 +262,13 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
 
     const { items: sortedRequests, requestSort, sortConfig } = useSortableData(filteredRequests, { key: 'requestDate', direction: 'descending' });
 
-    const totalItems = sortedRequests.length;
+    const totalItems = activeTab === 'loans' ? sortedRequests.length : returns.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedRequests = sortedRequests.slice(startIndex, startIndex + itemsPerPage);
+    const paginatedReturns = returns.slice(startIndex, startIndex + itemsPerPage); // Simple pagination for now
 
-    useEffect(() => { setCurrentPage(1); }, [searchQuery, filters, itemsPerPage]);
+    useEffect(() => { setCurrentPage(1); }, [searchQuery, filters, itemsPerPage, activeTab]);
 
     const handleCreateRequest = (data: { loanItems: LoanItem[]; notes: string; }) => {
         const userDivision = divisions.find(d => d.id === currentUser.divisionId)?.name || 'N/A';
@@ -397,11 +446,25 @@ const LoanRequestPage: React.FC<LoanRequestPageProps> = (props) => {
         }
         return (
             <div className="p-4 sm:p-6 md:p-8">
-                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6"><h1 className="text-3xl font-bold text-tm-dark">Daftar Request Pinjam</h1><button onClick={() => setView('form')} className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover">Buat Request Pinjam</button></div>
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6"><h1 className="text-3xl font-bold text-tm-dark">Request Peminjaman</h1><button onClick={() => setView('form')} className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 rounded-lg shadow-sm bg-tm-primary hover:bg-tm-primary-hover">Buat Request Pinjam</button></div>
+                
+                <div className="mb-6 border-b border-gray-200">
+                    <nav className="flex -mb-px space-x-6" aria-label="Tabs">
+                        <button onClick={() => setActiveTab('loans')} className={`py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'loans' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Request Peminjaman</button>
+                        <button onClick={() => setActiveTab('returns')} className={`py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'returns' ? 'border-tm-primary text-tm-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Request Pengembalian</button>
+                    </nav>
+                </div>
+                
                 <div className="p-4 mb-4 bg-white border border-gray-200/80 rounded-xl shadow-md"><div className="relative"><SearchIcon className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 top-1/2 left-3" /><input type="text" placeholder="Cari ID, pemohon, aset..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-10 py-2 pl-10 pr-4 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-tm-accent focus:border-tm-accent" /></div></div>
                 <div className="overflow-hidden bg-white border border-gray-200/80 rounded-xl shadow-md">
-                    <div className="overflow-x-auto custom-scrollbar"><LoanRequestTable requests={paginatedRequests} onDetailClick={(req) => { setSelectedRequest(req); setView('detail'); }} sortConfig={sortConfig} requestSort={requestSort} /></div>
-                    <PaginationControls currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} startIndex={startIndex} endIndex={startIndex + paginatedRequests.length} />
+                    <div className="overflow-x-auto custom-scrollbar">
+                        {activeTab === 'loans' ? (
+                            <LoanRequestTable requests={paginatedRequests} onDetailClick={(req) => { setSelectedRequest(req); setView('detail'); }} sortConfig={sortConfig} requestSort={requestSort} />
+                        ) : (
+                            <ReturnRequestTable returns={paginatedReturns} onDetailClick={(ret) => setActivePage('return-detail', { returnId: ret.id })} />
+                        )}
+                    </div>
+                    <PaginationControls currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} startIndex={startIndex} endIndex={startIndex + (activeTab === 'loans' ? paginatedRequests.length : paginatedReturns.length)} />
                 </div>
             </div>
         );

@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { LoanRequest, User, Asset, Division, PreviewData, LoanRequestStatus, AssetStatus, AssetCategory, ParsedScanResult } from '../../../types';
 import { DetailPageLayout } from '../../../components/layout/DetailPageLayout';
@@ -85,6 +88,12 @@ const LoanStatusIndicator: React.FC<{ status: LoanRequestStatus }> = ({ status }
     );
 };
 
+type ItemState = {
+    approvedQty: number;
+    reason: string;
+    assignedAssets: string[]; // array of asset IDs
+};
+
 // --- COMPONENT BARU: Panel Penetapan Aset (Inline) ---
 const AssignmentPanel: React.FC<{
     request: LoanRequest;
@@ -95,12 +104,6 @@ const AssignmentPanel: React.FC<{
     setScanContext: (context: 'global' | 'form') => void;
     setFormScanCallback: (callback: ((data: ParsedScanResult) => void) | null) => void;
 }> = ({ request, availableAssets, onConfirm, onCancel, setIsGlobalScannerOpen, setScanContext, setFormScanCallback }) => {
-    
-    type ItemState = {
-        approvedQty: number;
-        reason: string;
-        assignedAssets: string[]; // array of asset IDs
-    };
 
     const [itemsState, setItemsState] = useState<Record<number, ItemState>>({});
     const addNotification = useNotification();
@@ -123,6 +126,7 @@ const AssignmentPanel: React.FC<{
         
         setItemsState(prev => {
             const current = prev[itemId];
+            if (!current) return prev;
             const newAssets = [...current.assignedAssets];
             if (validQty > newAssets.length) {
                 newAssets.push(...Array(validQty - newAssets.length).fill(''));
@@ -144,8 +148,6 @@ const AssignmentPanel: React.FC<{
     const handleAssetSelect = (itemId: number, index: number, assetId: string) => {
          setItemsState(prev => {
             const current = prev[itemId];
-            // FIX: Add a guard to ensure 'current' is not undefined before accessing its properties.
-            // This prevents a potential runtime error if the state for the item isn't initialized yet.
             if (!current) {
                 console.error(`State for loan item #${itemId} not found during asset selection.`);
                 return prev;
@@ -185,8 +187,6 @@ const AssignmentPanel: React.FC<{
 
         for (const item of request.items) {
             const state = itemsState[item.id];
-            // FIX: Add a guard to ensure 'state' is not undefined. Although unlikely due to useEffect initialization,
-            // this makes the code more robust against race conditions.
             if (!state) {
                 addNotification(`Data internal untuk item ${item.itemName} tidak ditemukan. Silakan coba lagi.`, 'error');
                 isValid = false;
@@ -693,11 +693,13 @@ const LoanRequestDetailPage: React.FC<LoanRequestDetailPageProps> = (props) => {
                                             <th className="p-2">Nama Aset</th>
                                             <th className="p-2">ID Aset</th>
                                             <th className="p-2">Serial Number</th>
+                                            <th className="p-2">MAC Address</th>
                                             <th className="p-2">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {Object.values(loanRequest.assignedAssetIds || {}).flat().map((assetId, index) => {
+                                        {/* FIX: Corrected property name from 'assignedAssets' to 'assignedAssetIds' and typed assetId */}
+                                        {Object.values(loanRequest.assignedAssetIds || {}).flat().map((assetId: string, index) => {
                                             const asset = assets.find(a => a.id === assetId);
                                             if (!asset) return null;
                                             const isReturned = loanRequest.returnedAssetIds?.includes(assetId);
@@ -713,10 +715,11 @@ const LoanRequestDetailPage: React.FC<LoanRequestDetailPageProps> = (props) => {
                                                             {asset.name}
                                                         </ClickableLink>
                                                     </td>
-                                                    <td className="p-2 text-gray-600 font-mono">{assetId}</td>
-                                                    <td className="p-2 text-gray-600 font-mono">
+                                                    <td className="p-2 font-mono text-gray-600">{assetId}</td>
+                                                    <td className="p-2 font-mono text-gray-600">
                                                         {isBulk ? '-' : (asset.serialNumber || <i className="text-gray-400">Unit Satuan</i>)}
                                                     </td>
+                                                    <td className="p-2 font-mono text-gray-600">{asset.macAddress || 'N/A'}</td>
                                                     <td className="p-2 text-center">
                                                         {isReturned ? <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-semibold">Dikembalikan</span> : <span className="text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">Dipinjam</span>}
                                                     </td>

@@ -143,8 +143,7 @@ const DismantleDetailPage: React.FC<DismantleDetailPageProps> = (props) => {
                 pdf.save(`Dismantle-${dismantle.docNumber}.pdf`);
                 setIsDownloading(false);
                 addNotification('PDF berhasil diunduh.', 'success');
-// FIX: The .catch() was missing its error parameter, and an extra `()` was present after the block.
-            }).catch((err) => {
+            }).catch((err: any) => {
                 addNotification('Gagal membuat PDF.', 'error');
                 setIsDownloading(false);
             });
